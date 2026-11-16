@@ -20,7 +20,11 @@ PLATFORMS: list[Platform] = [
 
 
 async def _async_register_frontend(hass: HomeAssistant) -> None:
-    """Register custom Lovelace card in Home Assistant frontend."""
+    """Register custom Lovelace card in Home Assistant frontend (once)."""
+    flag_key = f"{DOMAIN}_frontend_registered"
+    if hass.data.get(flag_key):
+        return
+
     frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
     card_path = os.path.join(frontend_dir, "smart-storage-card.js")
     url_path = "/smart_storage_ems/smart-storage-card.js"
@@ -31,15 +35,23 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     try:
         from homeassistant.components.http import StaticPathConfig
         await hass.http.async_register_static_paths([StaticPathConfig(url_path, card_path, False)])
+    except RuntimeError:
+        # Route already registered in aiohttp router
+        pass
     except (ImportError, AttributeError):
         if hasattr(hass.http, "register_static_path"):
-            hass.http.register_static_path(url_path, card_path, False)
+            try:
+                hass.http.register_static_path(url_path, card_path, False)
+            except Exception:
+                pass
 
     try:
         from homeassistant.components.frontend import add_extra_js_url
         add_extra_js_url(hass, url_path)
     except Exception as err:
         _LOGGER.debug("Could not add extra js url: %s", err)
+
+    hass.data[flag_key] = True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
