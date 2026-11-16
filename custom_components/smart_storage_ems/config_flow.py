@@ -193,33 +193,33 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class SmartStorageOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for tweaking parameters at runtime."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
+        self._entry = config_entry
+
+    @property
+    def entry(self) -> config_entries.ConfigEntry:
+        """Return the config entry."""
+        if self._entry is not None:
+            return self._entry
+        return self.config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Manage runtime options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        data = {**self.config_entry.data, **self.config_entry.options}
+        data = {**self.entry.data, **self.entry.options}
+        thresh = float(data.get(CONF_IMPORT_GUARD_THRESHOLD) or DEFAULT_IMPORT_GUARD_THRESHOLD)
+        base_soc = float(data.get(CONF_BASE_MIN_SOC) or DEFAULT_BASE_MIN_SOC)
+        winter_soc = float(data.get(CONF_WINTER_MIN_SOC) or DEFAULT_WINTER_MIN_SOC)
+        load_profile = str(data.get(CONF_LOAD_PROFILE_STATIC) or "")
+
         schema = vol.Schema(
             {
-                vol.Optional(
-                    CONF_IMPORT_GUARD_THRESHOLD,
-                    default=data.get(CONF_IMPORT_GUARD_THRESHOLD, DEFAULT_IMPORT_GUARD_THRESHOLD),
-                ): float,
-                vol.Optional(
-                    CONF_BASE_MIN_SOC,
-                    default=data.get(CONF_BASE_MIN_SOC, DEFAULT_BASE_MIN_SOC),
-                ): float,
-                vol.Optional(
-                    CONF_WINTER_MIN_SOC,
-                    default=data.get(CONF_WINTER_MIN_SOC, DEFAULT_WINTER_MIN_SOC),
-                ): float,
-                vol.Optional(
-                    CONF_LOAD_PROFILE_STATIC,
-                    default=data.get(CONF_LOAD_PROFILE_STATIC, ""),
-                ): str,
+                vol.Optional(CONF_IMPORT_GUARD_THRESHOLD, default=thresh): float,
+                vol.Optional(CONF_BASE_MIN_SOC, default=base_soc): float,
+                vol.Optional(CONF_WINTER_MIN_SOC, default=winter_soc): float,
+                vol.Optional(CONF_LOAD_PROFILE_STATIC, default=load_profile): str,
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

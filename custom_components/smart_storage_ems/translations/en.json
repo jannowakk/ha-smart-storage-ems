@@ -59,6 +59,7 @@
     "step": {
       "init": {
         "title": "Smart Storage EMS Options",
+        "description": "Adjust safety thresholds and operating parameters on the fly.",
         "data": {
           "import_guard_threshold": "Import Guard Threshold (W)",
           "base_min_soc": "Base Minimum SoC (summer)",

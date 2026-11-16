@@ -59,6 +59,7 @@
     "step": {
       "init": {
         "title": "Ustawienia Smart Storage EMS",
+        "description": "Dostosuj progi bezpieczeństwa i parametry pracy w locie.",
         "data": {
           "import_guard_threshold": "Próg zadziałania Strażnika Importu (W)",
           "base_min_soc": "Bazowy minimalny SoC (lato)",
