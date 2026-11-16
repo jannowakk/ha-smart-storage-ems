@@ -54,7 +54,7 @@ Zaprojektowana tak, aby całkowicie wyeliminować konieczność pisania setek li
 
 1. Otwórz **HACS** w Home Assistant.
 2. Kliknij menu w prawym górnym rogu (3 kropki) -> **Niestandardowe repozytoria (Custom repositories)**.
-3. Wklej URL repozytorium: `https://github.com/grzegorzgrudzinski/ha-smart-storage-ems`.
+3. Wklej URL repozytorium: `https://github.com/jannowakk/ha-smart-storage-ems`.
 4. Wybierz kategorię: **Integracja (Integration)** i kliknij **Dodaj**.
 5. Znajdź **Smart Storage EMS**, kliknij **Pobierz** i zrestartuj Home Assistant.
 6. Przejdź do **Ustawienia -> Urządzenia i usługi -> Dodaj integrację** i wyszukaj **Smart Storage EMS**.
