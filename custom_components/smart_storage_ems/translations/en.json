@@ -59,12 +59,65 @@
     "step": {
       "init": {
         "title": "Smart Storage EMS Options",
-        "description": "Adjust safety thresholds and operating parameters on the fly.",
+        "description": "Select the configuration category to adjust:",
+        "menu_options": {
+          "inverter": "Inverter & Battery",
+          "emhass": "EMHASS Connection",
+          "tariffs": "Tariffs & Forecasts",
+          "guards": "Zero Import Guard & Reserves"
+        }
+      },
+      "inverter": {
+        "title": "Inverter & Battery Settings",
+        "description": "Change entity mappings for GoodWe inverter and battery storage.",
         "data": {
+          "sensor_soc": "Battery State of Charge (SoC) Sensor",
+          "sensor_battery_power": "Battery Power Sensor",
+          "sensor_pv_power": "PV Power Sensor",
+          "sensor_load_power": "House Consumption Sensor",
+          "sensor_grid_import": "Grid Import Sensor",
+          "select_ems_mode": "EMS Mode Select Entity",
+          "select_inverter_mode": "Inverter Mode Select Entity",
+          "number_ems_power_limit": "EMS Power Limit Entity",
+          "number_export_limit": "Grid Export Limit Entity",
+          "binary_sensor_offgrid": "Off-Grid Sensor"
+        }
+      },
+      "emhass": {
+        "title": "EMHASS Connection Settings",
+        "description": "Adjust EMHASS server parameters.",
+        "data": {
+          "emhass_url": "EMHASS Server URL",
+          "horizon_steps": "Prediction Horizon (steps)",
+          "cost_function": "Cost Function"
+        }
+      },
+      "tariffs": {
+        "title": "Tariffs & Forecast Settings",
+        "description": "Adjust pricing models, prices, and forecast sources.",
+        "data": {
+          "tariff_mode": "Tariff Pricing Model",
+          "g13_price_t1": "Morning Peak Price T1 (PLN/kWh)",
+          "g13_price_t2": "Evening Peak Price T2 (PLN/kWh)",
+          "g13_price_t3": "Off-peak Price T3 (PLN/kWh)",
+          "pv_forecast_entity": "PV Generation Forecast Entity",
+          "pv_forecast_attr": "PV Forecast List Attribute",
+          "load_forecast_entity": "Load Forecast Entity",
+          "load_forecast_attr": "Load Forecast List Attribute",
+          "load_profile_static": "Static Load Profile (W)",
+          "buy_price_entity": "Grid Buy Price Entity",
+          "sell_price_entity": "Grid Sell Price Entity (RCE)"
+        }
+      },
+      "guards": {
+        "title": "Import Guard & Reserve Settings",
+        "description": "Adjust Zero Import Guard thresholds and battery reserves.",
+        "data": {
+          "enable_import_guard": "Enable Zero Import Guard",
           "import_guard_threshold": "Import Guard Threshold (W)",
           "base_min_soc": "Base Minimum SoC (summer)",
           "winter_min_soc": "Winter Minimum SoC (winter)",
-          "load_profile_static": "Static Load Profile (W)"
+          "weather_alert_entity": "Weather Warning Entity"
         }
       }
     }

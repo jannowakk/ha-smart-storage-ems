@@ -58,13 +58,66 @@
   "options": {
     "step": {
       "init": {
-        "title": "Ustawienia Smart Storage EMS",
-        "description": "Dostosuj progi bezpieczeństwa i parametry pracy w locie.",
+        "title": "Konfiguracja Smart Storage EMS",
+        "description": "Wybierz sekcję ustawień, którą chcesz zmodyfikować:",
+        "menu_options": {
+          "inverter": "Falownik i Bateria",
+          "emhass": "Połączenie z EMHASS",
+          "tariffs": "Taryfy i Prognozy",
+          "guards": "Strażnik Importu i Rezerwy Bezpieczeństwa"
+        }
+      },
+      "inverter": {
+        "title": "Ustawienia Falownika i Baterii",
+        "description": "Zmień przypisane encje inwertera GoodWe i magazynu energii.",
         "data": {
+          "sensor_soc": "Sensor poziomu naładowania (SoC)",
+          "sensor_battery_power": "Sensor mocy baterii",
+          "sensor_pv_power": "Sensor produkcji PV",
+          "sensor_load_power": "Sensor zużycia domu",
+          "sensor_grid_import": "Sensor importu z sieci",
+          "select_ems_mode": "Encja trybu EMS (select)",
+          "select_inverter_mode": "Encja trybu falownika (select)",
+          "number_ems_power_limit": "Encja limitu mocy EMS (number)",
+          "number_export_limit": "Encja limitu eksportu do sieci (number)",
+          "binary_sensor_offgrid": "Sensor trybu Off-Grid"
+        }
+      },
+      "emhass": {
+        "title": "Ustawienia EMHASS",
+        "description": "Zmień parametry połączenia z serwerem optymalizacyjnym EMHASS.",
+        "data": {
+          "emhass_url": "Adres URL EMHASS",
+          "horizon_steps": "Horyzont optymalizacji (liczba kroków)",
+          "cost_function": "Funkcja celu"
+        }
+      },
+      "tariffs": {
+        "title": "Taryfy i Prognozy",
+        "description": "Dostosuj model taryfowy, ceny energii oraz źródła prognoz.",
+        "data": {
+          "tariff_mode": "Model taryfy energii",
+          "g13_price_t1": "Cena szczytu przedpołudniowego T1 (zł/kWh)",
+          "g13_price_t2": "Cena szczytu popołudniowego T2 (zł/kWh)",
+          "g13_price_t3": "Cena pozaszczytu T3 (zł/kWh)",
+          "pv_forecast_entity": "Sensor prognozy PV (np. Solcast)",
+          "pv_forecast_attr": "Atrybut prognozy PV",
+          "load_forecast_entity": "Sensor prognozy zużycia domu",
+          "load_forecast_attr": "Atrybut prognozy zużycia",
+          "load_profile_static": "Sztywny profil zużycia (W)",
+          "buy_price_entity": "Sensor cen zakupu",
+          "sell_price_entity": "Sensor cen sprzedaży (RCE)"
+        }
+      },
+      "guards": {
+        "title": "Strażnik Importu i Rezerwy",
+        "description": "Dostosuj progi zadziałania Strażnika Importu oraz minimalne poziomy naładowania.",
+        "data": {
+          "enable_import_guard": "Aktywuj Strażnika Importu",
           "import_guard_threshold": "Próg zadziałania Strażnika Importu (W)",
           "base_min_soc": "Bazowy minimalny SoC (lato)",
           "winter_min_soc": "Zimowy minimalny SoC (zima)",
-          "load_profile_static": "Sztywny profil zużycia (W)"
+          "weather_alert_entity": "Sensor ostrzeżeń burzowych IMGW"
         }
       }
     }

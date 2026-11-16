@@ -191,7 +191,7 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SmartStorageOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for tweaking parameters at runtime."""
+    """Handle menu-based options flow for full runtime reconfiguration."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
         self._entry = config_entry
@@ -204,22 +204,186 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
         return self.config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
-        """Manage runtime options."""
+        """Display the main options menu."""
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=["inverter", "emhass", "tariffs", "guards"],
+        )
+
+    async def async_step_inverter(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Configure Inverter & Battery entities."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(title="", data={**self.entry.options, **user_input})
 
         data = {**self.entry.data, **self.entry.options}
-        thresh = float(data.get(CONF_IMPORT_GUARD_THRESHOLD) or DEFAULT_IMPORT_GUARD_THRESHOLD)
-        base_soc = float(data.get(CONF_BASE_MIN_SOC) or DEFAULT_BASE_MIN_SOC)
-        winter_soc = float(data.get(CONF_WINTER_MIN_SOC) or DEFAULT_WINTER_MIN_SOC)
-        load_profile = str(data.get(CONF_LOAD_PROFILE_STATIC) or "")
-
         schema = vol.Schema(
             {
-                vol.Optional(CONF_IMPORT_GUARD_THRESHOLD, default=thresh): float,
-                vol.Optional(CONF_BASE_MIN_SOC, default=base_soc): float,
-                vol.Optional(CONF_WINTER_MIN_SOC, default=winter_soc): float,
-                vol.Optional(CONF_LOAD_PROFILE_STATIC, default=load_profile): str,
+                vol.Required(
+                    CONF_SENSOR_SOC,
+                    default=data.get(CONF_SENSOR_SOC),
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_SENSOR_BATTERY_POWER,
+                    description={"suggested_value": data.get(CONF_SENSOR_BATTERY_POWER)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Required(
+                    CONF_SENSOR_PV_POWER,
+                    default=data.get(CONF_SENSOR_PV_POWER),
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Required(
+                    CONF_SENSOR_LOAD_POWER,
+                    default=data.get(CONF_SENSOR_LOAD_POWER),
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_SENSOR_GRID_IMPORT,
+                    description={"suggested_value": data.get(CONF_SENSOR_GRID_IMPORT)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Required(
+                    CONF_SELECT_EMS_MODE,
+                    default=data.get(CONF_SELECT_EMS_MODE),
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                vol.Required(
+                    CONF_SELECT_INVERTER_MODE,
+                    default=data.get(CONF_SELECT_INVERTER_MODE),
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                vol.Optional(
+                    CONF_NUMBER_EMS_POWER_LIMIT,
+                    description={"suggested_value": data.get(CONF_NUMBER_EMS_POWER_LIMIT)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_NUMBER_EXPORT_LIMIT,
+                    description={"suggested_value": data.get(CONF_NUMBER_EXPORT_LIMIT)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_BINARY_SENSOR_OFFGRID,
+                    description={"suggested_value": data.get(CONF_BINARY_SENSOR_OFFGRID)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="inverter", data_schema=schema)
+
+    async def async_step_emhass(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Configure EMHASS optimization settings."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data={**self.entry.options, **user_input})
+
+        data = {**self.entry.data, **self.entry.options}
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_EMHASS_URL,
+                    default=data.get(CONF_EMHASS_URL, DEFAULT_EMHASS_URL),
+                ): str,
+                vol.Required(
+                    CONF_HORIZON_STEPS,
+                    default=int(data.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS)),
+                ): int,
+                vol.Required(
+                    CONF_COST_FUNCTION,
+                    default=data.get(CONF_COST_FUNCTION, DEFAULT_COST_FUNCTION),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=["cost", "profit", "self-consumption"],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+        return self.async_show_form(step_id="emhass", data_schema=schema)
+
+    async def async_step_tariffs(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Configure Tariffs & Forecasts."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data={**self.entry.options, **user_input})
+
+        data = {**self.entry.data, **self.entry.options}
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_TARIFF_MODE,
+                    default=data.get(CONF_TARIFF_MODE, TARIFF_MODE_G13),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {"value": TARIFF_MODE_G13, "label": "Taryfa G13 (Tauron - wbudowany kalendarz świąt)"},
+                            {"value": TARIFF_MODE_G12W, "label": "Taryfa G12w (Weekendowa - wbudowana)"},
+                            {"value": TARIFF_MODE_CUSTOM, "label": "Własna encja / Ceny z sensora"},
+                        ],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(
+                    CONF_G13_PRICE_T1,
+                    default=float(data.get(CONF_G13_PRICE_T1, 0.90)),
+                ): float,
+                vol.Optional(
+                    CONF_G13_PRICE_T2,
+                    default=float(data.get(CONF_G13_PRICE_T2, 1.49)),
+                ): float,
+                vol.Optional(
+                    CONF_G13_PRICE_T3,
+                    default=float(data.get(CONF_G13_PRICE_T3, 0.62)),
+                ): float,
+                vol.Optional(
+                    CONF_PV_FORECAST_ENTITY,
+                    description={"suggested_value": data.get(CONF_PV_FORECAST_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_PV_FORECAST_ATTR,
+                    default=data.get(CONF_PV_FORECAST_ATTR, "list"),
+                ): str,
+                vol.Optional(
+                    CONF_LOAD_FORECAST_ENTITY,
+                    description={"suggested_value": data.get(CONF_LOAD_FORECAST_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_LOAD_FORECAST_ATTR,
+                    default=data.get(CONF_LOAD_FORECAST_ATTR, "list"),
+                ): str,
+                vol.Optional(
+                    CONF_LOAD_PROFILE_STATIC,
+                    default=str(data.get(CONF_LOAD_PROFILE_STATIC) or ""),
+                ): str,
+                vol.Optional(
+                    CONF_BUY_PRICE_ENTITY,
+                    description={"suggested_value": data.get(CONF_BUY_PRICE_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_SELL_PRICE_ENTITY,
+                    description={"suggested_value": data.get(CONF_SELL_PRICE_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+            }
+        )
+        return self.async_show_form(step_id="tariffs", data_schema=schema)
+
+    async def async_step_guards(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Configure Guards and Reserves."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data={**self.entry.options, **user_input})
+
+        data = {**self.entry.data, **self.entry.options}
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_ENABLE_IMPORT_GUARD,
+                    default=bool(data.get(CONF_ENABLE_IMPORT_GUARD, True)),
+                ): bool,
+                vol.Optional(
+                    CONF_IMPORT_GUARD_THRESHOLD,
+                    default=float(data.get(CONF_IMPORT_GUARD_THRESHOLD, DEFAULT_IMPORT_GUARD_THRESHOLD)),
+                ): float,
+                vol.Optional(
+                    CONF_BASE_MIN_SOC,
+                    default=float(data.get(CONF_BASE_MIN_SOC, DEFAULT_BASE_MIN_SOC)),
+                ): float,
+                vol.Optional(
+                    CONF_WINTER_MIN_SOC,
+                    default=float(data.get(CONF_WINTER_MIN_SOC, DEFAULT_WINTER_MIN_SOC)),
+                ): float,
+                vol.Optional(
+                    CONF_WEATHER_ALERT_ENTITY,
+                    description={"suggested_value": data.get(CONF_WEATHER_ALERT_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
+            }
+        )
+        return self.async_show_form(step_id="guards", data_schema=schema)
