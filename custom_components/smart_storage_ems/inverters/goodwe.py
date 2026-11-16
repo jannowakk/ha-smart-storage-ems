@@ -1,5 +1,6 @@
 """GoodWe ET / ES Inverter Driver for Smart Storage EMS."""
 
+import asyncio
 import logging
 from typing import Any
 from homeassistant.core import HomeAssistant
@@ -45,17 +46,20 @@ class GoodWeInverter(BaseInverter):
             blocking=True,
         )
 
-    async def _async_set_number(self, entity_id: str | None, value: float) -> None:
+    async def _async_set_number(
+        self, entity_id: str | None, value: float, force: bool = False
+    ) -> None:
         """Helper to call number.set_value safely."""
         if not entity_id or not self.hass.states.get(entity_id):
             return
 
-        current_state = self.hass.states.get(entity_id)
-        try:
-            if current_state and abs(float(current_state.state) - float(value)) < 1.0:
-                return
-        except (ValueError, TypeError):
-            pass
+        if not force:
+            current_state = self.hass.states.get(entity_id)
+            try:
+                if current_state and abs(float(current_state.state) - float(value)) < 1.0:
+                    return
+            except (ValueError, TypeError):
+                pass
 
         _LOGGER.info("GoodWe: Setting %s -> %s", entity_id, value)
         await self.hass.services.async_call(
@@ -83,7 +87,9 @@ class GoodWeInverter(BaseInverter):
         _LOGGER.info("GoodWe: Executing FORCE CHARGE (%dW)", clamped_power)
         await self._async_set_select(self._select_inverter_mode, "general")
         await self._async_set_select(self._select_ems_mode, "charge_battery")
-        await self._async_set_number(self._number_ems_power_limit, clamped_power)
+        # GoodWe Modbus resets or ignores power limit if written in the same tick as mode change
+        await asyncio.sleep(1.0)
+        await self._async_set_number(self._number_ems_power_limit, clamped_power, force=True)
 
     async def async_export_to_grid(self, power_w: int) -> None:
         """Force discharge battery to grid with power limit."""
@@ -91,7 +97,8 @@ class GoodWeInverter(BaseInverter):
         _LOGGER.info("GoodWe: Executing EXPORT TO GRID (%dW)", clamped_power)
         await self._async_set_select(self._select_inverter_mode, "general")
         await self._async_set_select(self._select_ems_mode, "export_ac")
-        await self._async_set_number(self._number_ems_power_limit, clamped_power)
+        await asyncio.sleep(1.0)
+        await self._async_set_number(self._number_ems_power_limit, clamped_power, force=True)
 
     async def async_ensure_export_limit(self, min_limit: int = 10000) -> None:
         """Ensure grid export limit is set high enough."""

@@ -136,14 +136,14 @@ class SmartStorageCard extends HTMLElement {
       powerLabel = `Autokonsumpcja (${Math.round(targetPower)} W)`;
     }
 
-    // Battery power format
+    // Battery power format (GoodWe / EMHASS convention: negative = charging, positive = discharging)
     let battPowerFormatted = `${Math.abs(Math.round(battPower))} W`;
     let battPowerColor = '#616161';
-    if (battPower > 50) {
-      battPowerFormatted = `+${Math.round(battPower)} W (Ładowanie)`;
+    if (battPower < -50) {
+      battPowerFormatted = `-${Math.abs(Math.round(battPower))} W (Ładowanie)`;
       battPowerColor = '#388e3c';
-    } else if (battPower < -50) {
-      battPowerFormatted = `-${Math.abs(Math.round(battPower))} W (Rozładowanie)`;
+    } else if (battPower > 50) {
+      battPowerFormatted = `+${Math.round(battPower)} W (Rozładowanie)`;
       battPowerColor = '#1976d2';
     }
 
