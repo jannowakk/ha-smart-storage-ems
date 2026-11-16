@@ -25,7 +25,7 @@ class EmhassClient:
                 url,
                 data=json.dumps(payload),
                 headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=45),
+                timeout=aiohttp.ClientTimeout(total=90),
             ) as response:
                 if response.status in (200, 201):
                     _LOGGER.info("EMHASS MPC optimization completed successfully")
@@ -44,8 +44,9 @@ class EmhassClient:
         try:
             async with self._session.post(
                 url,
+                data=json.dumps({}),
                 headers={"Content-Type": "application/json"},
-                timeout=aiohttp.ClientTimeout(total=20),
+                timeout=aiohttp.ClientTimeout(total=30),
             ) as response:
                 if response.status in (200, 201):
                     _LOGGER.info("EMHASS published data successfully")

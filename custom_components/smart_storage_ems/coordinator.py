@@ -112,6 +112,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         )
 
+        # Immediate plan enforcement so status updates from "Inicjalizacja" right away
+        await self.async_enforce_plan()
+
     def _get_float_state(self, entity_id: str | None, default: float = 0.0) -> float:
         """Safely fetch float state of an entity."""
         if not entity_id:
@@ -276,6 +279,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if offgrid_state and offgrid_state.state in ("on", "true", "1"):
                 _LOGGER.info("Off-Grid detected! Suspending EMS writes for safety.")
                 self._last_ems_action = "Zabezpieczenie Off-Grid (Pauza)"
+                self._notify_coordinator_update()
                 return
 
         # 2. Export Limit Check
@@ -285,14 +289,17 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.operation_mode == OPERATION_MODE_HOLD:
             await self.inverter.async_hold_battery()
             self._last_ems_action = "Ręczny Standby (Hold)"
+            self._notify_coordinator_update()
             return
         if self.operation_mode == OPERATION_MODE_CHARGE:
             await self.inverter.async_charge_battery(3000)
             self._last_ems_action = "Ręczne Wymuszone Ładowanie"
+            self._notify_coordinator_update()
             return
         if self.operation_mode == OPERATION_MODE_SELF_USE:
             await self.inverter.async_self_consumption()
             self._last_ems_action = "Czysta Autokonsumpcja"
+            self._notify_coordinator_update()
             return
 
         # 4. Automatic MPC Mode
@@ -324,6 +331,20 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self.inverter.async_self_consumption()
             self._last_ems_action = "Autokonsumpcja (Auto)"
 
+        self._notify_coordinator_update()
+
+    def _notify_coordinator_update(self) -> None:
+        """Notify all HA entities and cards of the updated state."""
+        self.async_set_updated_data(
+            {
+                "operation_mode": self.operation_mode,
+                "last_action": self._last_ems_action,
+                "target_power": self._target_power,
+                "dynamic_min_soc": self._dynamic_min_soc,
+                "import_guard_enabled": self.import_guard.enabled,
+            }
+        )
+
     @callback
     def _async_on_import_change(self, event: Any) -> None:
         """Rapid event callback for Strażnik Importu."""
@@ -347,3 +368,4 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         if triggered:
             self._last_ems_action = "Strażnik Importu (Wymuszono Auto)"
+            self._notify_coordinator_update()
