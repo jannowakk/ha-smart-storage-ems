@@ -27,8 +27,13 @@ from .const import (
     CONF_LOAD_PROFILE_STATIC,
     CONF_NUMBER_EMS_POWER_LIMIT,
     CONF_NUMBER_EXPORT_LIMIT,
+    CONF_OUTSIDE_TEMP_ENTITY,
+    CONF_PV_ENERGY_TODAY_ENTITY,
+    CONF_PV_ENERGY_TOMORROW_ENTITY,
+    CONF_PV_ENERGY_THRESHOLD,
     CONF_PV_FORECAST_ATTR,
     CONF_PV_FORECAST_ENTITY,
+    CONF_PV_POWER_THRESHOLD,
     CONF_SELECT_EMS_MODE,
     CONF_SELECT_INVERTER_MODE,
     CONF_SELL_PRICE_ATTR,
@@ -48,6 +53,8 @@ from .const import (
     DEFAULT_HORIZON_STEPS,
     DEFAULT_IMPORT_GUARD_DURATION,
     DEFAULT_IMPORT_GUARD_THRESHOLD,
+    DEFAULT_PV_ENERGY_THRESHOLD,
+    DEFAULT_PV_POWER_THRESHOLD,
     DEFAULT_WINTER_MIN_SOC,
     DOMAIN,
     TARIFF_MODE_CUSTOM,
@@ -159,6 +166,17 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(CONF_PV_FORECAST_ATTR, default="list"): str,
+                vol.Optional(CONF_PV_ENERGY_TODAY_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(CONF_PV_ENERGY_TOMORROW_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(CONF_PV_ENERGY_THRESHOLD, default=DEFAULT_PV_ENERGY_THRESHOLD): float,
+                vol.Optional(CONF_PV_POWER_THRESHOLD, default=DEFAULT_PV_POWER_THRESHOLD): float,
+                vol.Optional(CONF_OUTSIDE_TEMP_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
                 vol.Optional(CONF_LOAD_FORECAST_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
@@ -333,6 +351,22 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     default=data.get(CONF_PV_FORECAST_ATTR, "list"),
                 ): str,
                 vol.Optional(
+                    CONF_PV_ENERGY_TODAY_ENTITY,
+                    description={"suggested_value": data.get(CONF_PV_ENERGY_TODAY_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_PV_ENERGY_TOMORROW_ENTITY,
+                    description={"suggested_value": data.get(CONF_PV_ENERGY_TOMORROW_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_PV_ENERGY_THRESHOLD,
+                    default=float(data.get(CONF_PV_ENERGY_THRESHOLD, DEFAULT_PV_ENERGY_THRESHOLD)),
+                ): float,
+                vol.Optional(
+                    CONF_PV_POWER_THRESHOLD,
+                    default=float(data.get(CONF_PV_POWER_THRESHOLD, DEFAULT_PV_POWER_THRESHOLD)),
+                ): float,
+                vol.Optional(
                     CONF_LOAD_FORECAST_ENTITY,
                     description={"suggested_value": data.get(CONF_LOAD_FORECAST_ENTITY)},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
@@ -380,6 +414,10 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     CONF_WINTER_MIN_SOC,
                     default=float(data.get(CONF_WINTER_MIN_SOC, DEFAULT_WINTER_MIN_SOC)),
                 ): float,
+                vol.Optional(
+                    CONF_OUTSIDE_TEMP_ENTITY,
+                    description={"suggested_value": data.get(CONF_OUTSIDE_TEMP_ENTITY)},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
                 vol.Optional(
                     CONF_WEATHER_ALERT_ENTITY,
                     description={"suggested_value": data.get(CONF_WEATHER_ALERT_ENTITY)},

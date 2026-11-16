@@ -37,6 +37,11 @@
           "g13_price_t3": "Cena pozaszczytu T3 (zł/kWh)",
           "pv_forecast_entity": "Sensor prognozy produkcji PV (np. Solcast)",
           "pv_forecast_attr": "Atrybut zawierający listę prognozy PV (domyślnie: list)",
+          "pv_energy_today_entity": "Sensor prognozy energii PV na dzisiaj (kWh)",
+          "pv_energy_tomorrow_entity": "Sensor prognozy energii PV na jutro (kWh)",
+          "pv_energy_threshold": "Próg energii dla trybu letniego (kWh, domyślnie: 14)",
+          "pv_power_threshold": "Próg mocy PV dla trybu letniego (W, domyślnie: 1000)",
+          "outside_temp_entity": "Sensor temperatury zewnętrznej (termometr lub z pogody)",
           "load_forecast_entity": "Sensor prognozy zużycia domu",
           "load_forecast_attr": "Atrybut listy prognozy zużycia",
           "load_profile_static": "Sztywny profil zużycia (wartości po przecinku w W)",
@@ -102,6 +107,10 @@
           "g13_price_t3": "Cena pozaszczytu T3 (zł/kWh)",
           "pv_forecast_entity": "Sensor prognozy PV (np. Solcast)",
           "pv_forecast_attr": "Atrybut prognozy PV",
+          "pv_energy_today_entity": "Sensor prognozy energii PV na dzisiaj (kWh)",
+          "pv_energy_tomorrow_entity": "Sensor prognozy energii PV na jutro (kWh)",
+          "pv_energy_threshold": "Próg energii dla trybu letniego (kWh)",
+          "pv_power_threshold": "Próg mocy PV dla trybu letniego (W)",
           "load_forecast_entity": "Sensor prognozy zużycia domu",
           "load_forecast_attr": "Atrybut prognozy zużycia",
           "load_profile_static": "Sztywny profil zużycia (W)",
@@ -117,6 +126,7 @@
           "import_guard_threshold": "Próg zadziałania Strażnika Importu (W)",
           "base_min_soc": "Bazowy minimalny SoC (lato)",
           "winter_min_soc": "Zimowy minimalny SoC (zima)",
+          "outside_temp_entity": "Sensor temperatury zewnętrznej (termometr lub prognoza pogody)",
           "weather_alert_entity": "Sensor ostrzeżeń burzowych IMGW"
         }
       }

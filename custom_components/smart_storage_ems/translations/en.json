@@ -37,6 +37,11 @@
           "g13_price_t3": "Off-peak Price T3 (PLN/kWh)",
           "pv_forecast_entity": "PV Generation Forecast Entity",
           "pv_forecast_attr": "PV Forecast List Attribute (default: list)",
+          "pv_energy_today_entity": "PV Energy Forecast Today Sensor (kWh)",
+          "pv_energy_tomorrow_entity": "PV Energy Forecast Tomorrow Sensor (kWh)",
+          "pv_energy_threshold": "Solar Day Energy Threshold (kWh, default: 14)",
+          "pv_power_threshold": "Solar Day Power Threshold (W, default: 1000)",
+          "outside_temp_entity": "Outside Temperature Sensor (thermometer or weather forecast)",
           "load_forecast_entity": "Load Forecast Entity",
           "load_forecast_attr": "Load Forecast List Attribute",
           "load_profile_static": "Static Load Profile (comma-separated Watts)",
@@ -102,6 +107,10 @@
           "g13_price_t3": "Off-peak Price T3 (PLN/kWh)",
           "pv_forecast_entity": "PV Generation Forecast Entity",
           "pv_forecast_attr": "PV Forecast List Attribute",
+          "pv_energy_today_entity": "PV Energy Forecast Today Sensor (kWh)",
+          "pv_energy_tomorrow_entity": "PV Energy Forecast Tomorrow Sensor (kWh)",
+          "pv_energy_threshold": "Solar Day Energy Threshold (kWh)",
+          "pv_power_threshold": "Solar Day Power Threshold (W)",
           "load_forecast_entity": "Load Forecast Entity",
           "load_forecast_attr": "Load Forecast List Attribute",
           "load_profile_static": "Static Load Profile (W)",
@@ -117,6 +126,7 @@
           "import_guard_threshold": "Import Guard Threshold (W)",
           "base_min_soc": "Base Minimum SoC (summer)",
           "winter_min_soc": "Winter Minimum SoC (winter)",
+          "outside_temp_entity": "Outside Temperature Sensor (thermometer or forecast)",
           "weather_alert_entity": "Weather Warning Entity"
         }
       }

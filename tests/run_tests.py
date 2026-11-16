@@ -41,6 +41,11 @@ from tests.test_polish_tariffs import (
     test_polish_holidays,
     test_g13_chain_generation,
 )
+from tests.test_season_manager import (
+    test_season_manager_solar_day_transition,
+    test_season_manager_afternoon_cutoff,
+    test_dynamic_min_soc_frost_factor,
+)
 
 if __name__ == "__main__":
     print("Running Smart Storage EMS unit tests...")
@@ -62,5 +67,15 @@ if __name__ == "__main__":
     test_g13_chain_generation()
     print("✓ test_g13_chain_generation passed")
 
+    test_season_manager_solar_day_transition()
+    print("✓ test_season_manager_solar_day_transition passed")
+
+    test_season_manager_afternoon_cutoff()
+    print("✓ test_season_manager_afternoon_cutoff passed")
+
+    test_dynamic_min_soc_frost_factor()
+    print("✓ test_dynamic_min_soc_frost_factor passed")
+
     print("\nAll unit tests passed successfully!")
+
 

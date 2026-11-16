@@ -34,6 +34,12 @@ CONF_G13_PRICE_T3 = "g13_price_t3"
 
 CONF_PV_FORECAST_ENTITY = "pv_forecast_entity"
 CONF_PV_FORECAST_ATTR = "pv_forecast_attr"
+CONF_PV_ENERGY_TODAY_ENTITY = "pv_energy_today_entity"
+CONF_PV_ENERGY_TOMORROW_ENTITY = "pv_energy_tomorrow_entity"
+CONF_OUTSIDE_TEMP_ENTITY = "outside_temp_entity"
+CONF_PV_ENERGY_THRESHOLD = "pv_energy_threshold"
+CONF_PV_POWER_THRESHOLD = "pv_power_threshold"
+
 CONF_LOAD_FORECAST_ENTITY = "load_forecast_entity"
 CONF_LOAD_FORECAST_ATTR = "load_forecast_attr"
 CONF_LOAD_PROFILE_STATIC = "load_profile_static"
@@ -64,6 +70,8 @@ DEFAULT_BASE_MIN_SOC = 0.15  # 15%
 DEFAULT_WINTER_MIN_SOC = 0.50  # 50%
 DEFAULT_MAX_POWER_LIMIT = 8000  # Watts
 DEFAULT_GRID_EXPORT_MIN_LIMIT = 10000  # Watts
+DEFAULT_PV_ENERGY_THRESHOLD = 14.0  # kWh
+DEFAULT_PV_POWER_THRESHOLD = 1000.0  # Watts
 
 # Operational Modes
 OPERATION_MODE_AUTO = "auto_mpc"

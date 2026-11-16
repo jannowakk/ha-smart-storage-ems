@@ -27,8 +27,13 @@ from .const import (
     CONF_LOAD_FORECAST_ATTR,
     CONF_LOAD_FORECAST_ENTITY,
     CONF_LOAD_PROFILE_STATIC,
+    CONF_OUTSIDE_TEMP_ENTITY,
+    CONF_PV_ENERGY_TODAY_ENTITY,
+    CONF_PV_ENERGY_TOMORROW_ENTITY,
+    CONF_PV_ENERGY_THRESHOLD,
     CONF_PV_FORECAST_ATTR,
     CONF_PV_FORECAST_ENTITY,
+    CONF_PV_POWER_THRESHOLD,
     CONF_SELL_PRICE_ATTR,
     CONF_SELL_PRICE_ENTITY,
     CONF_SELL_PRICE_STATIC,
@@ -44,6 +49,8 @@ from .const import (
     DEFAULT_COST_FUNCTION,
     DEFAULT_EMHASS_URL,
     DEFAULT_HORIZON_STEPS,
+    DEFAULT_PV_ENERGY_THRESHOLD,
+    DEFAULT_PV_POWER_THRESHOLD,
     DEFAULT_WINTER_MIN_SOC,
     DOMAIN,
     OPERATION_MODE_AUTO,
@@ -56,6 +63,7 @@ from .const import (
 from .emhass_client import EmhassClient
 from .guards.import_guard import ImportGuard
 from .inverters import get_inverter_driver
+from .season_manager import SeasonManager
 from .tariffs import generate_g12w_chain, generate_g13_chain
 
 _LOGGER = logging.getLogger(__name__)
@@ -86,6 +94,11 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             duration=config.get(CONF_IMPORT_GUARD_DURATION, 15),
         )
         self.import_guard.set_enabled(config.get(CONF_ENABLE_IMPORT_GUARD, True))
+
+        energy_thresh = float(config.get(CONF_PV_ENERGY_THRESHOLD, DEFAULT_PV_ENERGY_THRESHOLD))
+        power_thresh = float(config.get(CONF_PV_POWER_THRESHOLD, DEFAULT_PV_POWER_THRESHOLD))
+        self.season_manager = SeasonManager(energy_threshold=energy_thresh, power_threshold=power_thresh)
+        self.current_season = "zima"
 
         self.operation_mode = OPERATION_MODE_AUTO
         self.storm_reserve_enabled = True
@@ -160,20 +173,42 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return [default_val] * length
 
     def calculate_dynamic_min_soc(self) -> float:
-        """Calculate dynamic minimum SoC based on season and storm alerts."""
+        """Calculate dynamic seasonal mode and minimum SoC based on thermodynamics, solar & storm alerts."""
         base_min = float(self.config.get(CONF_BASE_MIN_SOC, DEFAULT_BASE_MIN_SOC))
-        winter_min = float(self.config.get(CONF_WINTER_MIN_SOC, DEFAULT_WINTER_MIN_SOC))
 
-        now = datetime.now()
-        is_winter = now.month in (10, 11, 12, 1, 2, 3)
-        min_soc = winter_min if is_winter else base_min
+        # 1. Read solar values & outside temperature
+        pv_power = self._get_float_state(self.config.get(CONF_SENSOR_PV_POWER), 0.0)
+        energy_today = self._get_float_state(self.config.get(CONF_PV_ENERGY_TODAY_ENTITY), 0.0)
+        energy_tomorrow = self._get_float_state(self.config.get(CONF_PV_ENERGY_TOMORROW_ENTITY), 0.0)
 
-        # Check storm alert
+        # Outside temperature (from dedicated sensor or weather forecast entity)
+        temp_entity = self.config.get(CONF_OUTSIDE_TEMP_ENTITY)
+        outside_temp = self._get_float_state(temp_entity, 10.0) if temp_entity else 10.0
+
+        # Storm alert
         alert_entity = self.config.get(CONF_WEATHER_ALERT_ENTITY)
+        storm_active = False
         if self.storm_reserve_enabled and alert_entity:
             alert_state = self.hass.states.get(alert_entity)
             if alert_state and alert_state.state in ("on", "true", "1"):
-                min_soc = max(min_soc, 0.60)  # Reserve at least 60% during severe storm warnings
+                storm_active = True
+
+        # 2. Determine season (lato / zima)
+        self.current_season = self.season_manager.determine_season(
+            now_dt=datetime.now(),
+            pv_power=pv_power,
+            energy_today=energy_today,
+            energy_tomorrow=energy_tomorrow,
+        )
+
+        # 3. Calculate dynamic Min SoC using thermal frost factor
+        min_soc = self.season_manager.calculate_dynamic_min_soc(
+            season=self.current_season,
+            outside_temp=outside_temp,
+            base_min_soc=base_min,
+            storm_active=storm_active,
+            energy_tomorrow=energy_tomorrow,
+        )
 
         self._dynamic_min_soc = min_soc
         return min_soc
@@ -228,9 +263,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         pv_now = self._get_float_state(self.config.get(CONF_SENSOR_PV_POWER), 0.0)
         load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 400.0)
         min_soc = self.calculate_dynamic_min_soc()
-
-        now = datetime.now()
-        is_winter = now.month in (10, 11, 12, 1, 2, 3)
+        is_winter = (self.current_season == "zima")
         final_soc = max(min_soc, min_soc) if is_winter else max(1.0 - soc, min_soc)
         deficit_cost = 1.0 if is_winter else 0.40
 
@@ -341,6 +374,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "last_action": self._last_ems_action,
                 "target_power": self._target_power,
                 "dynamic_min_soc": self._dynamic_min_soc,
+                "season": self.current_season,
                 "import_guard_enabled": self.import_guard.enabled,
             }
         )

@@ -24,6 +24,7 @@ async def async_setup_entry(
             SmartStorageStatusSensor(coordinator, entry),
             SmartStorageTargetPowerSensor(coordinator, entry),
             SmartStorageDynamicMinSocSensor(coordinator, entry),
+            SmartStorageSeasonModeSensor(coordinator, entry),
         ]
     )
 
@@ -75,3 +76,31 @@ class SmartStorageDynamicMinSocSensor(CoordinatorEntity[SmartStorageCoordinator]
     def native_value(self) -> float:
         """Return dynamic min SoC percentage."""
         return round(self.coordinator._dynamic_min_soc * 100.0, 1)
+
+
+class SmartStorageSeasonModeSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
+    """Sensor reporting thermodynamic seasonal mode (lato / zima)."""
+
+    def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_seasonal_mode"
+        self._attr_name = "Smart Storage EMS: Tryb Sezonowy"
+
+    @property
+    def native_value(self) -> str:
+        """Return the seasonal mode."""
+        return self.coordinator.current_season
+
+    @property
+    def icon(self) -> str:
+        """Dynamic icon depending on seasonal mode."""
+        return "mdi:weather-sunny" if self.coordinator.current_season == "lato" else "mdi:snowflake"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Extra audit attributes."""
+        return {
+            "energy_threshold_kwh": self.coordinator.season_manager.energy_threshold,
+            "power_threshold_w": self.coordinator.season_manager.power_threshold,
+            "calculated_min_soc_pct": round(self.coordinator._dynamic_min_soc * 100.0, 1),
+        }
