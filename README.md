@@ -68,10 +68,32 @@ Po dodaniu integracji otrzymujesz gotowe encje do sterowania i dashboardów Love
 * `sensor.smart_storage_ems_status`: Aktualny stan logiki (np. `Autokonsumpcja (Auto)`, `Ładowanie z sieci (3000W)`, `Standby (Oszczędzanie w taniej strefie)`).
 * `sensor.smart_storage_ems_moc_zadana`: Obliczona moc zadana dla baterii w Watach.
 * `sensor.smart_storage_ems_dynamiczny_min_soc`: Dynamiczny próg rezerwy w %.
+* `sensor.smart_storage_ems_tryb_sezonowy`: Aktualny tryb sezonowy (`lato` / `zima`).
 * `select.smart_storage_ems_tryb_pracy`: Przełącznik trybu (`auto_mpc`, `hold_standby`, `force_charge`, `self_use`).
 * `switch.smart_storage_ems_straznik_importu`: Włącznik/wyłącznik Strażnika Importu.
 * `switch.smart_storage_ems_rezerwa_burzowa`: Włącznik rezerwy na wypadek burzy / blackoutu.
 * `button.smart_storage_ems_przelicz_mpc_teraz`: Przycisk natychmiastowego wymuszenia optymalizacji.
+
+---
+
+## 📊 Wbudowane Karty Dashboardu Lovelace
+
+Integracja automatycznie rejestruje dwie dedykowane karty frontendowe (bez zewnętrznych zależności):
+
+1. **Karta sterująca (`custom:smart-storage-card`)** – podgląd SoC, marker dynamicznej rezerwy, parametry na żywo oraz przyciski szybkiej zmiany trybu.
+2. **Interaktywny wykres 48h MPC (`custom:smart-storage-chart-card`)** – dwuosiowy wykres Canvas pokazujący plan ładowania/rozładowania baterii, krzywą SoC, prognozę PV, zużycie domu i kafle KPI.
+
+Przykładowa konfiguracja YAML w dashboardzie:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: custom:smart-storage-card
+    title: Smart Storage EMS
+  - type: custom:smart-storage-chart-card
+    title: "Smart Storage EMS: Plan Optymalizacji MPC (48h)"
+    horizon_hours: 48
+```
 
 ---
 
@@ -80,7 +102,7 @@ Po dodaniu integracji otrzymujesz gotowe encje do sterowania i dashboardów Love
 Projekt zawiera zestaw testów jednostkowych:
 
 ```bash
-python3 tests/run_tests.py
+PYTHONPATH=. python3 tests/run_tests.py
 ```
 
 ---
@@ -89,10 +111,10 @@ python3 tests/run_tests.py
 
 - [x] MVP: Obsługa EMHASS Long-MPC + Falownik GoodWe ET/ES.
 - [x] Strażnik Importu czasu rzeczywistego (Zero Import Guard).
-- [x] Opcje dynamicznego Min SoC (Sezon zimowy + Ostrzeżenia burzowe).
-- [ ] Wbudowany moduł taryf polskich (G12w, G13 z kalendarzem świąt).
+- [x] Opcje dynamicznego Min SoC (Sezon zimowy + Współczynnik mrozu + Ostrzeżenia burzowe).
+- [x] Wbudowany moduł taryf polskich (G12w, G13 z kalendarzem świąt stałych i ruchomych).
+- [x] Dedykowane karty dashboardu Lovelace do sterowania i wizualizacji planu ładowania/rozładowania (48h).
 - [ ] Kolejne drivery falowników: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
-- [ ] Dedykowana karta dashboardu Lovelace do wizualizacji planu ładowania/rozładowania.
 
 ---
 
