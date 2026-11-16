@@ -246,13 +246,25 @@ class SmartStorageChartCard extends HTMLElement {
         pointTime = new Date(baseTime.getTime() + i * 30 * 60000);
       }
 
+      // Resilient parsing across all EMHASS naming conventions
+      const rawBatt = bItem.p_batt_forecast ?? bItem.P_batt ?? bItem.p_batt ?? bItem.battery_power ?? 0;
+      const rawSoc = sItem.soc_batt_forecast ?? sItem.battery_scheduled_soc ?? sItem.SOC_opt ?? sItem.soc_batt ?? sItem.soc ?? 0;
+      const rawPv = pItem.p_pv_forecast ?? pItem.P_PV ?? pItem.p_pv ?? pItem.pv_power ?? 0;
+      const rawLoad = lItem.p_load_forecast ?? lItem.P_Load ?? lItem.p_load ?? lItem.load_power ?? 0;
+      const rawGrid = gItem.p_grid_forecast ?? gItem.P_grid ?? gItem.p_grid ?? gItem.grid_power ?? 0;
+
+      let socVal = parseFloat(rawSoc) || 0;
+      if (socVal > 0 && socVal <= 1.0) {
+        socVal = socVal * 100.0;
+      }
+
       dataPoints.push({
         time: pointTime,
-        p_batt: parseFloat(bItem.p_batt_forecast) || 0,
-        soc: parseFloat(sItem.soc_batt_forecast) || 0,
-        pv: parseFloat(pItem.p_pv_forecast) || 0,
-        load: parseFloat(lItem.p_load_forecast) || 0,
-        grid: parseFloat(gItem.p_grid_forecast) || 0,
+        p_batt: parseFloat(rawBatt) || 0,
+        soc: socVal,
+        pv: parseFloat(rawPv) || 0,
+        load: parseFloat(rawLoad) || 0,
+        grid: parseFloat(rawGrid) || 0,
         min_soc: dynamicMinSoc,
       });
     }
@@ -388,34 +400,66 @@ class SmartStorageChartCard extends HTMLElement {
       ctx.fillText(`${soc}%`, padLeft + plotW + 6, ySoc + 3);
     });
 
-    // 2. Draw Bars for P_batt
+    // 2. Draw Battery Power Areas and Continuous Line
     if (this._filterMode === 'all' || this._filterMode === 'battery') {
-      const barWidth = Math.max(2, (plotW / points.length) * 0.75);
+      const stepW = points.length > 1 ? plotW / (points.length - 1) : plotW;
 
+      // 2A. Shaded power areas (under / above zero line)
       points.forEach((p, idx) => {
-        const x = getX(idx) - barWidth / 2;
+        const x = getX(idx);
         const pVal = p.p_batt;
+        const halfStep = stepW / 2;
+        const xLeft = Math.max(padLeft, x - halfStep);
+        const xRight = Math.min(padLeft + plotW, x + halfStep);
+        const wSeg = xRight - xLeft;
 
         if (Math.abs(pVal) > 20) {
           if (pVal < -20) {
-            // Charging (Green)
-            ctx.fillStyle = '#4caf50';
+            // Charging from Grid/PV (Green Area below zero)
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.45)';
             const yTop = yZero;
             const yBottom = getYPower(pVal);
-            ctx.fillRect(x, yTop, barWidth, yBottom - yTop);
+            ctx.fillRect(xLeft, yTop, wSeg, yBottom - yTop);
           } else if (p.grid < -50 && pVal > 50) {
-            // Grid Export (Orange/Amber)
-            ctx.fillStyle = '#ff9800';
+            // Export to Grid (Amber/Orange Area above zero)
+            ctx.fillStyle = 'rgba(255, 152, 0, 0.50)';
             const yTop = getYPower(pVal);
-            ctx.fillRect(x, yTop, barWidth, yZero - yTop);
+            ctx.fillRect(xLeft, yTop, wSeg, yZero - yTop);
           } else {
-            // Self-consumption (Blue)
-            ctx.fillStyle = '#2196f3';
+            // Self-consumption to House (Blue Area above zero)
+            ctx.fillStyle = 'rgba(33, 150, 243, 0.45)';
             const yTop = getYPower(pVal);
-            ctx.fillRect(x, yTop, barWidth, yZero - yTop);
+            ctx.fillRect(xLeft, yTop, wSeg, yZero - yTop);
           }
         }
       });
+
+      // 2B. Continuous Battery Power Outline Curve
+      ctx.lineWidth = 2;
+      for (let i = 0; i < points.length - 1; i++) {
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const x1 = getX(i);
+        const y1 = getYPower(p1.p_batt);
+        const x2 = getX(i + 1);
+        const y2 = getYPower(p2.p_batt);
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+
+        // Segment stroke color according to operation mode
+        if (p1.p_batt < -20 || p2.p_batt < -20) {
+          ctx.strokeStyle = '#4caf50'; // Green: charging
+        } else if ((p1.grid < -50 && p1.p_batt > 50) || (p2.grid < -50 && p2.p_batt > 50)) {
+          ctx.strokeStyle = '#ff9800'; // Orange: export
+        } else if (p1.p_batt > 20 || p2.p_batt > 20) {
+          ctx.strokeStyle = '#2196f3'; // Blue: self-consumption
+        } else {
+          ctx.strokeStyle = 'rgba(128, 128, 128, 0.4)'; // Neutral / zero
+        }
+        ctx.stroke();
+      }
     }
 
     // 3. Draw Solar & Load Curves
