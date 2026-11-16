@@ -29,8 +29,12 @@
       },
       "forecasts": {
         "title": "Step 3: Forecasts, Tariffs & Safety Guards",
-        "description": "Configure forecast entities and tariff prices or fallback static values.",
+        "description": "Configure forecasts and choose a built-in Polish tariff or external sensors.",
         "data": {
+          "tariff_mode": "Tariff Pricing Model",
+          "g13_price_t1": "Morning Peak Price T1 (PLN/kWh)",
+          "g13_price_t2": "Evening Peak Price T2 (PLN/kWh)",
+          "g13_price_t3": "Off-peak Price T3 (PLN/kWh)",
           "pv_forecast_entity": "PV Generation Forecast Entity",
           "pv_forecast_attr": "PV Forecast List Attribute (default: list)",
           "load_forecast_entity": "Load Forecast Entity",

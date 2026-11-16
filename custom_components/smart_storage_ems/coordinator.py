@@ -18,6 +18,9 @@ from .const import (
     CONF_COST_FUNCTION,
     CONF_EMHASS_URL,
     CONF_ENABLE_IMPORT_GUARD,
+    CONF_G13_PRICE_T1,
+    CONF_G13_PRICE_T2,
+    CONF_G13_PRICE_T3,
     CONF_HORIZON_STEPS,
     CONF_IMPORT_GUARD_DURATION,
     CONF_IMPORT_GUARD_THRESHOLD,
@@ -34,6 +37,7 @@ from .const import (
     CONF_SENSOR_LOAD_POWER,
     CONF_SENSOR_PV_POWER,
     CONF_SENSOR_SOC,
+    CONF_TARIFF_MODE,
     CONF_WEATHER_ALERT_ENTITY,
     CONF_WINTER_MIN_SOC,
     DEFAULT_BASE_MIN_SOC,
@@ -46,10 +50,13 @@ from .const import (
     OPERATION_MODE_CHARGE,
     OPERATION_MODE_HOLD,
     OPERATION_MODE_SELF_USE,
+    TARIFF_MODE_G12W,
+    TARIFF_MODE_G13,
 )
 from .emhass_client import EmhassClient
 from .guards.import_guard import ImportGuard
 from .inverters import get_inverter_driver
+from .tariffs import generate_g12w_chain, generate_g13_chain
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -187,13 +194,25 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             400.0,
             horizon,
         )
-        buy_prices = self._get_list_data(
-            self.config.get(CONF_BUY_PRICE_ENTITY),
-            self.config.get(CONF_BUY_PRICE_ATTR),
-            self.config.get(CONF_BUY_PRICE_STATIC),
-            0.65,
-            horizon,
-        )
+        # Determine Buy Prices (Built-in Polish Tariffs or Entity)
+        tariff_mode = self.config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
+        now_dt = datetime.now()
+        if tariff_mode == TARIFF_MODE_G13:
+            t1 = float(self.config.get(CONF_G13_PRICE_T1, 0.90))
+            t2 = float(self.config.get(CONF_G13_PRICE_T2, 1.49))
+            t3 = float(self.config.get(CONF_G13_PRICE_T3, 0.62))
+            buy_prices = generate_g13_chain(now_dt, horizon_steps=horizon, p_t1=t1, p_t2=t2, p_t3=t3)
+        elif tariff_mode == TARIFF_MODE_G12W:
+            buy_prices = generate_g12w_chain(now_dt, horizon_steps=horizon)
+        else:
+            buy_prices = self._get_list_data(
+                self.config.get(CONF_BUY_PRICE_ENTITY),
+                self.config.get(CONF_BUY_PRICE_ATTR),
+                self.config.get(CONF_BUY_PRICE_STATIC),
+                0.65,
+                horizon,
+            )
+
         sell_prices = self._get_list_data(
             self.config.get(CONF_SELL_PRICE_ENTITY),
             self.config.get(CONF_SELL_PRICE_ATTR),

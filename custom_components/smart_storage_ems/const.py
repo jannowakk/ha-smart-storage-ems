@@ -22,6 +22,16 @@ CONF_NUMBER_EXPORT_LIMIT = "number_export_limit"
 CONF_BINARY_SENSOR_OFFGRID = "binary_sensor_offgrid"
 
 # Configuration Keys - Forecasts & Tariffs
+CONF_TARIFF_MODE = "tariff_mode"
+TARIFF_MODE_G13 = "g13"
+TARIFF_MODE_G12W = "g12w"
+TARIFF_MODE_CUSTOM = "custom"
+TARIFF_MODES = [TARIFF_MODE_G13, TARIFF_MODE_G12W, TARIFF_MODE_CUSTOM]
+
+CONF_G13_PRICE_T1 = "g13_price_t1"
+CONF_G13_PRICE_T2 = "g13_price_t2"
+CONF_G13_PRICE_T3 = "g13_price_t3"
+
 CONF_PV_FORECAST_ENTITY = "pv_forecast_entity"
 CONF_PV_FORECAST_ATTR = "pv_forecast_attr"
 CONF_LOAD_FORECAST_ENTITY = "load_forecast_entity"

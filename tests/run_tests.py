@@ -37,6 +37,10 @@ from tests.test_import_guard import (
     test_import_guard_does_not_trigger_when_battery_empty,
     test_import_guard_does_not_trigger_when_charging,
 )
+from tests.test_polish_tariffs import (
+    test_polish_holidays,
+    test_g13_chain_generation,
+)
 
 if __name__ == "__main__":
     print("Running Smart Storage EMS unit tests...")
@@ -52,4 +56,11 @@ if __name__ == "__main__":
     test_import_guard_does_not_trigger_when_charging()
     print("✓ test_import_guard_does_not_trigger_when_charging passed")
 
+    test_polish_holidays()
+    print("✓ test_polish_holidays passed")
+
+    test_g13_chain_generation()
+    print("✓ test_g13_chain_generation passed")
+
     print("\nAll unit tests passed successfully!")
+

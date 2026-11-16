@@ -1,6 +1,7 @@
 """Smart Storage EMS Home Assistant Integration."""
 
 import logging
+import os
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -21,6 +22,16 @@ PLATFORMS: list[Platform] = [
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Smart Storage EMS from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    # Register custom Lovelace card static path
+    frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
+    card_path = os.path.join(frontend_dir, "smart-storage-card.js")
+    if os.path.exists(card_path):
+        hass.http.register_static_path(
+            "/smart_storage_ems/smart-storage-card.js",
+            card_path,
+            cache_headers=False,
+        )
 
     coordinator = SmartStorageCoordinator(hass, {**entry.data, **entry.options})
     await coordinator.async_setup()
