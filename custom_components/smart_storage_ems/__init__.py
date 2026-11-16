@@ -19,19 +19,34 @@ PLATFORMS: list[Platform] = [
 ]
 
 
+async def _async_register_frontend(hass: HomeAssistant) -> None:
+    """Register custom Lovelace card in Home Assistant frontend."""
+    frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
+    card_path = os.path.join(frontend_dir, "smart-storage-card.js")
+    url_path = "/smart_storage_ems/smart-storage-card.js"
+
+    if not os.path.exists(card_path):
+        return
+
+    try:
+        from homeassistant.components.http import StaticPathConfig
+        await hass.http.async_register_static_paths([StaticPathConfig(url_path, card_path, False)])
+    except (ImportError, AttributeError):
+        if hasattr(hass.http, "register_static_path"):
+            hass.http.register_static_path(url_path, card_path, False)
+
+    try:
+        from homeassistant.components.frontend import add_extra_js_url
+        add_extra_js_url(hass, url_path)
+    except Exception as err:
+        _LOGGER.debug("Could not add extra js url: %s", err)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Smart Storage EMS from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Register custom Lovelace card static path
-    frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
-    card_path = os.path.join(frontend_dir, "smart-storage-card.js")
-    if os.path.exists(card_path):
-        hass.http.register_static_path(
-            "/smart_storage_ems/smart-storage-card.js",
-            card_path,
-            cache_headers=False,
-        )
+    await _async_register_frontend(hass)
 
     coordinator = SmartStorageCoordinator(hass, {**entry.data, **entry.options})
     await coordinator.async_setup()
