@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Step 1: Inverter & Battery Setup",
+        "description": "Select your GoodWe inverter and battery entities configured in Home Assistant.",
+        "data": {
+          "inverter_type": "Inverter Type",
+          "sensor_soc": "Battery State of Charge (SoC) Sensor",
+          "sensor_battery_power": "Battery Power Sensor",
+          "sensor_pv_power": "Current PV Power Sensor",
+          "sensor_load_power": "House Consumption Load Sensor",
+          "sensor_grid_import": "Grid Import Power Sensor",
+          "select_ems_mode": "EMS Mode Select Entity",
+          "select_inverter_mode": "Inverter Mode Select Entity",
+          "number_ems_power_limit": "EMS Power Limit Entity",
+          "number_export_limit": "Grid Export Limit Entity",
+          "binary_sensor_offgrid": "Off-Grid / Backup Binary Sensor"
+        }
+      },
+      "emhass": {
+        "title": "Step 2: EMHASS Connection",
+        "description": "Configure connection to the EMHASS optimization server.",
+        "data": {
+          "emhass_url": "EMHASS Server URL",
+          "horizon_steps": "Prediction Horizon (number of steps, e.g. 96 = 48h)",
+          "cost_function": "Cost Function (cost / profit / self-consumption)"
+        }
+      },
+      "forecasts": {
+        "title": "Step 3: Forecasts, Tariffs & Safety Guards",
+        "description": "Configure forecast entities and tariff prices or fallback static values.",
+        "data": {
+          "pv_forecast_entity": "PV Generation Forecast Entity",
+          "pv_forecast_attr": "PV Forecast List Attribute (default: list)",
+          "load_forecast_entity": "Load Forecast Entity",
+          "load_forecast_attr": "Load Forecast List Attribute",
+          "load_profile_static": "Static Load Profile (comma-separated Watts)",
+          "buy_price_entity": "Grid Buy Price Forecast Entity",
+          "buy_price_attr": "Buy Price List Attribute",
+          "buy_price_static": "Default Static Buy Price",
+          "sell_price_entity": "Grid Sell Price Forecast Entity",
+          "sell_price_attr": "Sell Price List Attribute",
+          "sell_price_static": "Default Static Sell Price",
+          "enable_import_guard": "Enable Zero Import Guard",
+          "import_guard_threshold": "Import Guard Trigger Threshold (W)",
+          "base_min_soc": "Base Minimum SoC (summer, e.g. 0.15 = 15%)",
+          "winter_min_soc": "Winter Minimum SoC (October-March, e.g. 0.50 = 50%)",
+          "weather_alert_entity": "Severe Weather Warning Entity (Optional)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Smart Storage EMS Options",
+        "data": {
+          "import_guard_threshold": "Import Guard Threshold (W)",
+          "base_min_soc": "Base Minimum SoC (summer)",
+          "winter_min_soc": "Winter Minimum SoC (winter)",
+          "load_profile_static": "Static Load Profile (W)"
+        }
+      }
+    }
+  }
+}

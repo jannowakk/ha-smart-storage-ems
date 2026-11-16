@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Krok 1: Konfiguracja Falownika i Baterii",
+        "description": "Wybierz encje falownika GoodWe i baterii zainstalowane w Home Assistant.",
+        "data": {
+          "inverter_type": "Typ falownika",
+          "sensor_soc": "Sensor poziomu naładowania (SoC)",
+          "sensor_battery_power": "Sensor mocy baterii",
+          "sensor_pv_power": "Sensor aktualnej produkcji PV",
+          "sensor_load_power": "Sensor zużycia domu (House Load)",
+          "sensor_grid_import": "Sensor poboru mocy z sieci (Import)",
+          "select_ems_mode": "Encja wyboru trybu EMS (select)",
+          "select_inverter_mode": "Encja wyboru trybu falownika (select)",
+          "number_ems_power_limit": "Encja limitu mocy EMS (number)",
+          "number_export_limit": "Encja limitu eksportu do sieci (number)",
+          "binary_sensor_offgrid": "Sensor trybu Off-Grid / Zasilania awaryjnego"
+        }
+      },
+      "emhass": {
+        "title": "Krok 2: Połączenie z EMHASS",
+        "description": "Podaj adres URL serwera EMHASS oraz parametry optymalizacji.",
+        "data": {
+          "emhass_url": "Adres URL EMHASS",
+          "horizon_steps": "Horyzont optymalizacji (liczba kroków, np. 96 = 48h)",
+          "cost_function": "Funkcja celu (cost / profit / self-consumption)"
+        }
+      },
+      "forecasts": {
+        "title": "Krok 3: Prognozy, Taryfy i Zabezpieczenia",
+        "description": "Wskaż sensory prognoz i cen energii lub zdefiniuj wartości domyślne.",
+        "data": {
+          "pv_forecast_entity": "Sensor prognozy produkcji PV (np. Solcast)",
+          "pv_forecast_attr": "Atrybut zawierający listę prognozy PV (domyślnie: list)",
+          "load_forecast_entity": "Sensor prognozy zużycia domu",
+          "load_forecast_attr": "Atrybut listy prognozy zużycia",
+          "load_profile_static": "Sztywny profil zużycia (wartości po przecinku w W)",
+          "buy_price_entity": "Sensor cen zakupu energii (np. taryfa G13 / RCE)",
+          "buy_price_attr": "Atrybut listy cen zakupu",
+          "buy_price_static": "Domyślna cena zakupu (zł/kWh)",
+          "sell_price_entity": "Sensor cen sprzedaży energii (RCE)",
+          "sell_price_attr": "Atrybut listy cen sprzedaży",
+          "sell_price_static": "Domyślna cena sprzedaży (zł/kWh)",
+          "enable_import_guard": "Aktywuj Strażnika Importu (Zero Import Guard)",
+          "import_guard_threshold": "Próg zadziałania Strażnika Importu (W)",
+          "base_min_soc": "Bazowy minimalny SoC (lato, np. 0.15 = 15%)",
+          "winter_min_soc": "Zimowy minimalny SoC (październik-marzec, np. 0.50 = 50%)",
+          "weather_alert_entity": "Sensor ostrzeżeń burzowych IMGW (opcjonalny)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ustawienia Smart Storage EMS",
+        "data": {
+          "import_guard_threshold": "Próg zadziałania Strażnika Importu (W)",
+          "base_min_soc": "Bazowy minimalny SoC (lato)",
+          "winter_min_soc": "Zimowy minimalny SoC (zima)",
+          "load_profile_static": "Sztywny profil zużycia (W)"
+        }
+      }
+    }
+  }
+}
