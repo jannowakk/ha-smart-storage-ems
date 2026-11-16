@@ -175,7 +175,7 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_PV_ENERGY_THRESHOLD, default=DEFAULT_PV_ENERGY_THRESHOLD): float,
                 vol.Optional(CONF_PV_POWER_THRESHOLD, default=DEFAULT_PV_POWER_THRESHOLD): float,
                 vol.Optional(CONF_OUTSIDE_TEMP_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
+                    selector.EntitySelectorConfig(domain=["sensor", "weather"])
                 ),
                 vol.Optional(CONF_LOAD_FORECAST_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
@@ -417,7 +417,7 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_OUTSIDE_TEMP_ENTITY,
                     description={"suggested_value": data.get(CONF_OUTSIDE_TEMP_ENTITY)},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain=["sensor", "weather"])),
                 vol.Optional(
                     CONF_WEATHER_ALERT_ENTITY,
                     description={"suggested_value": data.get(CONF_WEATHER_ALERT_ENTITY)},

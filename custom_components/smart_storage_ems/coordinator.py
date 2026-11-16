@@ -129,7 +129,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.async_enforce_plan()
 
     def _get_float_state(self, entity_id: str | None, default: float = 0.0) -> float:
-        """Safely fetch float state of an entity."""
+        """Safely fetch float state of an entity (supports sensors and weather entities)."""
         if not entity_id:
             return default
         state = self.hass.states.get(entity_id)
@@ -138,6 +138,12 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             return float(state.state)
         except (ValueError, TypeError):
+            # Fallback for weather entities or sensors with temperature attribute
+            if "temperature" in state.attributes:
+                try:
+                    return float(state.attributes["temperature"])
+                except (ValueError, TypeError):
+                    pass
             return default
 
     def _get_list_data(
