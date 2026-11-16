@@ -116,8 +116,18 @@ class SmartStorageChartCard extends HTMLElement {
         }
         .legend-box {
           width: 12px;
-          height: 12px;
-          border-radius: 3px;
+          height: 10px;
+          border-radius: 2px;
+        }
+        .legend-line {
+          width: 14px;
+          height: 3px;
+          border-radius: 1px;
+        }
+        .legend-dash {
+          width: 14px;
+          height: 0px;
+          border-top: 2px dashed #90a4ae;
         }
         .tooltip-box {
           position: absolute;
@@ -175,9 +185,10 @@ class SmartStorageChartCard extends HTMLElement {
           <div class="legend-item"><div class="legend-box" style="background: #4caf50;"></div> Ładowanie Baterii (W)</div>
           <div class="legend-item"><div class="legend-box" style="background: #2196f3;"></div> Autokonsumpcja (W)</div>
           <div class="legend-item"><div class="legend-box" style="background: #ff9800;"></div> Eksport Sieciowy (W)</div>
-          <div class="legend-item"><div class="legend-box" style="background: #ffeb3b;"></div> Produkcja PV (W)</div>
-          <div class="legend-item"><div class="legend-box" style="background: #e91e63;"></div> Krzywa SoC (%)</div>
-          <div class="legend-item"><div class="legend-box" style="background: #d32f2f;"></div> Linia Rezerwy Min SoC</div>
+          <div class="legend-item"><div class="legend-line" style="background: #fbc02d;"></div> Produkcja PV (W)</div>
+          <div class="legend-item"><div class="legend-dash" style="border-top-color: #90a4ae;"></div> Prognoza Dom (W)</div>
+          <div class="legend-item"><div class="legend-line" style="background: #e91e63;"></div> Krzywa SoC (%)</div>
+          <div class="legend-item"><div class="legend-dash" style="border-top-color: #d32f2f;"></div> Linia Rezerwy Min SoC</div>
         </div>
       </div>
     `;
