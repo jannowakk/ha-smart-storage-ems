@@ -30,5 +30,5 @@ class SmartStorageOptimizeNowButton(CoordinatorEntity[SmartStorageCoordinator], 
         self._attr_icon = "mdi:calculator-variant"
 
     async def async_press(self) -> None:
-        """Trigger instant optimization."""
-        await self.coordinator.async_run_mpc()
+        """Trigger instant optimization as background task without blocking UI websocket."""
+        self.hass.async_create_task(self.coordinator.async_run_mpc())

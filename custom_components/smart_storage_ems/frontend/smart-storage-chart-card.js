@@ -215,8 +215,8 @@ class SmartStorageChartCard extends HTMLElement {
     const gridForecastEntity = this._hass.states['sensor.p_grid_forecast'];
     const minSocEntity = this._hass.states['sensor.smart_storage_ems_dynamiczny_min_soc'];
 
-    const battList = battForecastEntity?.attributes?.forecasts || [];
-    const socList = socForecastEntity?.attributes?.battery_scheduled_soc || [];
+    const battList = battForecastEntity?.attributes?.forecasts || battForecastEntity?.attributes?.battery_scheduled_power || [];
+    const socList = socForecastEntity?.attributes?.battery_scheduled_soc || socForecastEntity?.attributes?.forecasts || [];
     const pvList = pvForecastEntity?.attributes?.forecasts || [];
     const loadList = loadForecastEntity?.attributes?.forecasts || [];
     const gridList = gridForecastEntity?.attributes?.forecasts || [];

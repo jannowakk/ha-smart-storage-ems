@@ -13,7 +13,10 @@ class EmhassClient:
 
     def __init__(self, base_url: str, session: aiohttp.ClientSession) -> None:
         """Initialize the EMHASS client."""
-        self._base_url = base_url.rstrip("/")
+        # In Docker / HAOS, localhost can resolve to IPv6 ::1 where EMHASS is not listening.
+        # Normalize localhost to 127.0.0.1 for maximum network reliability.
+        clean_url = base_url.rstrip("/").replace("://localhost", "://127.0.0.1")
+        self._base_url = clean_url
         self._session = session
 
     async def async_run_mpc_optimization(self, payload: dict[str, Any]) -> bool:

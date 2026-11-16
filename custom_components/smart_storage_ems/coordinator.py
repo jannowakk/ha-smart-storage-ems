@@ -215,19 +215,22 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_run_mpc(self) -> bool:
         """Execute full MPC optimization cycle."""
+        self._last_ems_action = "Trwa optymalizacja MPC (EMHASS)..."
+        self._notify_coordinator_update()
+
         horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
         cost_func = self.config.get(CONF_COST_FUNCTION, DEFAULT_COST_FUNCTION)
 
         pv_forecast = self._get_list_data(
             self.config.get(CONF_PV_FORECAST_ENTITY),
-            self.config.get(CONF_PV_FORECAST_ATTR),
+            self.config.get(CONF_PV_FORECAST_ATTR, "list"),
             None,
             0.0,
             horizon,
         )
         load_forecast = self._get_list_data(
             self.config.get(CONF_LOAD_FORECAST_ENTITY),
-            self.config.get(CONF_LOAD_FORECAST_ATTR),
+            self.config.get(CONF_LOAD_FORECAST_ATTR, "list"),
             self.config.get(CONF_LOAD_PROFILE_STATIC),
             400.0,
             horizon,
@@ -245,7 +248,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         else:
             buy_prices = self._get_list_data(
                 self.config.get(CONF_BUY_PRICE_ENTITY),
-                self.config.get(CONF_BUY_PRICE_ATTR),
+                self.config.get(CONF_BUY_PRICE_ATTR, "list"),
                 self.config.get(CONF_BUY_PRICE_STATIC),
                 0.65,
                 horizon,
@@ -253,7 +256,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         sell_prices = self._get_list_data(
             self.config.get(CONF_SELL_PRICE_ENTITY),
-            self.config.get(CONF_SELL_PRICE_ATTR),
+            self.config.get(CONF_SELL_PRICE_ATTR, "list"),
             self.config.get(CONF_SELL_PRICE_STATIC),
             0.40,
             horizon,
@@ -282,10 +285,14 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             soc_deficit_cost=deficit_cost,
         )
 
+        _LOGGER.info("Starting EMHASS MPC optimization cycle (horizon: %d steps)", horizon)
         success = await self.emhass.async_run_mpc_optimization(payload)
         if success:
             await self.emhass.async_publish_data()
             await self.async_enforce_plan()
+        else:
+            self._last_ems_action = "Błąd połączenia / optymalizacji EMHASS"
+            self._notify_coordinator_update()
         return success
 
     async def _async_update_data(self) -> dict[str, Any]:
