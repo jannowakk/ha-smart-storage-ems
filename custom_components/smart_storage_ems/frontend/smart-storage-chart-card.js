@@ -223,7 +223,8 @@ class SmartStorageChartCard extends HTMLElement {
 
     const dynamicMinSoc = minSocEntity ? parseFloat(minSocEntity.state) || 15 : 15;
 
-    const stepsCount = Math.max(battList.length, socList.length, 48);
+    const hasData = (battList.length > 0 || socList.length > 0);
+    const stepsCount = hasData ? Math.max(battList.length, socList.length) : 0;
     const dataPoints = [];
 
     const now = new Date();
@@ -231,12 +232,19 @@ class SmartStorageChartCard extends HTMLElement {
     const baseTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), startMinutes);
 
     for (let i = 0; i < stepsCount; i++) {
-      const pointTime = new Date(baseTime.getTime() + i * 30 * 60000);
       const bItem = battList[i] || {};
       const sItem = socList[i] || {};
       const pItem = pvList[i] || {};
       const lItem = loadList[i] || {};
       const gItem = gridList[i] || {};
+
+      let pointTime;
+      const rawDate = bItem.date || sItem.date || pItem.date;
+      if (rawDate) {
+        pointTime = new Date(rawDate);
+      } else {
+        pointTime = new Date(baseTime.getTime() + i * 30 * 60000);
+      }
 
       dataPoints.push({
         time: pointTime,
@@ -249,41 +257,47 @@ class SmartStorageChartCard extends HTMLElement {
       });
     }
 
-    return { dataPoints, dynamicMinSoc };
+    return { dataPoints, dynamicMinSoc, hasData };
   }
 
   render() {
     if (!this._canvas || !this._hass) return;
 
-    const { dataPoints, dynamicMinSoc } = this._extractData();
+    const { dataPoints, dynamicMinSoc, hasData } = this._extractData();
     this._dataPoints = dataPoints;
-
-    // Update KPI badges
-    let totalChargeKwh = 0;
-    let totalDischargeKwh = 0;
-    let totalSolarKwh = 0;
-
-    dataPoints.forEach(p => {
-      if (p.p_batt < 0) totalChargeKwh += Math.abs(p.p_batt) * 0.5 / 1000.0;
-      if (p.p_batt > 0) totalDischargeKwh += p.p_batt * 0.5 / 1000.0;
-      totalSolarKwh += p.pv * 0.5 / 1000.0;
-    });
 
     const kpiCharge = this.content.querySelector('#kpiCharge');
     const kpiDischarge = this.content.querySelector('#kpiDischarge');
     const kpiSolar = this.content.querySelector('#kpiSolar');
     const kpiMinSoc = this.content.querySelector('#kpiMinSoc');
 
-    if (kpiCharge) kpiCharge.textContent = `${totalChargeKwh.toFixed(1)} kWh`;
-    if (kpiDischarge) kpiDischarge.textContent = `${totalDischargeKwh.toFixed(1)} kWh`;
-    if (kpiSolar) kpiSolar.textContent = `${totalSolarKwh.toFixed(1)} kWh`;
     if (kpiMinSoc) kpiMinSoc.textContent = `${dynamicMinSoc.toFixed(0)} %`;
 
+    if (hasData) {
+      let totalChargeKwh = 0;
+      let totalDischargeKwh = 0;
+      let totalSolarKwh = 0;
+
+      dataPoints.forEach(p => {
+        if (p.p_batt < 0) totalChargeKwh += Math.abs(p.p_batt) * 0.5 / 1000.0;
+        if (p.p_batt > 0) totalDischargeKwh += p.p_batt * 0.5 / 1000.0;
+        totalSolarKwh += p.pv * 0.5 / 1000.0;
+      });
+
+      if (kpiCharge) kpiCharge.textContent = `${totalChargeKwh.toFixed(1)} kWh`;
+      if (kpiDischarge) kpiDischarge.textContent = `${totalDischargeKwh.toFixed(1)} kWh`;
+      if (kpiSolar) kpiSolar.textContent = `${totalSolarKwh.toFixed(1)} kWh`;
+    } else {
+      if (kpiCharge) kpiCharge.textContent = `-- kWh`;
+      if (kpiDischarge) kpiDischarge.textContent = `-- kWh`;
+      if (kpiSolar) kpiSolar.textContent = `-- kWh`;
+    }
+
     // Render Canvas
-    this._drawChart(dataPoints, dynamicMinSoc);
+    this._drawChart(dataPoints, dynamicMinSoc, hasData);
   }
 
-  _drawChart(points, dynamicMinSoc) {
+  _drawChart(points, dynamicMinSoc, hasData = true) {
     const canvas = this._canvas;
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -298,7 +312,17 @@ class SmartStorageChartCard extends HTMLElement {
     const h = rect.height;
     ctx.clearRect(0, 0, w, h);
 
-    if (points.length === 0) return;
+    if (!hasData || points.length === 0) {
+      ctx.fillStyle = 'rgba(128, 128, 128, 0.7)';
+      ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⏳ Oczekiwanie na wyniki optymalizacji z EMHASS', w / 2, h / 2 - 12);
+      ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = 'rgba(128, 128, 128, 0.5)';
+      ctx.fillText('Wykres 48h pojawi się automatycznie po publikacji sensor.p_batt_forecast', w / 2, h / 2 + 10);
+      ctx.fillText('(Kliknij "Przelicz MPC Teraz" lub sprawdź URL EMHASS w konfiguracji)', w / 2, h / 2 + 28);
+      return;
+    }
 
     const padLeft = 46;
     const padRight = 42;
