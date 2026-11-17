@@ -10,6 +10,22 @@ Zaprojektowana tak, aby całkowicie wyeliminować konieczność pisania setek li
 
 ---
 
+## 💡 Filozofia Projektu: Zrównoważony EMS zamiast Ślepego Arbitrażu
+
+Tworząc tę integrację, moim głównym celem było znalezienie **złotego środka pomiędzy trzema filarami**:
+1. **Bezpieczeństwem energetycznym domu** (stabilność zasilania, bufor awaryjny na wypadek blackoutu, zapas energii dla pompy ciepła w czasie mrozów).
+2. **Ochroną żywotności ogniw magazynu** (unikanie „zarzynania” baterii zbędnymi mikrocyklami w tanich strefach oraz eliminacja przegrzewania ciągłym drenażem).
+3. **Minimalizacją realnych rachunków za prąd** (wykorzystanie dolin cenowych G12w/G13 i taniego prądu z PV).
+
+Ten system powstał z perspektywy **właściciela prawdziwego domu jednorodzinnego z pompą ciepła i rodziną**, a nie wirtualnej elektrowni spekulacyjnej. 
+
+Jeśli szukasz rozwiązania nastawionego wyłącznie na agresywną, bezwzględną maksymalizację zysku z handlu energią kosztem degradacji chemii baterii i ryzyka braku prądu przy awarii sieci – domyślne nastawy mogą wydać Ci się zbyt ostrożne. 
+
+Jednak architektura integracji jest w pełni elastyczna:
+* Poprzez odpowiednie dostrojenie parametrów w formularzu konfiguracyjnym (*Options Flow*) – m.in. obniżenie bazowego `Min SoC` do poziomu DoD (np. 10–15%), zmianę funkcji celu w EMHASS na `profit`, podniesienie limitu mocy eksportu oraz wyłączenie buforów pogodowych – **możesz łatwo przechylić szalę z trybu zachowawczego w stronę agresywnego arbitrażu rynkowego i maksymalizacji przychodów ze sprzedaży do sieci**.
+
+---
+
 ## 🌟 Kluczowe Funkcje (Features)
 
 * **Plug & Play przez UI (Config Flow):** Konfiguracja w 100% w interfejsie Home Assistant – wybierasz encje falownika, EMHASS i taryfę z list rozwijanych.
