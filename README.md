@@ -125,8 +125,12 @@ Po dodaniu integracji otrzymujesz gotowe encje do sterowania i dashboardów Love
 
 Integracja automatycznie rejestruje dwie dedykowane karty frontendowe (bez zewnętrznych zależności):
 
-1. **Karta sterująca (`custom:smart-storage-card`)** – podgląd SoC, marker dynamicznej rezerwy, parametry na żywo oraz przyciski szybkiej zmiany trybu.
-2. **Interaktywny wykres 48h MPC (`custom:smart-storage-chart-card`)** – dwuosiowy wykres Canvas pokazujący plan ładowania/rozładowania baterii, krzywą SoC, prognozę PV, zużycie domu i kafle KPI.
+| Karta Sterująca (`custom:smart-storage-card`) | Interaktywny Wykres 48h MPC (`custom:smart-storage-chart-card`) |
+| :---: | :---: |
+| ![Karta sterująca Smart Storage EMS](docs/images/smart-storage-card.png) | ![Plan Optymalizacji 48h MPC](docs/images/smart-storage-chart-card.png) |
+
+1. **Karta sterująca (`custom:smart-storage-card`)** – podgląd SoC z markerem dynamicznej rezerwy, parametry mocy w czasie rzeczywistym, wskaźnik Strażnika Importu oraz szybkie przyciski zmiany trybu pracy.
+2. **Interaktywny wykres 48h MPC (`custom:smart-storage-chart-card`)** – dwuosiowy wykres Canvas pokazujący plan ładowania/rozładowania baterii, krzywą SoC, prognozę PV, zużycie domu, strefy taryfowe oraz kafle podsumowań KPI (z w pełni interaktywną legendą).
 
 Przykładowa konfiguracja YAML w dashboardzie:
 
