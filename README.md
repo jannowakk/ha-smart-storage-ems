@@ -1,5 +1,6 @@
 # Smart Storage EMS 🔋⚡
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jannowakk&repository=ha-smart-storage-ems&category=integration)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/default)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
@@ -50,14 +51,42 @@ Zaprojektowana tak, aby całkowicie wyeliminować konieczność pisania setek li
 
 ---
 
-## 📦 Instalacja przez HACS
+## 📦 Instalacja
 
-1. Otwórz **HACS** w Home Assistant.
-2. Kliknij menu w prawym górnym rogu (3 kropki) -> **Niestandardowe repozytoria (Custom repositories)**.
+### Metoda 1: ⚡ 1-Click Install (Najszybsza – przez My Home Assistant)
+Kliknij poniższy przycisk, aby bezpośrednio otworzyć swoją instancję Home Assistant i automatycznie dodać to repozytorium:
+
+[![Otwórz w Home Assistant](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jannowakk&repository=ha-smart-storage-ems&category=integration)
+
+Po otwarciu okna:
+1. Kliknij **Dodaj (Add)**, a następnie **Pobierz (Download)**.
+2. **Zrestartuj Home Assistant**.
+3. Przejdź do **Ustawienia -> Urządzenia i usługi -> Dodaj integrację** i wyszukaj **Smart Storage EMS**.
+
+---
+
+### Metoda 2: Nowy interfejs (Katalog dodatków / Marketplace / HACS 2.0+)
+1. W menu bocznym Home Assistant otwórz **Katalog dodatków** / **Społeczność (Marketplace)**.
+2. W prawym górnym rogu kliknij menu (trzy kropki `⋮`) i wybierz **Niestandardowe repozytoria (Custom repositories)**.
 3. Wklej URL repozytorium: `https://github.com/jannowakk/ha-smart-storage-ems`.
-4. Wybierz kategorię: **Integracja (Integration)** i kliknij **Dodaj**.
-5. Znajdź **Smart Storage EMS**, kliknij **Pobierz** i zrestartuj Home Assistant.
-6. Przejdź do **Ustawienia -> Urządzenia i usługi -> Dodaj integrację** i wyszukaj **Smart Storage EMS**.
+4. Jako typ/kategorię wybierz **Integracja (Integration)** i kliknij **Dodaj**.
+5. Wyszukaj **Smart Storage EMS**, kliknij **Pobierz** i **zrestartuj Home Assistant**.
+6. Przejdź do **Ustawienia -> Urządzenia i usługi -> Dodaj integrację** i skonfiguruj integrację.
+
+---
+
+### Metoda 3: Starsze wersje (Klasyczny HACS)
+1. Otwórz **HACS** w menu bocznym -> przejdź do sekcji **Integracje**.
+2. Kliknij menu w prawym górnym rogu (`⋮`) -> **Niestandardowe repozytoria (Custom repositories)**.
+3. Wklej `https://github.com/jannowakk/ha-smart-storage-ems` i wybierz kategorię **Integracja**.
+4. Kliknij **Pobierz**, zrestartuj Home Assistant i skonfiguruj integrację w **Ustawienia -> Urządzenia i usługi**.
+
+---
+
+### Metoda 4: Ręcznie (bez Marketplace / HACS)
+1. Pobierz najnowsze wydanie (ZIP) z zakładki [Releases](https://github.com/jannowakk/ha-smart-storage-ems/releases).
+2. Skopiuj katalog `custom_components/smart_storage_ems` do folderu `/config/custom_components/` w swoim Home Assistant.
+3. Zrestartuj Home Assistant i dodaj integrację przez **Ustawienia -> Urządzenia i usługi**.
 
 ---
 
