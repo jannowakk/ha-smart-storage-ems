@@ -176,16 +176,6 @@ To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy da
 
 ---
 
-## 🧪 Testy
-
-Projekt zawiera zestaw testów jednostkowych:
-
-```bash
-PYTHONPATH=. python3 tests/run_tests.py
-```
-
----
-
 ## 🗺️ Roadmapa Rozwoju
 
 - [x] MVP: Obsługa EMHASS Long-MPC + Falownik GoodWe ET/ES.
