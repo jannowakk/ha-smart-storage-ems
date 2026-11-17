@@ -186,6 +186,15 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
 | **Horyzont optymalizacji** | Tak | `96` | Liczba kroków 30-minutowych liczonych do przodu. `96` kroków = **48 godzin**. |
 | **Funkcja celu** | Tak | `cost` | Tryb optymalizacji EMHASS: `cost` (minimalizacja kosztów zakupu), `profit` (maksymalizacja zysku z eksportu) lub `self-consumption` (autokonsumpcja). |
 
+> [!IMPORTANT]
+> **Wymagana wstępna konfiguracja w samym dodatku EMHASS:**
+> Zanim uruchomisz integrację, upewnij się, że w konfiguracji dodatku EMHASS (*Ustawienia -> Dodatki -> EMHASS -> Konfiguracja* lub w pliku `config_emhass.yaml`) ustawiłeś parametry fizyczne swojej instalacji:
+> * **`set_use_battery: true`** – włącza modelowanie i optymalizację baterii (domyślnie w czystym EMHASS jest `false`!).
+> * **`optimization_time_step: 30`** – krok czasowy 30 minut (dopasowany do 96 kroków horyzontu 48h).
+> * **`battery_nominal_energy_capacity`** – pojemność znamionowa Twojego magazynu w Watogodzinach (Wh), np. `9600` lub `10000` dla baterii ~10 kWh.
+> * **`battery_maximum_charge_power` & `battery_maximum_discharge_power`** – maksymalna moc ładowania i rozładowania baterii w Watach (W), np. `5000` lub `8000`.
+> * **`maximum_power_from_grid` & `maximum_power_to_grid`** – moc umowna przyłącza w Watach lub moc nominalna falownika w Watach (wpisz **tę niższą z dwóch**, np. `10000`), aby solver nie planował niemożliwych fizycznie przepływów sieciowych.
+
 ---
 
 ### Krok 3: Taryfy, Prognozy i Zabezpieczenia
