@@ -24,6 +24,16 @@ class SmartStorageChartCard extends HTMLElement {
     this.config = config || {};
     this._horizonHours = this.config.horizon_hours || 48;
     this._filterMode = 'all'; // 'all', 'battery', 'solar'
+    this._visibleSeries = {
+      charging: true,
+      self_use: true,
+      export: true,
+      pv: true,
+      load: true,
+      soc: true,
+      min_soc: true,
+      tariff: true,
+    };
   }
 
   getCardSize() {
@@ -113,6 +123,18 @@ class SmartStorageChartCard extends HTMLElement {
           display: flex;
           align-items: center;
           gap: 5px;
+          cursor: pointer;
+          padding: 3px 8px;
+          border-radius: 12px;
+          border: 1px solid transparent;
+          transition: opacity 0.15s ease, background-color 0.15s ease;
+        }
+        .legend-item:hover {
+          background: var(--secondary-background-color, rgba(128, 128, 128, 0.1));
+        }
+        .legend-item.disabled {
+          opacity: 0.35;
+          text-decoration: line-through;
         }
         .legend-box {
           width: 12px;
@@ -182,14 +204,14 @@ class SmartStorageChartCard extends HTMLElement {
         </div>
 
         <div class="chart-legend">
-          <div class="legend-item"><div class="legend-box" style="background: #4caf50;"></div> Ładowanie Baterii (W)</div>
-          <div class="legend-item"><div class="legend-box" style="background: #2196f3;"></div> Autokonsumpcja (W)</div>
-          <div class="legend-item"><div class="legend-box" style="background: #ff9800;"></div> Eksport Sieciowy (W)</div>
-          <div class="legend-item"><div class="legend-line" style="background: #fbc02d;"></div> Produkcja PV (W)</div>
-          <div class="legend-item"><div class="legend-dash" style="border-top-color: #90a4ae;"></div> Prognoza Dom (W)</div>
-          <div class="legend-item"><div class="legend-line" style="background: #e91e63;"></div> Krzywa SoC (%)</div>
-          <div class="legend-item"><div class="legend-dash" style="border-top-color: #d32f2f;"></div> Linia Rezerwy Min SoC</div>
-          <div class="legend-item"><div class="legend-line" style="background: #ab47bc;"></div> Taryfa / Cena (zł/kWh)</div>
+          <div class="legend-item" data-series="charging"><div class="legend-box" style="background: #4caf50;"></div> Ładowanie Baterii (W)</div>
+          <div class="legend-item" data-series="self_use"><div class="legend-box" style="background: #2196f3;"></div> Autokonsumpcja (W)</div>
+          <div class="legend-item" data-series="export"><div class="legend-box" style="background: #ff9800;"></div> Eksport Sieciowy (W)</div>
+          <div class="legend-item" data-series="pv"><div class="legend-line" style="background: #fbc02d;"></div> Produkcja PV (W)</div>
+          <div class="legend-item" data-series="load"><div class="legend-dash" style="border-top-color: #90a4ae;"></div> Prognoza Dom (W)</div>
+          <div class="legend-item" data-series="soc"><div class="legend-line" style="background: #e91e63;"></div> Krzywa SoC (%)</div>
+          <div class="legend-item" data-series="min_soc"><div class="legend-dash" style="border-top-color: #d32f2f;"></div> Linia Rezerwy Min SoC</div>
+          <div class="legend-item" data-series="tariff"><div class="legend-line" style="background: #ab47bc;"></div> Taryfa / Cena (zł/kWh)</div>
         </div>
       </div>
     `;
@@ -198,12 +220,48 @@ class SmartStorageChartCard extends HTMLElement {
     this._tooltip = this.content.querySelector('#chartTooltip');
     this._canvasBox = this.content.querySelector('#canvasBox');
 
-    // Filter pill buttons
+    const syncLegendUI = () => {
+      this.content.querySelectorAll('.legend-item').forEach(item => {
+        const key = item.getAttribute('data-series');
+        if (key) {
+          item.classList.toggle('disabled', !this._visibleSeries[key]);
+        }
+      });
+    };
+
+    // Filter pill buttons (presets that update individual series toggles)
     this.content.querySelectorAll('.pill-btn').forEach(btn => {
       btn.onclick = (e) => {
         this.content.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         this._filterMode = e.target.getAttribute('data-filter');
+        if (this._filterMode === 'all') {
+          Object.keys(this._visibleSeries).forEach(k => { this._visibleSeries[k] = true; });
+        } else if (this._filterMode === 'battery') {
+          this._visibleSeries = {
+            charging: true, self_use: true, export: true,
+            pv: false, load: false,
+            soc: true, min_soc: true, tariff: true,
+          };
+        } else if (this._filterMode === 'solar') {
+          this._visibleSeries = {
+            charging: false, self_use: false, export: false,
+            pv: true, load: true,
+            soc: false, min_soc: false, tariff: false,
+          };
+        }
+        syncLegendUI();
+        this.render();
+      };
+    });
+
+    // Interactive legend toggles (click any item to show/hide that curve)
+    this.content.querySelectorAll('.legend-item').forEach(item => {
+      item.onclick = () => {
+        const key = item.getAttribute('data-series');
+        if (!key) return;
+        this._visibleSeries[key] = !this._visibleSeries[key];
+        syncLegendUI();
         this.render();
       };
     });
@@ -431,9 +489,14 @@ class SmartStorageChartCard extends HTMLElement {
       ctx.fillText(`${soc}%`, padLeft + plotW + 6, ySoc + 3);
     });
 
+    const vis = this._visibleSeries || {
+      charging: true, self_use: true, export: true,
+      pv: true, load: true, soc: true, min_soc: true, tariff: true,
+    };
+
     // 1B. Draw Tariff / Buy Price Stepped Curve & Peak Zone Shading
     const validPrices = points.map(p => p.buy_price).filter(v => v !== null && !isNaN(v));
-    if (validPrices.length > 0 && (this._filterMode === 'all' || this._filterMode === 'battery')) {
+    if (vis.tariff && validPrices.length > 0) {
       const minPrice = Math.min(...validPrices);
       const maxPrice = Math.max(...validPrices);
       const priceCeil = Math.max(maxPrice * 1.15, 0.5);
@@ -475,7 +538,7 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     // 2. Draw Battery Power Areas and Continuous Line
-    if (this._filterMode === 'all' || this._filterMode === 'battery') {
+    if (vis.charging || vis.self_use || vis.export) {
       const stepW = points.length > 1 ? plotW / (points.length - 1) : plotW;
 
       // 2A. Shaded power areas (under / above zero line)
@@ -488,18 +551,18 @@ class SmartStorageChartCard extends HTMLElement {
         const wSeg = xRight - xLeft;
 
         if (Math.abs(pVal) > 20) {
-          if (pVal < -20) {
+          if (pVal < -20 && vis.charging) {
             // Charging from Grid/PV (Green Area below zero)
             ctx.fillStyle = 'rgba(76, 175, 80, 0.45)';
             const yTop = yZero;
             const yBottom = getYPower(pVal);
             ctx.fillRect(xLeft, yTop, wSeg, yBottom - yTop);
-          } else if (p.grid < -50 && pVal > 50) {
+          } else if (p.grid < -50 && pVal > 50 && vis.export) {
             // Export to Grid (Amber/Orange Area above zero)
             ctx.fillStyle = 'rgba(255, 152, 0, 0.50)';
             const yTop = getYPower(pVal);
             ctx.fillRect(xLeft, yTop, wSeg, yZero - yTop);
-          } else {
+          } else if (pVal > 20 && !(p.grid < -50 && pVal > 50) && vis.self_use) {
             // Self-consumption to House (Blue Area above zero)
             ctx.fillStyle = 'rgba(33, 150, 243, 0.45)';
             const yTop = getYPower(pVal);
@@ -508,26 +571,34 @@ class SmartStorageChartCard extends HTMLElement {
         }
       });
 
-      // 2B. Continuous Battery Power Outline Curve
+      // 2B. Continuous Battery Power Outline Curve (respecting toggles)
+      const isPointVisible = (p) => {
+        if (p.p_batt < -20) return vis.charging;
+        if (p.grid < -50 && p.p_batt > 50) return vis.export;
+        if (p.p_batt > 20) return vis.self_use;
+        return vis.charging || vis.self_use || vis.export;
+      };
+
       ctx.lineWidth = 2;
       for (let i = 0; i < points.length - 1; i++) {
         const p1 = points[i];
         const p2 = points[i + 1];
+        if (!isPointVisible(p1) && !isPointVisible(p2)) continue;
+
         const x1 = getX(i);
-        const y1 = getYPower(p1.p_batt);
+        const y1 = getYPower(isPointVisible(p1) ? p1.p_batt : 0);
         const x2 = getX(i + 1);
-        const y2 = getYPower(p2.p_batt);
+        const y2 = getYPower(isPointVisible(p2) ? p2.p_batt : 0);
 
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
 
-        // Segment stroke color according to operation mode
-        if (p1.p_batt < -20 || p2.p_batt < -20) {
+        if ((p1.p_batt < -20 || p2.p_batt < -20) && vis.charging) {
           ctx.strokeStyle = '#4caf50'; // Green: charging
-        } else if ((p1.grid < -50 && p1.p_batt > 50) || (p2.grid < -50 && p2.p_batt > 50)) {
+        } else if (((p1.grid < -50 && p1.p_batt > 50) || (p2.grid < -50 && p2.p_batt > 50)) && vis.export) {
           ctx.strokeStyle = '#ff9800'; // Orange: export
-        } else if (p1.p_batt > 20 || p2.p_batt > 20) {
+        } else if ((p1.p_batt > 20 || p2.p_batt > 20) && vis.self_use) {
           ctx.strokeStyle = '#2196f3'; // Blue: self-consumption
         } else {
           ctx.strokeStyle = 'rgba(128, 128, 128, 0.4)'; // Neutral / zero
@@ -537,7 +608,7 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     // 3. Draw Solar & Load Curves
-    if (this._filterMode === 'all' || this._filterMode === 'solar') {
+    if (vis.pv) {
       // Solar Curve (Yellow)
       ctx.strokeStyle = '#fbc02d';
       ctx.lineWidth = 2;
@@ -549,7 +620,9 @@ class SmartStorageChartCard extends HTMLElement {
         else ctx.lineTo(x, y);
       });
       ctx.stroke();
+    }
 
+    if (vis.load) {
       // Load Curve (Light Grey Dashed)
       ctx.strokeStyle = '#90a4ae';
       ctx.lineWidth = 1.5;
@@ -566,18 +639,20 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     // 4. Draw Dynamic Min SoC Reference Line (Red Horizontal)
-    const yMinSoc = getYSoc(dynamicMinSoc);
-    ctx.strokeStyle = 'rgba(211, 47, 47, 0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([6, 3]);
-    ctx.beginPath();
-    ctx.moveTo(padLeft, yMinSoc);
-    ctx.lineTo(padLeft + plotW, yMinSoc);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    if (vis.min_soc) {
+      const yMinSoc = getYSoc(dynamicMinSoc);
+      ctx.strokeStyle = 'rgba(211, 47, 47, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, yMinSoc);
+      ctx.lineTo(padLeft + plotW, yMinSoc);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // 5. Draw SoC Trajectory Line (Glowing Pink/Magenta)
-    if (this._filterMode === 'all' || this._filterMode === 'battery') {
+    if (vis.soc) {
       ctx.strokeStyle = '#e91e63';
       ctx.lineWidth = 2.5;
       ctx.beginPath();
