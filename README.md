@@ -1,7 +1,7 @@
 # Smart Storage EMS 🔋⚡
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/default)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 **Smart Storage EMS** to inteligentna, modułowa nakładka (Energy Management System) na **EMHASS** dla Home Assistant, która przekształca matematyczne plany optymalizacji baterii w bezpieczne, fizyczne sterowanie falownikiem hybrydowym.
 
@@ -189,6 +189,10 @@ To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy da
 
 ---
 
-## 📄 Licencja
+## 📄 Licencja i Zastrzeżenie (Disclaimer)
 
-Projekt udostępniany na licencji [Apache 2.0](LICENSE).
+Projekt udostępniany jest na licencji **[GNU GPL v3](LICENSE)**.
+
+> [!WARNING]
+> **Wyłączenie odpowiedzialności (Używasz na własne ryzyko):**
+> Oprogramowanie dostarczane jest w stanie „tak jak jest” (*AS IS*), bez jakiejkolwiek gwarancji działania, poprawności ani przydatności do określonego celu (zgodnie z sekcjami 15 i 16 licencji GNU GPL v3). Integracja zapisuje parametry pracy bezpośrednio do falownika oraz magazynu energii. Autor nie ponosi żadnej odpowiedzialności za ewentualne szkody, usterki sprzętu, utratę energii lub straty finansowe wynikające z instalacji, konfiguracji bądź użytkowania tego oprogramowania. Każdy użytkownik korzysta z projektu wyłącznie na własną odpowiedzialność.
