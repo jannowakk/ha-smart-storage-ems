@@ -97,6 +97,85 @@ cards:
 
 ---
 
+## 📖 Przewodnik Konfiguracji (Opis pól formularza)
+
+Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfiguracji oraz menu opcji (zębatki).
+
+> [!IMPORTANT]
+> **Złota zasada tablic prognoz (dane „od teraz”, a nie od północy!):**
+> Wszystkie pola oczekujące **listy wartości** (prognoza mocy PV, prognoza zużycia domu, ceny zakupu i sprzedaży) muszą zawierać tablicę w formacie **rolling forecast** (kroczącym) – czyli zaczynającą się **od bieżącego 30-minutowego okna („od teraz”)**, a **nie** od północy (`00:00`).
+>
+> **Dlaczego to ważne?** Gdy uruchamiasz optymalizację np. o `14:00`, integracja traktuje element `[0]` z tablicy jako bieżący kwadrans (`14:00–14:30`, przy czym krok `[0]` dla PV i zużycia i tak nadpisuje bieżącym odczytem z falownika), element `[1]` jako `14:30–15:00`, itd. Jeśli podasz tablicę zaczynającą się od `00:00`, to o `14:00` EMHASS odczyta z niej prognozę z północy (0 W ze słońca!) i cały plan na 48h będzie przesunięty.
+>
+> *Uwaga: Wbudowany w integrację generator taryf **G13** i **G12w** automatycznie buduje taki łańcuch „od teraz” – nie musisz tam podawać żadnych list!*
+
+---
+
+### Krok 1: Falownik i Bateria
+
+| Pole w formularzu | Wymagane? | Oczekiwana wartość / Jednostka | Opis i częste pułapki |
+| :--- | :---: | :--- | :--- |
+| **Typ falownika** | Tak | `goodwe` | Wybór sterownika sprzętowego (HAL). Obecnie wspierana jest seria GoodWe ET/ES/EH. |
+| **Sensor poziomu naładowania (SoC)** | Tak | `%` (`0–100`) | Aktualny stan baterii w procentach, np. `sensor.goodwe_battery_state_of_charge`. |
+| **Sensor mocy baterii** | Nie | `W` (Waty) | Chwilowa moc ładowania/rozładowania baterii (np. `sensor.goodwe_battery_power`). Używana do wizualizacji na karcie sterującej. |
+| **Sensor aktualnej produkcji PV** | Tak | `W` (Waty) | Bieżąca moc z paneli PV (np. `sensor.goodwe_pv_power`). Wstrzykiwana jako `pv_now` (krok 0) do EMHASS oraz używana przez przełącznik trybu letniego (próg W). |
+| **Sensor zużycia domu (House Load)** | Tak | `W` (Waty) | Aktualne zapotrzebowanie budynku na moc (np. `sensor.goodwe_house_consumption`). Wstrzykiwana jako `load_now` (krok 0) oraz używana do wyliczania mocy eksportu. |
+| **Sensor poboru mocy z sieci (Import)** | Nie | `W` (Waty) | Chwilowy pobór energii z sieci (wartość **dodatnia** podczas importu, np. `sensor.moc_z_sieci_import`). **Wymagany, jeśli chcesz używać Strażnika Importu.** |
+| **Encja trybu EMS (`select`)** | Tak | encja `select.*` | Encja sterująca trybem EMS w falowniku GoodWe, np. `select.goodwe_ems_mode`. |
+| **Encja trybu falownika (`select`)** | Tak | encja `select.*` | Ogólny tryb pracy falownika (np. `select.goodwe_tryb_pracy_falownika`), wykorzystywany m.in. do powrotu w tryb autokonsumpcji (`general`). |
+| **Encja limitu mocy EMS (`number`)** | Nie | encja `number.*` (W) | Encja ustawiająca moc ładowania/eksportu w Watach, np. `number.goodwe_ems_power_limit`. Bez niej wymuszone ładowanie/eksport nie ustawi docelowej mocy. |
+| **Encja limitu eksportu do sieci (`number`)** | Nie | encja `number.*` (W) | Np. `number.goodwe_grid_export_limit`. Integracja pilnuje, by limit nie spadł poniżej `10000 W` (odblokowany eksport). |
+| **Sensor trybu Off-Grid** | Nie | `binary_sensor.*` | Gdy ma stan `on` (zanik sieci / praca wyspowa), integracja natychmiast zamraża zapisy do falownika dla bezpieczeństwa zasilania awaryjnego. |
+
+---
+
+### Krok 2: Połączenie z EMHASS
+
+| Pole w formularzu | Wymagane? | Domyślnie | Opis i wskazówki |
+| :--- | :---: | :--- | :--- |
+| **Adres URL EMHASS** | Tak | `http://localhost:5000` | Adres serwera/dodatku EMHASS. Pamiętaj o porcie **5000** (nie 8123 od HA!). Klient automatycznie zamienia `localhost` na `127.0.0.1`, aby uniknąć problemów z IPv6 w Dockerze. |
+| **Horyzont optymalizacji** | Tak | `96` | Liczba kroków 30-minutowych liczonych do przodu. `96` kroków = **48 godzin**. |
+| **Funkcja celu** | Tak | `cost` | Tryb optymalizacji EMHASS: `cost` (minimalizacja kosztów zakupu), `profit` (maksymalizacja zysku z eksportu) lub `self-consumption` (autokonsumpcja). |
+
+---
+
+### Krok 3: Taryfy, Prognozy i Zabezpieczenia
+
+#### A. Model taryfowy i ceny zakupu/sprzedaży
+* **Model taryfy energii (`g13` / `g12w` / `custom`):**
+  * Wybierz **`g13`** lub **`g12w`**, aby użyć **wbudowanego polskiego generatora cen**. Sam wylicza on tablicę cen na 96 kroków **„od teraz”** z pełnym kalendarzem polskich świąt stałych i ruchomych (bez potrzeby używania integracji `workday`).
+  * Wybierz **`custom`**, jeśli masz taryfę dynamiczną lub własny cennik w zewnętrznym sensorze.
+* **Cena szczytu T1 / T2 / pozaszczytu T3 (zł/kWh):** Domyślnie `0.90`, `1.49`, `0.62`. Używane przez wbudowany generator G13.
+* **Sensor cen zakupu (`buy_price_entity`) + Atrybut listy (`buy_price_attr`, domyślnie `list`):** Używane **tylko w trybie `custom`**. Wskazany sensor musi mieć w wybranym atrybucie listę cen (np. `[0.62, 0.62, 0.90, ...]`) w zł/kWh co 30 min, zaczynającą się **„od teraz”**. Jeśli lista będzie pusta lub błędna, przyjmie domyślne `0.65 zł/kWh`.
+* **Sensor cen sprzedaży RCE (`sell_price_entity`) + Atrybut listy (`sell_price_attr`, domyślnie `list`):** Opcjonalna lista cen sprzedaży energii do sieci w zł/kWh co 30 min **„od teraz”** (np. `sensor.emhass_price_chain_120h`). Jeśli zostawisz puste, integracja przyjmie płaskie `0.40 zł/kWh`.
+
+#### B. Prognoza fotowoltaiki (różnica między wektorem W a sumą kWh!)
+To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy danych:
+
+1. **Sensor wektora mocy PV (`pv_forecast_entity`) + Atrybut (`pv_forecast_attr`, domyślnie `list`):**
+   * **Czego oczekuje:** Sensora posiadającego w atrybucie (np. `list`) tablicę prognozowanej mocy w **Watach (W)** w krokach 30-minutowych **„od teraz”** na kolejne 48h (np. `[1200, 1450, 900, ...]`).
+   * **Częsty błąd:** Nie podawaj tu zwykłego sensora dziennego z Solcast (np. `sensor.solcast_pv_forecast_prognoza_na_dzisiaj`), bo on ma tylko jedną liczbę w kWh (brak listy w atrybucie `list`) – wtedy EMHASS dostanie same zera `0.0 W`!
+   * Jeśli zostawisz pole puste, integracja wyśle profil zerowy `0.0 W`.
+2. **Sensor energii PV na dzisiaj (`pv_energy_today_entity`) oraz na jutro (`pv_energy_tomorrow_entity`):**
+   * **Czego oczekuje:** Pojedynczej liczby w **kWh** (tutaj właśnie idealnie pasują encje Solcast: `sensor.solcast_pv_forecast_prognoza_na_dzisiaj` i `..._jutro`).
+   * **Do czego służy:** Nie jest wysyłane jako tablica do EMHASS, lecz steruje automatycznym przełącznikiem trybu sezonowego (`lato` / `zima`).
+3. **Próg energii (`14` kWh) i mocy PV (`1000` W):**
+   * Przed godz. `15:55` integracja przełącza tryb na `lato`, gdy prognoza na dziś $\ge 14\text{ kWh}$ oraz bieżąca moc PV $\ge 1000\text{ W}$. Po `15:55` utrzymuje `lato` tylko wtedy, gdy jutro również zapowiada się $\ge 14\text{ kWh}$.
+
+#### C. Prognoza zużycia domu (House Load)
+* **Sensor prognozy zużycia (`load_forecast_entity`) + Atrybut (`load_forecast_attr`, domyślnie `list`):** Opcjonalny sensor z tablicą przewidywanego poboru mocy domu w **Watach (W)** co 30 min **„od teraz”**.
+* **Sztywny profil zużycia (`load_profile_static`):** Opcjonalna lista liczb po przecinku w **W** (np. `400, 450, 500, ...`), używana jako profil „od teraz”, gdy nie podano sensora.
+* **Gdy oba pola są puste:** Integracja przyjmuje bezpieczny, płaski profil `400 W` na każdy przyszły krok (a krok 0 zawsze nadpisuje bieżącym zużyciem `load_now` z falownika).
+
+#### D. Strażnik Importu, Rezerwy i Mróz
+* **Aktywuj Strażnika Importu & Próg zadziałania (`300` W):** Gdy import z sieci przekroczy próg (np. `> 300 W`), a bateria ma zapas powyżej dynamicznego Min SoC i nie trwa planowe ładowanie, Strażnik natychmiast wymusza autokonsumpcję.
+* **Bazowy minimalny SoC (`base_min_soc`, domyślnie `0.15`):** **Uwaga na format!** Wpisujemy ułamek dziesiętny (`0.15` = `15%`, `0.20` = `20%`), a nie liczbę całkowitą `15`. Jest to dolna granica rozładowania w trybie letnim.
+* **Zimowy minimalny SoC (`winter_min_soc`, domyślnie `0.50`):** Format dziesiętny (`0.50` = `50%`). Parametr konfiguracyjny bazowej rezerwy zimowej; w praktyce dynamiczny Min SoC w trybie `zima` wyliczany jest przez algorytm współczynnika mrozu w zakresie `40%–55%` (do `65%` maksymalnie, lub min. `35%` przy pochmurnym dniu jutrzejszym / burzy).
+* **Sensor temperatury zewnętrznej (`outside_temp_entity`):** Może to być fizyczny termometr (np. `sensor.pompa_ciepla_outside_temperature`), sensor z prognozy pogody lub **bezpośrednio encja pogodowa `weather.*`** (integracja sama pobierze temperaturę z jej atrybutu). W trybie `zima` przy temperaturze poniżej $0^\circ\text{C}$ skaluje minimalny SoC liniowo od `40%` (przy $0^\circ\text{C}$) do `55%` (przy $-20^\circ\text{C}$).
+* **Sensor ostrzeżeń burzowych (`weather_alert_entity`):** Opcjonalny `binary_sensor.*` (np. IMGW). Gdy jest `on` (i włączony jest przełącznik rezerwy burzowej), podnosi dolny limit rezerwy (co najmniej `30%` w lecie, `35%` w zimie).
+
+---
+
 ## 🧪 Testy
 
 Projekt zawiera zestaw testów jednostkowych:
