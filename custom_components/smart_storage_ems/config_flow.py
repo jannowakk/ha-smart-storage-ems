@@ -28,6 +28,7 @@ from .const import (
     CONF_NUMBER_EMS_POWER_LIMIT,
     CONF_NUMBER_EXPORT_LIMIT,
     CONF_OUTSIDE_TEMP_ENTITY,
+    CONF_PSE_RCE_MULTIPLIER,
     CONF_PV_ENERGY_TODAY_ENTITY,
     CONF_PV_ENERGY_TOMORROW_ENTITY,
     CONF_PV_ENERGY_THRESHOLD,
@@ -38,6 +39,7 @@ from .const import (
     CONF_SELECT_INVERTER_MODE,
     CONF_SELL_PRICE_ATTR,
     CONF_SELL_PRICE_ENTITY,
+    CONF_SELL_PRICE_MODE,
     CONF_SELL_PRICE_STATIC,
     CONF_SENSOR_BATTERY_POWER,
     CONF_SENSOR_GRID_IMPORT,
@@ -53,10 +55,14 @@ from .const import (
     DEFAULT_HORIZON_STEPS,
     DEFAULT_IMPORT_GUARD_DURATION,
     DEFAULT_IMPORT_GUARD_THRESHOLD,
+    DEFAULT_PSE_RCE_MULTIPLIER,
     DEFAULT_PV_ENERGY_THRESHOLD,
     DEFAULT_PV_POWER_THRESHOLD,
     DEFAULT_WINTER_MIN_SOC,
     DOMAIN,
+    SELL_PRICE_MODE_PSE_RCE,
+    SELL_PRICE_MODE_SENSOR,
+    SELL_PRICE_MODE_STATIC,
     TARIFF_MODE_CUSTOM,
     TARIFF_MODE_G12W,
     TARIFF_MODE_G13,
@@ -186,10 +192,28 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(CONF_BUY_PRICE_ATTR, default="list"): str,
+                vol.Required(
+                    CONF_SELL_PRICE_MODE,
+                    default=SELL_PRICE_MODE_PSE_RCE,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {"value": SELL_PRICE_MODE_PSE_RCE, "label": "Wbudowane PSE S.A. (RCE - Rynkowa Cena Energii)"},
+                            {"value": SELL_PRICE_MODE_SENSOR, "label": "Niestandardowy sensor z Home Assistant"},
+                            {"value": SELL_PRICE_MODE_STATIC, "label": "Stała cena sprzedaży (PLN/kWh)"},
+                        ],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(
+                    CONF_PSE_RCE_MULTIPLIER,
+                    default=DEFAULT_PSE_RCE_MULTIPLIER,
+                ): float,
                 vol.Optional(CONF_SELL_PRICE_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Optional(CONF_SELL_PRICE_ATTR, default="list"): str,
+                vol.Optional(CONF_SELL_PRICE_STATIC, default=0.40): float,
                 vol.Optional(CONF_ENABLE_IMPORT_GUARD, default=True): bool,
                 vol.Optional(CONF_IMPORT_GUARD_THRESHOLD, default=DEFAULT_IMPORT_GUARD_THRESHOLD): float,
                 vol.Optional(CONF_BASE_MIN_SOC, default=DEFAULT_BASE_MIN_SOC): float,
@@ -382,10 +406,35 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     CONF_BUY_PRICE_ENTITY,
                     description={"suggested_value": data.get(CONF_BUY_PRICE_ENTITY)},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Required(
+                    CONF_SELL_PRICE_MODE,
+                    default=data.get(CONF_SELL_PRICE_MODE, SELL_PRICE_MODE_PSE_RCE),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {"value": SELL_PRICE_MODE_PSE_RCE, "label": "Wbudowane PSE S.A. (RCE - Rynkowa Cena Energii)"},
+                            {"value": SELL_PRICE_MODE_SENSOR, "label": "Niestandardowy sensor z Home Assistant"},
+                            {"value": SELL_PRICE_MODE_STATIC, "label": "Stała cena sprzedaży (PLN/kWh)"},
+                        ],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(
+                    CONF_PSE_RCE_MULTIPLIER,
+                    default=float(data.get(CONF_PSE_RCE_MULTIPLIER, DEFAULT_PSE_RCE_MULTIPLIER)),
+                ): float,
                 vol.Optional(
                     CONF_SELL_PRICE_ENTITY,
                     description={"suggested_value": data.get(CONF_SELL_PRICE_ENTITY)},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_SELL_PRICE_ATTR,
+                    default=data.get(CONF_SELL_PRICE_ATTR, "list"),
+                ): str,
+                vol.Optional(
+                    CONF_SELL_PRICE_STATIC,
+                    default=float(data.get(CONF_SELL_PRICE_STATIC, 0.40)),
+                ): float,
             }
         )
         return self.async_show_form(step_id="tariffs", data_schema=schema)

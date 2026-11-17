@@ -34,8 +34,10 @@ from .const import (
     CONF_PV_FORECAST_ATTR,
     CONF_PV_FORECAST_ENTITY,
     CONF_PV_POWER_THRESHOLD,
+    CONF_PSE_RCE_MULTIPLIER,
     CONF_SELL_PRICE_ATTR,
     CONF_SELL_PRICE_ENTITY,
+    CONF_SELL_PRICE_MODE,
     CONF_SELL_PRICE_STATIC,
     CONF_SENSOR_BATTERY_POWER,
     CONF_SENSOR_GRID_IMPORT,
@@ -49,6 +51,7 @@ from .const import (
     DEFAULT_COST_FUNCTION,
     DEFAULT_EMHASS_URL,
     DEFAULT_HORIZON_STEPS,
+    DEFAULT_PSE_RCE_MULTIPLIER,
     DEFAULT_PV_ENERGY_THRESHOLD,
     DEFAULT_PV_POWER_THRESHOLD,
     DEFAULT_WINTER_MIN_SOC,
@@ -57,6 +60,9 @@ from .const import (
     OPERATION_MODE_CHARGE,
     OPERATION_MODE_HOLD,
     OPERATION_MODE_SELF_USE,
+    SELL_PRICE_MODE_PSE_RCE,
+    SELL_PRICE_MODE_SENSOR,
+    SELL_PRICE_MODE_STATIC,
     TARIFF_MODE_G12W,
     TARIFF_MODE_G13,
 )
@@ -64,7 +70,7 @@ from .emhass_client import EmhassClient
 from .guards.import_guard import ImportGuard
 from .inverters import get_inverter_driver
 from .season_manager import SeasonManager
-from .tariffs import generate_g12w_chain, generate_g13_chain
+from .tariffs import PseRceClient, generate_g12w_chain, generate_g13_chain
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,6 +104,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         energy_thresh = float(config.get(CONF_PV_ENERGY_THRESHOLD, DEFAULT_PV_ENERGY_THRESHOLD))
         power_thresh = float(config.get(CONF_PV_POWER_THRESHOLD, DEFAULT_PV_POWER_THRESHOLD))
         self.season_manager = SeasonManager(energy_threshold=energy_thresh, power_threshold=power_thresh)
+        self.pse_rce = PseRceClient(session)
         self.current_season = "zima"
 
         self.operation_mode = OPERATION_MODE_AUTO
@@ -108,6 +115,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._tariff_mode = config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
         self._buy_prices: list[float] = []
         self._buy_prices_start_iso: str = ""
+        self._sell_prices: list[float] = []
 
         self._unsubscribe_listeners: list[Any] = []
 
@@ -263,6 +271,48 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._buy_prices_start_iso = slot_dt.isoformat()
         return normalized
 
+    async def async_get_sell_prices(
+        self, now_dt: datetime | None = None, horizon: int | None = None
+    ) -> list[float]:
+        """Compute rolling sell-price chain (PSE RCE, sensor, or static)."""
+        if now_dt is None:
+            now_dt = datetime.now()
+        if horizon is None:
+            horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
+
+        sell_mode = self.config.get(CONF_SELL_PRICE_MODE, SELL_PRICE_MODE_PSE_RCE)
+
+        if sell_mode == SELL_PRICE_MODE_PSE_RCE:
+            multiplier = float(
+                self.config.get(CONF_PSE_RCE_MULTIPLIER, DEFAULT_PSE_RCE_MULTIPLIER)
+            )
+            sell_prices = await self.pse_rce.async_get_rolling_rce_chain(
+                now_dt=now_dt,
+                horizon_steps=horizon,
+                multiplier=multiplier,
+                default_price=0.40,
+                allow_negative=True,
+            )
+        elif sell_mode == SELL_PRICE_MODE_SENSOR:
+            sell_prices = self._get_list_data(
+                self.config.get(CONF_SELL_PRICE_ENTITY),
+                self.config.get(CONF_SELL_PRICE_ATTR, "list"),
+                self.config.get(CONF_SELL_PRICE_STATIC),
+                0.40,
+                horizon,
+            )
+        else:  # static
+            static_val = float(self.config.get(CONF_SELL_PRICE_STATIC, 0.40))
+            sell_prices = [static_val] * horizon
+
+        normalized = [round(float(p), 4) for p in sell_prices[:horizon]]
+        if len(normalized) < horizon:
+            fill = normalized[-1] if normalized else 0.40
+            normalized.extend([fill] * (horizon - len(normalized)))
+
+        self._sell_prices = normalized
+        return normalized
+
     async def async_run_mpc(self) -> bool:
         """Execute full MPC optimization cycle."""
         self._last_ems_action = "Trwa optymalizacja MPC (EMHASS)..."
@@ -286,14 +336,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             horizon,
         )
         buy_prices = self.get_buy_prices(datetime.now(), horizon)
-
-        sell_prices = self._get_list_data(
-            self.config.get(CONF_SELL_PRICE_ENTITY),
-            self.config.get(CONF_SELL_PRICE_ATTR, "list"),
-            self.config.get(CONF_SELL_PRICE_STATIC),
-            0.40,
-            horizon,
-        )
+        sell_prices = await self.async_get_sell_prices(datetime.now(), horizon)
 
         soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
         pv_now = self._get_float_state(self.config.get(CONF_SENSOR_PV_POWER), 0.0)

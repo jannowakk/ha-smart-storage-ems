@@ -6,10 +6,12 @@ from .polish_tariffs import (
     is_free_day,
     is_polish_holiday,
 )
+from .pse_rce import PseRceClient
 
 __all__ = [
     "generate_g13_chain",
     "generate_g12w_chain",
     "is_free_day",
     "is_polish_holiday",
+    "PseRceClient",
 ]

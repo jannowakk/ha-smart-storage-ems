@@ -46,9 +46,17 @@ CONF_LOAD_PROFILE_STATIC = "load_profile_static"
 CONF_BUY_PRICE_ENTITY = "buy_price_entity"
 CONF_BUY_PRICE_ATTR = "buy_price_attr"
 CONF_BUY_PRICE_STATIC = "buy_price_static"
+CONF_SELL_PRICE_MODE = "sell_price_mode"
+SELL_PRICE_MODE_PSE_RCE = "pse_rce"
+SELL_PRICE_MODE_SENSOR = "sensor"
+SELL_PRICE_MODE_STATIC = "static"
+SELL_PRICE_MODES = [SELL_PRICE_MODE_PSE_RCE, SELL_PRICE_MODE_SENSOR, SELL_PRICE_MODE_STATIC]
+
 CONF_SELL_PRICE_ENTITY = "sell_price_entity"
 CONF_SELL_PRICE_ATTR = "sell_price_attr"
 CONF_SELL_PRICE_STATIC = "sell_price_static"
+CONF_PSE_RCE_MULTIPLIER = "pse_rce_multiplier"
+DEFAULT_PSE_RCE_MULTIPLIER = 1.23
 
 # Configuration Keys - Safety & Guards
 CONF_ENABLE_IMPORT_GUARD = "enable_import_guard"

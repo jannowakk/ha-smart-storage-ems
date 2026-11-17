@@ -46,6 +46,12 @@ from tests.test_season_manager import (
     test_season_manager_afternoon_cutoff,
     test_dynamic_min_soc_frost_factor,
 )
+from tests.test_pse_rce import (
+    test_aggregate_15m_to_30m,
+    test_aggregate_empty_returns_empty,
+    test_get_rolling_rce_chain_with_tomorrow_available,
+    test_get_rolling_rce_chain_when_tomorrow_missing_mirrors_today,
+)
 
 if __name__ == "__main__":
     print("Running Smart Storage EMS unit tests...")
@@ -75,6 +81,18 @@ if __name__ == "__main__":
 
     test_dynamic_min_soc_frost_factor()
     print("✓ test_dynamic_min_soc_frost_factor passed")
+
+    test_aggregate_15m_to_30m()
+    print("✓ test_aggregate_15m_to_30m passed")
+
+    test_aggregate_empty_returns_empty()
+    print("✓ test_aggregate_empty_returns_empty passed")
+
+    test_get_rolling_rce_chain_with_tomorrow_available()
+    print("✓ test_get_rolling_rce_chain_with_tomorrow_available passed")
+
+    test_get_rolling_rce_chain_when_tomorrow_missing_mirrors_today()
+    print("✓ test_get_rolling_rce_chain_when_tomorrow_missing_mirrors_today passed")
 
     print("\nAll unit tests passed successfully!")
 

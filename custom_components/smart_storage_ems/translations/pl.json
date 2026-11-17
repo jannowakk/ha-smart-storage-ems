@@ -48,6 +48,8 @@
           "buy_price_entity": "Sensor cen zakupu energii (np. taryfa G13 / RCE)",
           "buy_price_attr": "Atrybut listy cen zakupu",
           "buy_price_static": "Domyślna cena zakupu (zł/kWh)",
+          "sell_price_mode": "Model cen sprzedaży / eksportu energii",
+          "pse_rce_multiplier": "Mnożnik cen PSE RCE (np. 1.23 dla Net-Billingu z VAT)",
           "sell_price_entity": "Sensor cen sprzedaży energii (RCE)",
           "sell_price_attr": "Atrybut listy cen sprzedaży",
           "sell_price_static": "Domyślna cena sprzedaży (zł/kWh)",
@@ -115,7 +117,11 @@
           "load_forecast_attr": "Atrybut prognozy zużycia",
           "load_profile_static": "Sztywny profil zużycia (W)",
           "buy_price_entity": "Sensor cen zakupu",
-          "sell_price_entity": "Sensor cen sprzedaży (RCE)"
+          "sell_price_mode": "Model cen sprzedaży / eksportu energii",
+          "pse_rce_multiplier": "Mnożnik cen PSE RCE (np. 1.23 dla Net-Billingu z VAT)",
+          "sell_price_entity": "Sensor cen sprzedaży",
+          "sell_price_attr": "Atrybut listy cen sprzedaży",
+          "sell_price_static": "Domyślna stała cena sprzedaży (zł/kWh)"
         }
       },
       "guards": {

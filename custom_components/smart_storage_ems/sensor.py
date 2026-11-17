@@ -45,13 +45,17 @@ class SmartStorageStatusSensor(CoordinatorEntity[SmartStorageCoordinator], Senso
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose active tariff curve and current buy price for chart visualization."""
+        """Expose active tariff and RCE sell price curves for chart visualization."""
         prices = self.coordinator._buy_prices
+        sell_prices = getattr(self.coordinator, "_sell_prices", [])
         return {
             "tariff_mode": self.coordinator._tariff_mode,
             "current_buy_price": prices[0] if prices else None,
             "buy_prices": prices,
             "buy_prices_start_time": self.coordinator._buy_prices_start_iso,
+            "sell_price_mode": self.coordinator.config.get("sell_price_mode", "pse_rce"),
+            "current_sell_price": sell_prices[0] if sell_prices else None,
+            "sell_prices": sell_prices,
         }
 
 
