@@ -191,7 +191,7 @@ To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy da
 
 ## 📄 Licencja i Zastrzeżenie (Disclaimer)
 
-Projekt udostępniany jest na licencji **[GNU GPL v3](LICENSE)**.
+Projekt udostępniany jest na licencji **[GNU GPL v3](LICENSE)** ([polskie omówienie informacyjne](LICENSE_PL.md)).
 
 > [!WARNING]
 > **Wyłączenie odpowiedzialności (Używasz na własne ryzyko):**
