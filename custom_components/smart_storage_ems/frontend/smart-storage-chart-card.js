@@ -28,6 +28,7 @@ class SmartStorageChartCard extends HTMLElement {
       charging: true,
       self_use: true,
       export: true,
+      grid_import: true,
       pv: true,
       load: true,
       soc: true,
@@ -207,6 +208,7 @@ class SmartStorageChartCard extends HTMLElement {
           <div class="legend-item" data-series="charging"><div class="legend-box" style="background: #4caf50;"></div> Ładowanie Baterii (W)</div>
           <div class="legend-item" data-series="self_use"><div class="legend-box" style="background: #2196f3;"></div> Autokonsumpcja (W)</div>
           <div class="legend-item" data-series="export"><div class="legend-box" style="background: #ff9800;"></div> Eksport Sieciowy (W)</div>
+          <div class="legend-item" data-series="grid_import"><div class="legend-line" style="background: #ff5722;"></div> Import Sieciowy (W)</div>
           <div class="legend-item" data-series="pv"><div class="legend-line" style="background: #fbc02d;"></div> Produkcja PV (W)</div>
           <div class="legend-item" data-series="load"><div class="legend-dash" style="border-top-color: #90a4ae;"></div> Prognoza Dom (W)</div>
           <div class="legend-item" data-series="soc"><div class="legend-line" style="background: #e91e63;"></div> Krzywa SoC (%)</div>
@@ -239,13 +241,13 @@ class SmartStorageChartCard extends HTMLElement {
           Object.keys(this._visibleSeries).forEach(k => { this._visibleSeries[k] = true; });
         } else if (this._filterMode === 'battery') {
           this._visibleSeries = {
-            charging: true, self_use: true, export: true,
+            charging: true, self_use: true, export: true, grid_import: true,
             pv: false, load: false,
             soc: true, min_soc: true, tariff: true,
           };
         } else if (this._filterMode === 'solar') {
           this._visibleSeries = {
-            charging: false, self_use: false, export: false,
+            charging: false, self_use: false, export: false, grid_import: false,
             pv: true, load: true,
             soc: false, min_soc: false, tariff: false,
           };
@@ -345,13 +347,17 @@ class SmartStorageChartCard extends HTMLElement {
         socVal = socVal * 100.0;
       }
 
+      const gridVal = parseFloat(rawGrid) || 0;
+
       dataPoints.push({
         time: pointTime,
         p_batt: parseFloat(rawBatt) || 0,
         soc: socVal,
         pv: parseFloat(rawPv) || 0,
         load: parseFloat(rawLoad) || 0,
-        grid: parseFloat(rawGrid) || 0,
+        grid: gridVal,
+        grid_import: Math.max(0, gridVal),
+        grid_export: Math.max(0, -gridVal),
         min_soc: dynamicMinSoc,
         buy_price: buyPrice,
       });
@@ -440,6 +446,8 @@ class SmartStorageChartCard extends HTMLElement {
       if (p.p_batt < minPower) minPower = p.p_batt;
       if (p.pv > maxPower) maxPower = p.pv;
       if (p.load > maxPower) maxPower = p.load;
+      if (p.grid > maxPower) maxPower = p.grid;
+      if (p.grid < minPower) minPower = p.grid;
     });
     maxPower = Math.ceil(maxPower / 1000) * 1000;
     minPower = Math.floor(minPower / 1000) * 1000;
@@ -490,7 +498,7 @@ class SmartStorageChartCard extends HTMLElement {
     });
 
     const vis = this._visibleSeries || {
-      charging: true, self_use: true, export: true,
+      charging: true, self_use: true, export: true, grid_import: true,
       pv: true, load: true, soc: true, min_soc: true, tariff: true,
     };
 
@@ -607,6 +615,20 @@ class SmartStorageChartCard extends HTMLElement {
       }
     }
 
+    // 2C. Draw Grid Import Curve (Coral / Orange-Red line #ff5722)
+    if (vis.grid_import) {
+      ctx.strokeStyle = '#ff5722';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      points.forEach((p, idx) => {
+        const x = getX(idx);
+        const y = getYPower(p.grid_import);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
     // 3. Draw Solar & Load Curves
     if (vis.pv) {
       // Solar Curve (Yellow)
@@ -713,6 +735,13 @@ class SmartStorageChartCard extends HTMLElement {
     if (point.p_batt < -20) battState = `Ładowanie: ${Math.abs(Math.round(point.p_batt))} W`;
     else if (point.p_batt > 20) battState = `Autokonsumpcja: ${Math.round(point.p_batt)} W`;
 
+    let gridState = '0 W (Brak wymiany)';
+    if (point.grid > 20) {
+      gridState = `Import: ${Math.round(point.grid)} W`;
+    } else if (point.grid < -20) {
+      gridState = `Eksport: ${Math.round(Math.abs(point.grid))} W`;
+    }
+
     const tariffLine = (point.buy_price !== null && !isNaN(point.buy_price))
       ? `<div>💰 <b>Taryfa (${this._tariffMode || 'EMS'}):</b> ${point.buy_price.toFixed(2)} zł/kWh</div>`
       : '';
@@ -722,6 +751,7 @@ class SmartStorageChartCard extends HTMLElement {
         🕒 ${timeStr}
       </div>
       <div>🔋 <b>Plan Baterii:</b> ${battState}</div>
+      <div>🔌 <b>Sieć OSD:</b> ${gridState}</div>
       <div>📊 <b>Krzywa SoC:</b> ${point.soc.toFixed(1)}% (Rezerwa: ${point.min_soc}%)</div>
       <div>☀️ <b>Prognoza PV:</b> ${Math.round(point.pv)} W</div>
       <div>🏠 <b>Prognoza Dom:</b> ${Math.round(point.load)} W</div>
