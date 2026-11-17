@@ -205,6 +205,66 @@ To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy da
 
 ---
 
+## ❓ FAQ: Logika Sterowania i Filozofia EMS
+
+> [!NOTE]
+> **Instalacja referencyjna:**  
+> Logika i algorytmy integracji zostały wypracowane, przetestowane i zoptymalizowane w warunkach rzeczywistych na instalacji referencyjnej: **Falownik hybrydowy GoodWe ET + wysokonapięciowy magazyn energii GoodWe Lynx D (moduły LX D5.0-10 / bateria HV)**, pracujący w trójstrefowej taryfie **G13** oraz rozliczeniu dynamicznym **RCE (PSE S.A.)** we współpracy z pompą ciepła i solverem **EMHASS**.  
+> Wszelkie wartości progowe wymienione poniżej są **domyślnymi parametrami referencyjnymi**, które można precyzyjnie dostosować w formularzu konfiguracyjnym (*Options Flow*) pod własną instalację i pojemność baterii.
+
+---
+
+### 1. W jaki sposób podzielone jest sterowanie falownikiem między jego automat a optymalizator (EMHASS)?
+* **Problem:** Ciągłe, zewnętrzne narzucanie rozładowania (`discharge_battery`) przez Home Assistant okazało się zbędne, podatne na opóźnienia sieciowe i dławiło eksport.
+* **Przyjęty model hybrydowy:**
+  * **Automat falownika (`self_use` + `auto`):** Oddajemy mu sterowanie w standardowych sytuacjach – latem oraz w drogich strefach cenowych, dopóki poziom SoC utrzymuje się powyżej zadanej rezerwy. Falownik w ułamku sekundy na poziomie mikrosekund reaguje na skoki obciążenia w domu.
+  * **Nadrzędny EMS (`general`):** Przejmuje kontrolę wyłącznie do zadań wykraczających poza zwykłą autokonsumpcję: wymuszonego ładowania z taniej sieci, zamrożenia magazynu w taniej strefie lub zaplanowanej sprzedaży energii do sieci (arbitraż).
+
+---
+
+### 2. Jakie tryby pracy falownika są wykorzystywane i za co odpowiadają?
+* **`self_use` + `auto`:** Standardowe, natywne pokrywanie potrzeb domu z PV i baterii w czasie rzeczywistym.
+* **`general` + `battery_standby`:** Zamrożenie magazynu – oddawanie energii na dom jest zablokowane mimo poboru, a dom zasilany jest z sieci.
+* **`general` + `charge_battery`:** Planowe, wymuszone ładowanie magazynu z sieci (z dynamicznym limitem mocy dopasowanym do falownika i przyłącza, domyślnie do 8000 W).
+* **`general` + `export_ac`:** Wymuszona, kontrolowana sprzedaż energii z magazynu do sieci OSD w szczycie cenowym (arbitraż RCE / strefa szczytowa).
+
+---
+
+### 3. Dlaczego rozładowywanie baterii bywa blokowane mimo zapotrzebowania domu na prąd?
+* **Przesłanka ekonomiczna:** Rozładowywanie baterii w taniej dolinie taryfy G13 (~0,62 zł/kWh) lub wyczerpanie jej przed pochmurnym dniem powoduje marnowanie z trudem zgromadzonej energii, która w szczycie popołudniowym (np. 1,49 zł/kWh) przyniesie wielokrotnie większą oszczędność.
+* **Zasada działania:** Gdy prąd z sieci jest tani (w dolinie cenowej w trybie zimowym) lub gdy SoC spadnie do chronionego progu rezerwy, magazyn przechodzi w `battery_standby`, a zasilanie domu przejmuje sieć.
+
+---
+
+### 4. Od czego uzależniona jest minimalna rezerwa baterii (Dynamic Min SoC) i jak wyeliminowano „taktowanie” trybów?
+* **Problem:** Sztywny próg Min SoC (np. 15% wynikające z DoD) nie zabezpiecza zasilania awaryjnego zimą, a pojedynczy punkt przełączania powoduje ciągłe oscylacje (taktowanie trybów) przy wahaniach SoC o 1%.
+* **Rozwiązanie w integracji:**
+  * **Dynamiczny Min SoC:** Bazowe 15% jest zimą automatycznie podnoszone (od 40% do nawet 65% wraz ze spadkiem temperatury zewnętrznej i wzrostem zapotrzebowania pompy ciepła), a także podbijane przy prognozie PV < 14 kWh oraz alertach burzowych/gradowych IMGW (min. 35% zimą, 30% latem).
+  * **Histereza przełączeń:** Tryb `auto` jest wyłączany dopiero po spadku `SoC <= min_soc + 5%` (utrzymanym przez min. 30 s), a przywracany dopiero po wyraźnym doładowaniu do `SoC >= min_soc + 7%`.
+
+---
+
+### 5. Czym różnią się tryby Zima i Lato oraz kiedy następuje ich przełączenie?
+* **Przesłanka:** Zima i Lato w systemie EMS to nie sztywne daty w kalendarzu, lecz dwa reżimy zarządzania ryzykiem energetycznym. Doświadczenia wykazały, że nocne przełączanie na lato zimą drenowało baterię tanim prądem, a sztywna godzina poranna rozładowywała magazyn jeszcze przed wschodem słońca.
+* **Przyjęta logika:**
+  * **Próg solarny:** Granicą między dniem z nadwyżką a pochmurnym jest prognoza PV na poziomie 14 kWh (Solcast, konfigurowalna).
+  * **Sezon letni (IV–IX):** Przy dobrej prognozie tryb letni utrzymywany jest całą dobę (pełna autokonsumpcja do poziomu rezerwy).
+  * **Sezon grzewczy (X–III):** Nocą obowiązuje reżim ochronny (zima). Rano przejście na autokonsumpcję następuje dopiero, gdy rzeczywista produkcja PV przekroczy 1000 W (z filtrem podtrzymania stanu mimo chwilowych chmur). O 15:55 (przed popołudniowym szczytem) tryb na wieczór jest wyznaczany w oparciu o prognozę na kolejny dzień.
+
+---
+
+### 6. Kiedy magazyn ładuje się z sieci, a kiedy sprzedaje energię?
+* **Ładowanie z sieci (`charge_battery`):** Uruchamiane wyłącznie w trybie zima, w taniej strefie taryfowej (np. ≤ 0,65 zł/kWh) oraz na podstawie matematycznego planu solvera EMHASS.
+* **Eksport do sieci (`export_ac`):** Realizowany wyłącznie przy opłacalnym planie EMHASS (arbitraż na skokach cen RCE), przy `SoC > 15%`, w oknie 6:00–23:00 oraz pod warunkiem, że produkcja PV nie pokrywa bieżącego zużycia domu (`pv_power <= real_load`). Moc eksportu wyliczana jest dynamicznie jako: `plan + zużycie domu − PV` (z uwzględnieniem bezpiecznego limitu, domyślnie do 5000 W).
+
+---
+
+### 7. Jak zabezpieczona jest praca falownika podczas zaniku sieci (Off-Grid)?
+* **Zasada nadrzędna:** W trakcie pracy wyspowej (`binary_sensor.tryb_offgrid == on`) wysyłanie jakichkolwiek komend zmieniających rejestry EMS falownika jest bezwzględnie zablokowane, aby nie zakłócić stabilności zasilania rezerwowego EPS/Backup.
+* **Powrót zasilania:** Po przywróceniu sieci integracja odczekuje 5 sekund na ustabilizowanie parametrów napięcia i częstotliwości, weryfikuje status sieci i bezpiecznie przywraca pełny limit eksportu (10 000 W) oraz harmonogram pracy.
+
+---
+
 ## 🗺️ Roadmapa Rozwoju
 
 - [x] MVP: Obsługa EMHASS Long-MPC + Falownik GoodWe ET/ES.
