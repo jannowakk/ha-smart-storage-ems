@@ -189,6 +189,7 @@ class SmartStorageChartCard extends HTMLElement {
           <div class="legend-item"><div class="legend-dash" style="border-top-color: #90a4ae;"></div> Prognoza Dom (W)</div>
           <div class="legend-item"><div class="legend-line" style="background: #e91e63;"></div> Krzywa SoC (%)</div>
           <div class="legend-item"><div class="legend-dash" style="border-top-color: #d32f2f;"></div> Linia Rezerwy Min SoC</div>
+          <div class="legend-item"><div class="legend-line" style="background: #ab47bc;"></div> Taryfa / Cena (zł/kWh)</div>
         </div>
       </div>
     `;
@@ -225,12 +226,17 @@ class SmartStorageChartCard extends HTMLElement {
     const loadForecastEntity = this._hass.states['sensor.p_load_forecast'];
     const gridForecastEntity = this._hass.states['sensor.p_grid_forecast'];
     const minSocEntity = this._hass.states['sensor.smart_storage_ems_dynamiczny_min_soc'];
+    const statusEntity = this._hass.states['sensor.smart_storage_ems_status'];
 
     const battList = battForecastEntity?.attributes?.forecasts || battForecastEntity?.attributes?.battery_scheduled_power || [];
     const socList = socForecastEntity?.attributes?.battery_scheduled_soc || socForecastEntity?.attributes?.forecasts || [];
     const pvList = pvForecastEntity?.attributes?.forecasts || [];
     const loadList = loadForecastEntity?.attributes?.forecasts || [];
     const gridList = gridForecastEntity?.attributes?.forecasts || [];
+
+    const buyPrices = statusEntity?.attributes?.buy_prices || [];
+    const tariffMode = (statusEntity?.attributes?.tariff_mode || 'g13').toUpperCase();
+    const pricesStartIso = statusEntity?.attributes?.buy_prices_start_time;
 
     const dynamicMinSoc = minSocEntity ? parseFloat(minSocEntity.state) || 15 : 15;
 
@@ -241,6 +247,7 @@ class SmartStorageChartCard extends HTMLElement {
     const now = new Date();
     const startMinutes = now.getMinutes() >= 30 ? 30 : 0;
     const baseTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), startMinutes);
+    const pricesBaseMs = pricesStartIso ? new Date(pricesStartIso).getTime() : baseTime.getTime();
 
     for (let i = 0; i < stepsCount; i++) {
       const bItem = battList[i] || {};
@@ -255,6 +262,17 @@ class SmartStorageChartCard extends HTMLElement {
         pointTime = new Date(rawDate);
       } else {
         pointTime = new Date(baseTime.getTime() + i * 30 * 60000);
+      }
+
+      // Align tariff price by timestamp offset (fallback to index if no start time)
+      let buyPrice = null;
+      if (buyPrices.length > 0) {
+        const priceIdx = Math.round((pointTime.getTime() - pricesBaseMs) / (30 * 60000));
+        if (priceIdx >= 0 && priceIdx < buyPrices.length) {
+          buyPrice = parseFloat(buyPrices[priceIdx]);
+        } else if (i < buyPrices.length) {
+          buyPrice = parseFloat(buyPrices[i]);
+        }
       }
 
       // Resilient parsing across all EMHASS naming conventions
@@ -277,17 +295,19 @@ class SmartStorageChartCard extends HTMLElement {
         load: parseFloat(rawLoad) || 0,
         grid: parseFloat(rawGrid) || 0,
         min_soc: dynamicMinSoc,
+        buy_price: buyPrice,
       });
     }
 
-    return { dataPoints, dynamicMinSoc, hasData };
+    return { dataPoints, dynamicMinSoc, hasData, tariffMode };
   }
 
   render() {
     if (!this._canvas || !this._hass) return;
 
-    const { dataPoints, dynamicMinSoc, hasData } = this._extractData();
+    const { dataPoints, dynamicMinSoc, hasData, tariffMode } = this._extractData();
     this._dataPoints = dataPoints;
+    this._tariffMode = tariffMode;
 
     const kpiCharge = this.content.querySelector('#kpiCharge');
     const kpiDischarge = this.content.querySelector('#kpiDischarge');
@@ -410,6 +430,49 @@ class SmartStorageChartCard extends HTMLElement {
       const ySoc = getYSoc(soc);
       ctx.fillText(`${soc}%`, padLeft + plotW + 6, ySoc + 3);
     });
+
+    // 1B. Draw Tariff / Buy Price Stepped Curve & Peak Zone Shading
+    const validPrices = points.map(p => p.buy_price).filter(v => v !== null && !isNaN(v));
+    if (validPrices.length > 0 && (this._filterMode === 'all' || this._filterMode === 'battery')) {
+      const minPrice = Math.min(...validPrices);
+      const maxPrice = Math.max(...validPrices);
+      const priceCeil = Math.max(maxPrice * 1.15, 0.5);
+      const getYPrice = (price) => padTop + plotH - (price / priceCeil) * (plotH * 0.45);
+      const stepW = points.length > 1 ? plotW / (points.length - 1) : plotW;
+
+      // Subtle purple background column for peak/higher-cost zones
+      points.forEach((p, idx) => {
+        if (p.buy_price !== null && maxPrice > minPrice && p.buy_price > minPrice * 1.10) {
+          const x = getX(idx);
+          const xLeft = Math.max(padLeft, x - stepW / 2);
+          const xRight = Math.min(padLeft + plotW, x + stepW / 2);
+          const intensity = Math.min(0.14, 0.05 + ((p.buy_price - minPrice) / (maxPrice - minPrice)) * 0.09);
+          ctx.fillStyle = `rgba(171, 71, 188, ${intensity.toFixed(3)})`;
+          ctx.fillRect(xLeft, padTop, xRight - xLeft, plotH);
+        }
+      });
+
+      // Stepped tariff line
+      ctx.strokeStyle = 'rgba(171, 71, 188, 0.85)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      let started = false;
+      let prevY = null;
+      points.forEach((p, idx) => {
+        if (p.buy_price === null || isNaN(p.buy_price)) return;
+        const x = getX(idx);
+        const y = getYPrice(p.buy_price);
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, prevY);
+          ctx.lineTo(x, y);
+        }
+        prevY = y;
+      });
+      ctx.stroke();
+    }
 
     // 2. Draw Battery Power Areas and Continuous Line
     if (this._filterMode === 'all' || this._filterMode === 'battery') {
@@ -575,6 +638,10 @@ class SmartStorageChartCard extends HTMLElement {
     if (point.p_batt < -20) battState = `Ładowanie: ${Math.abs(Math.round(point.p_batt))} W`;
     else if (point.p_batt > 20) battState = `Autokonsumpcja: ${Math.round(point.p_batt)} W`;
 
+    const tariffLine = (point.buy_price !== null && !isNaN(point.buy_price))
+      ? `<div>💰 <b>Taryfa (${this._tariffMode || 'EMS'}):</b> ${point.buy_price.toFixed(2)} zł/kWh</div>`
+      : '';
+
     this._tooltip.innerHTML = `
       <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px; margin-bottom: 4px;">
         🕒 ${timeStr}
@@ -583,6 +650,7 @@ class SmartStorageChartCard extends HTMLElement {
       <div>📊 <b>Krzywa SoC:</b> ${point.soc.toFixed(1)}% (Rezerwa: ${point.min_soc}%)</div>
       <div>☀️ <b>Prognoza PV:</b> ${Math.round(point.pv)} W</div>
       <div>🏠 <b>Prognoza Dom:</b> ${Math.round(point.load)} W</div>
+      ${tariffLine}
     `;
 
     this._tooltip.style.display = 'block';

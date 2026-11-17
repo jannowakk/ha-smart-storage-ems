@@ -43,6 +43,17 @@ class SmartStorageStatusSensor(CoordinatorEntity[SmartStorageCoordinator], Senso
         """Return the current EMS state."""
         return self.coordinator._last_ems_action
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose active tariff curve and current buy price for chart visualization."""
+        prices = self.coordinator._buy_prices
+        return {
+            "tariff_mode": self.coordinator._tariff_mode,
+            "current_buy_price": prices[0] if prices else None,
+            "buy_prices": prices,
+            "buy_prices_start_time": self.coordinator._buy_prices_start_iso,
+        }
+
 
 class SmartStorageTargetPowerSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
     """Sensor reporting target battery power."""

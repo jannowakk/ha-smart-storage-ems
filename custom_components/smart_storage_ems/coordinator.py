@@ -105,6 +105,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_ems_action = "Inicjalizacja"
         self._target_power = 0.0
         self._dynamic_min_soc = config.get(CONF_BASE_MIN_SOC, DEFAULT_BASE_MIN_SOC)
+        self._tariff_mode = config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
+        self._buy_prices: list[float] = []
+        self._buy_prices_start_iso: str = ""
 
         self._unsubscribe_listeners: list[Any] = []
 
@@ -125,7 +128,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         )
 
-        # Immediate plan enforcement so status updates from "Inicjalizacja" right away
+        # Immediate tariff calculation and plan enforcement
+        self.get_buy_prices()
         await self.async_enforce_plan()
 
     def _get_float_state(self, entity_id: str | None, default: float = 0.0) -> float:
@@ -219,6 +223,46 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._dynamic_min_soc = min_soc
         return min_soc
 
+    def get_buy_prices(
+        self, now_dt: datetime | None = None, horizon: int | None = None
+    ) -> list[float]:
+        """Compute and cache rolling buy-price chain for the active tariff."""
+        if now_dt is None:
+            now_dt = datetime.now()
+        if horizon is None:
+            horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
+
+        tariff_mode = self.config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
+        self._tariff_mode = tariff_mode
+
+        if tariff_mode == TARIFF_MODE_G13:
+            t1 = float(self.config.get(CONF_G13_PRICE_T1, 0.90))
+            t2 = float(self.config.get(CONF_G13_PRICE_T2, 1.49))
+            t3 = float(self.config.get(CONF_G13_PRICE_T3, 0.62))
+            buy_prices = generate_g13_chain(now_dt, horizon_steps=horizon, p_t1=t1, p_t2=t2, p_t3=t3)
+        elif tariff_mode == TARIFF_MODE_G12W:
+            buy_prices = generate_g12w_chain(now_dt, horizon_steps=horizon)
+        else:
+            buy_prices = self._get_list_data(
+                self.config.get(CONF_BUY_PRICE_ENTITY),
+                self.config.get(CONF_BUY_PRICE_ATTR, "list"),
+                self.config.get(CONF_BUY_PRICE_STATIC),
+                0.65,
+                horizon,
+            )
+
+        # Normalize length to horizon so chart and EMHASS always get exact step count
+        normalized = [round(float(p), 4) for p in buy_prices[:horizon]]
+        if len(normalized) < horizon:
+            fill = normalized[-1] if normalized else 0.65
+            normalized.extend([fill] * (horizon - len(normalized)))
+
+        minute_slot = 30 if now_dt.minute >= 30 else 0
+        slot_dt = now_dt.replace(minute=minute_slot, second=0, microsecond=0)
+        self._buy_prices = normalized
+        self._buy_prices_start_iso = slot_dt.isoformat()
+        return normalized
+
     async def async_run_mpc(self) -> bool:
         """Execute full MPC optimization cycle."""
         self._last_ems_action = "Trwa optymalizacja MPC (EMHASS)..."
@@ -241,24 +285,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             400.0,
             horizon,
         )
-        # Determine Buy Prices (Built-in Polish Tariffs or Entity)
-        tariff_mode = self.config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
-        now_dt = datetime.now()
-        if tariff_mode == TARIFF_MODE_G13:
-            t1 = float(self.config.get(CONF_G13_PRICE_T1, 0.90))
-            t2 = float(self.config.get(CONF_G13_PRICE_T2, 1.49))
-            t3 = float(self.config.get(CONF_G13_PRICE_T3, 0.62))
-            buy_prices = generate_g13_chain(now_dt, horizon_steps=horizon, p_t1=t1, p_t2=t2, p_t3=t3)
-        elif tariff_mode == TARIFF_MODE_G12W:
-            buy_prices = generate_g12w_chain(now_dt, horizon_steps=horizon)
-        else:
-            buy_prices = self._get_list_data(
-                self.config.get(CONF_BUY_PRICE_ENTITY),
-                self.config.get(CONF_BUY_PRICE_ATTR, "list"),
-                self.config.get(CONF_BUY_PRICE_STATIC),
-                0.65,
-                horizon,
-            )
+        buy_prices = self.get_buy_prices(datetime.now(), horizon)
 
         sell_prices = self._get_list_data(
             self.config.get(CONF_SELL_PRICE_ENTITY),
@@ -318,6 +345,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_enforce_plan(self) -> None:
         """Translate MPC forecast sensors into concrete inverter actions."""
+        self.get_buy_prices()
+
         # 1. Off-Grid Safety Check
         offgrid_sensor = self.config.get(CONF_BINARY_SENSOR_OFFGRID)
         if offgrid_sensor:
