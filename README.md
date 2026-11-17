@@ -194,6 +194,7 @@ PYTHONPATH=. python3 tests/run_tests.py
 - [x] Wbudowany moduł taryf polskich (G12w, G13 z kalendarzem świąt stałych i ruchomych).
 - [x] Dedykowane karty dashboardu Lovelace do sterowania i wizualizacji planu ładowania/rozładowania (48h).
 - [ ] Tryb „Od północy (`00:00`)” dla tablic prognoz i cen (automatyczne składanie D+0/D+1/D+2, cięcie „od teraz” oraz natywne czytanie `detailedForecast` z Solcasta bez pisania YAML-a).
+- [ ] Wbudowane pobieranie cen sprzedaży RCE bezpośrednio z publicznego API PSE S.A. (`api.raporty.pse.pl`).
 - [ ] Kolejne drivery falowników: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
 
 ---
