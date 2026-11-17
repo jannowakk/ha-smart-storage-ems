@@ -44,3 +44,4 @@ def test_build_mpc_payload_length_and_types() -> None:
     assert payload["soc_init"] == 0.45
     assert payload["battery_minimum_state_of_charge"] == 0.15
     assert payload["battery_soc_deficit_threshold"] == 0.15
+    assert payload["battery_stress_cost"] == 0.05

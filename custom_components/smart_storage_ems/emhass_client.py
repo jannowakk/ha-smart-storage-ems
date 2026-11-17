@@ -75,6 +75,7 @@ class EmhassClient:
         horizon: int = 96,
         cost_function: str = "cost",
         soc_deficit_cost: float = 0.4,
+        battery_stress_cost: float = 0.05,
     ) -> dict[str, Any]:
         """Build standard MPC payload for EMHASS."""
         # Trim or pad lists to match horizon
@@ -108,7 +109,7 @@ class EmhassClient:
             "weight_battery_discharge": 0.01,
             "battery_discharge_efficiency": 0.90,
             "battery_charge_efficiency": 0.90,
-            "battery_stress_cost": 0.20,
+            "battery_stress_cost": round(battery_stress_cost, 2),
             "costfun": cost_function,
             "battery_soc_deficit_cost": round(soc_deficit_cost, 2),
             "battery_soc_deficit_threshold": round(min_soc, 2),
