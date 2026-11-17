@@ -136,8 +136,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         )
 
-        # Immediate tariff calculation and plan enforcement
+        # Immediate tariff & sell prices calculation and plan enforcement
         self.get_buy_prices()
+        self.hass.async_create_task(self.async_get_sell_prices())
         await self.async_enforce_plan()
 
     def _get_float_state(self, entity_id: str | None, default: float = 0.0) -> float:

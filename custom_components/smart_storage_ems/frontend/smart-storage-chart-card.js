@@ -34,6 +34,7 @@ class SmartStorageChartCard extends HTMLElement {
       soc: true,
       min_soc: true,
       tariff: true,
+      rce: true,
     };
   }
 
@@ -194,7 +195,7 @@ class SmartStorageChartCard extends HTMLElement {
             <button class="pill-btn" data-filter="battery">Bateria & SoC</button>
             <button class="pill-btn" data-filter="solar">Słońce vs Dom</button>
           </div>
-          <div style="font-size: 0.75rem; font-weight: 600; color: var(--secondary-text-color, #757575);">
+          <div style="font-size: 0.75rem; font-weight: 600; color: var(--secondary-text-color, #757575);" id="chartHeaderSubtitle">
             Horyzont: 48h (Krok 30m)
           </div>
         </div>
@@ -213,7 +214,8 @@ class SmartStorageChartCard extends HTMLElement {
           <div class="legend-item" data-series="load"><div class="legend-dash" style="border-top-color: #90a4ae;"></div> Prognoza Dom (W)</div>
           <div class="legend-item" data-series="soc"><div class="legend-line" style="background: #e91e63;"></div> Krzywa SoC (%)</div>
           <div class="legend-item" data-series="min_soc"><div class="legend-dash" style="border-top-color: #d32f2f;"></div> Linia Rezerwy Min SoC</div>
-          <div class="legend-item" data-series="tariff"><div class="legend-line" style="background: #ab47bc;"></div> Taryfa / Cena (zł/kWh)</div>
+          <div class="legend-item" data-series="tariff"><div class="legend-line" style="background: #ab47bc;"></div> Zakup / Taryfa (zł/kWh)</div>
+          <div class="legend-item" data-series="rce"><div class="legend-line" style="background: #00bcd4;"></div> Sprzedaż RCE (zł/kWh)</div>
         </div>
       </div>
     `;
@@ -243,13 +245,13 @@ class SmartStorageChartCard extends HTMLElement {
           this._visibleSeries = {
             charging: true, self_use: true, export: true, grid_import: true,
             pv: false, load: false,
-            soc: true, min_soc: true, tariff: true,
+            soc: true, min_soc: true, tariff: true, rce: true,
           };
         } else if (this._filterMode === 'solar') {
           this._visibleSeries = {
-            charging: false, self_use: false, export: false, grid_import: false,
+            charging: false, self_use: false, export: true, grid_import: false,
             pv: true, load: true,
-            soc: false, min_soc: false, tariff: false,
+            soc: false, min_soc: false, tariff: false, rce: true,
           };
         }
         syncLegendUI();
@@ -295,6 +297,9 @@ class SmartStorageChartCard extends HTMLElement {
     const gridList = gridForecastEntity?.attributes?.forecasts || [];
 
     const buyPrices = statusEntity?.attributes?.buy_prices || [];
+    const sellPrices = statusEntity?.attributes?.sell_prices || [];
+    const currentSellPrice = statusEntity?.attributes?.current_sell_price;
+    const sellPriceMode = statusEntity?.attributes?.sell_price_mode || 'pse_rce';
     const tariffMode = (statusEntity?.attributes?.tariff_mode || 'g13').toUpperCase();
     const pricesStartIso = statusEntity?.attributes?.buy_prices_start_time;
 
@@ -335,6 +340,17 @@ class SmartStorageChartCard extends HTMLElement {
         }
       }
 
+      // Align RCE sell price by timestamp offset
+      let sellPrice = null;
+      if (sellPrices.length > 0) {
+        const priceIdx = Math.round((pointTime.getTime() - pricesBaseMs) / (30 * 60000));
+        if (priceIdx >= 0 && priceIdx < sellPrices.length) {
+          sellPrice = parseFloat(sellPrices[priceIdx]);
+        } else if (i < sellPrices.length) {
+          sellPrice = parseFloat(sellPrices[i]);
+        }
+      }
+
       // Resilient parsing across all EMHASS naming conventions
       const rawBatt = bItem.p_batt_forecast ?? bItem.P_batt ?? bItem.p_batt ?? bItem.battery_power ?? 0;
       const rawSoc = sItem.soc_batt_forecast ?? sItem.battery_scheduled_soc ?? sItem.SOC_opt ?? sItem.soc_batt ?? sItem.soc ?? 0;
@@ -360,17 +376,30 @@ class SmartStorageChartCard extends HTMLElement {
         grid_export: Math.max(0, -gridVal),
         min_soc: dynamicMinSoc,
         buy_price: buyPrice,
+        sell_price: sellPrice,
       });
     }
 
-    return { dataPoints, dynamicMinSoc, hasData, tariffMode };
+    return { dataPoints, dynamicMinSoc, hasData, tariffMode, currentSellPrice, sellPriceMode };
   }
 
   render() {
     if (!this._canvas || !this._hass) return;
 
-    const { dataPoints, dynamicMinSoc, hasData, tariffMode } = this._extractData();
+    const { dataPoints, dynamicMinSoc, hasData, tariffMode, currentSellPrice, sellPriceMode } = this._extractData();
     this._dataPoints = dataPoints;
+    this._tariffMode = tariffMode;
+    this._currentSellPrice = currentSellPrice;
+    this._sellPriceMode = sellPriceMode;
+
+    const subtitle = this.content.querySelector('#chartHeaderSubtitle');
+    if (subtitle) {
+      let subText = 'Horyzont: 48h (Krok 30m)';
+      if (currentSellPrice !== undefined && currentSellPrice !== null) {
+        subText += ` | RCE Teraz: ${parseFloat(currentSellPrice).toFixed(2)} zł`;
+      }
+      subtitle.textContent = subText;
+    }
     this._tariffMode = tariffMode;
 
     const kpiCharge = this.content.querySelector('#kpiCharge');
@@ -499,50 +528,97 @@ class SmartStorageChartCard extends HTMLElement {
 
     const vis = this._visibleSeries || {
       charging: true, self_use: true, export: true, grid_import: true,
-      pv: true, load: true, soc: true, min_soc: true, tariff: true,
+      pv: true, load: true, soc: true, min_soc: true, tariff: true, rce: true,
     };
 
-    // 1B. Draw Tariff / Buy Price Stepped Curve & Peak Zone Shading
-    const validPrices = points.map(p => p.buy_price).filter(v => v !== null && !isNaN(v));
-    if (vis.tariff && validPrices.length > 0) {
-      const minPrice = Math.min(...validPrices);
-      const maxPrice = Math.max(...validPrices);
+    // 1B. Draw Tariff / Buy Price and RCE Sell Price Stepped Curves
+    const validBuyPrices = vis.tariff ? points.map(p => p.buy_price).filter(v => v !== null && !isNaN(v)) : [];
+    const validSellPrices = vis.rce ? points.map(p => p.sell_price).filter(v => v !== null && !isNaN(v)) : [];
+    const allValidPrices = [...validBuyPrices, ...validSellPrices];
+
+    if (allValidPrices.length > 0) {
+      const minPrice = Math.min(0, ...allValidPrices);
+      const maxPrice = Math.max(1.2, ...allValidPrices);
       const priceCeil = Math.max(maxPrice * 1.15, 0.5);
-      const getYPrice = (price) => padTop + plotH - (price / priceCeil) * (plotH * 0.45);
+      const getYPrice = (price) => padTop + plotH - ((price - minPrice) / (priceCeil - minPrice)) * (plotH * 0.42);
       const stepW = points.length > 1 ? plotW / (points.length - 1) : plotW;
 
-      // Subtle purple background column for peak/higher-cost zones
-      points.forEach((p, idx) => {
-        if (p.buy_price !== null && maxPrice > minPrice && p.buy_price > minPrice * 1.10) {
-          const x = getX(idx);
-          const xLeft = Math.max(padLeft, x - stepW / 2);
-          const xRight = Math.min(padLeft + plotW, x + stepW / 2);
-          const intensity = Math.min(0.14, 0.05 + ((p.buy_price - minPrice) / (maxPrice - minPrice)) * 0.09);
-          ctx.fillStyle = `rgba(171, 71, 188, ${intensity.toFixed(3)})`;
-          ctx.fillRect(xLeft, padTop, xRight - xLeft, plotH);
+      // Subtle purple background column for peak/higher-cost buy zones
+      if (vis.tariff && validBuyPrices.length > 0) {
+        const minBuy = Math.min(...validBuyPrices);
+        const maxBuy = Math.max(...validBuyPrices);
+        if (maxBuy > minBuy) {
+          points.forEach((p, idx) => {
+            if (p.buy_price !== null && p.buy_price > minBuy * 1.10) {
+              const x = getX(idx);
+              const xLeft = Math.max(padLeft, x - stepW / 2);
+              const xRight = Math.min(padLeft + plotW, x + stepW / 2);
+              const intensity = Math.min(0.12, 0.04 + ((p.buy_price - minBuy) / (maxBuy - minBuy)) * 0.08);
+              ctx.fillStyle = `rgba(171, 71, 188, ${intensity.toFixed(3)})`;
+              ctx.fillRect(xLeft, padTop, xRight - xLeft, plotH);
+            }
+          });
         }
-      });
+      }
 
-      // Stepped tariff line
-      ctx.strokeStyle = 'rgba(171, 71, 188, 0.85)';
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      let started = false;
-      let prevY = null;
-      points.forEach((p, idx) => {
-        if (p.buy_price === null || isNaN(p.buy_price)) return;
-        const x = getX(idx);
-        const y = getYPrice(p.buy_price);
-        if (!started) {
-          ctx.moveTo(x, y);
-          started = true;
-        } else {
-          ctx.lineTo(x, prevY);
-          ctx.lineTo(x, y);
+      // Stepped tariff buy line (Purple #ab47bc)
+      if (vis.tariff && validBuyPrices.length > 0) {
+        ctx.strokeStyle = 'rgba(171, 71, 188, 0.85)';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        let started = false;
+        let prevY = null;
+        points.forEach((p, idx) => {
+          if (p.buy_price === null || isNaN(p.buy_price)) return;
+          const x = getX(idx);
+          const y = getYPrice(p.buy_price);
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, prevY);
+            ctx.lineTo(x, y);
+          }
+          prevY = y;
+        });
+        ctx.stroke();
+      }
+
+      // Stepped RCE sell price line (Cyan #00bcd4)
+      if (vis.rce && validSellPrices.length > 0) {
+        ctx.strokeStyle = '#00bcd4';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        let started = false;
+        let prevY = null;
+        points.forEach((p, idx) => {
+          if (p.sell_price === null || isNaN(p.sell_price)) return;
+          const x = getX(idx);
+          const y = getYPrice(p.sell_price);
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, prevY);
+            ctx.lineTo(x, y);
+          }
+          prevY = y;
+        });
+        ctx.stroke();
+
+        // If any price is negative, draw red dashed zero line
+        if (minPrice < 0) {
+          const yZeroP = getYPrice(0);
+          ctx.strokeStyle = 'rgba(244, 67, 54, 0.7)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(padLeft, yZeroP);
+          ctx.lineTo(padLeft + plotW, yZeroP);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
-        prevY = y;
-      });
-      ctx.stroke();
+      }
     }
 
     // 2. Draw Battery Power Areas and Continuous Line
@@ -743,7 +819,11 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     const tariffLine = (point.buy_price !== null && !isNaN(point.buy_price))
-      ? `<div>💰 <b>Taryfa (${this._tariffMode || 'EMS'}):</b> ${point.buy_price.toFixed(2)} zł/kWh</div>`
+      ? `<div>💰 <b>Zakup (${this._tariffMode || 'EMS'}):</b> ${point.buy_price.toFixed(2)} zł/kWh</div>`
+      : '';
+
+    const rceLine = (point.sell_price !== null && !isNaN(point.sell_price))
+      ? `<div>📈 <b>Sprzedaż (RCE):</b> ${point.sell_price.toFixed(3)} zł/kWh</div>`
       : '';
 
     this._tooltip.innerHTML = `
@@ -756,6 +836,7 @@ class SmartStorageChartCard extends HTMLElement {
       <div>☀️ <b>Prognoza PV:</b> ${Math.round(point.pv)} W</div>
       <div>🏠 <b>Prognoza Dom:</b> ${Math.round(point.load)} W</div>
       ${tariffLine}
+      ${rceLine}
     `;
 
     this._tooltip.style.display = 'block';
