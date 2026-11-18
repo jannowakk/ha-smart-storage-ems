@@ -471,15 +471,13 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self.inverter.async_export_to_grid(export_power)
             self._last_ems_action = f"Eksport na sieć ({export_power}W)"
 
-        # Scenario C: Standby / Hold Battery (between -20W and +20W in low tariff)
-        elif -20 <= p_batt <= 20 and soc <= 0.50:
-            await self.inverter.async_hold_battery()
-            self._last_ems_action = "Standby (Oszczędzanie w taniej strefie)"
-
-        # Scenario D: Normal Self Consumption
+        # Scenario C: Normal Self Consumption (Balance house load from battery/solar)
         else:
             await self.inverter.async_self_consumption()
-            self._last_ems_action = "Autokonsumpcja (Auto)"
+            if soc <= self._dynamic_min_soc:
+                self._last_ems_action = "Ochrona Rezerwy (Min SoC)"
+            else:
+                self._last_ems_action = "Autokonsumpcja (Auto)"
 
         self._notify_coordinator_update()
 
