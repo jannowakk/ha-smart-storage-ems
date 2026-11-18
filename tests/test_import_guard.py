@@ -51,6 +51,7 @@ def test_import_guard_does_not_trigger_when_battery_empty() -> None:
     assert guard._trigger_count == 0
 
 
+
 def test_import_guard_does_not_trigger_when_charging() -> None:
     """Test that guard does NOT intervene if EMHASS is actively charging the battery."""
     hass_mock = MagicMock()
@@ -68,6 +69,30 @@ def test_import_guard_does_not_trigger_when_charging() -> None:
         battery_soc_pct=40.0,
         min_soc_pct=15.0,
         p_batt_forecast=-2500.0,
+    )
+
+    assert triggered is False
+    assert guard._trigger_count == 0
+
+
+def test_import_guard_does_not_trigger_when_reserve_hold_active() -> None:
+    """Test that guard does NOT intervene if battery reserve hold (Standby) is active."""
+    hass_mock = MagicMock()
+    inverter_mock = MagicMock()
+    guard = ImportGuard(
+        hass=hass_mock,
+        inverter=inverter_mock,
+        import_sensor="sensor.import_power",
+        threshold=300.0,
+    )
+
+    # Battery at 41%, but reserve hold is active (e.g. within hysteresis buffer)
+    triggered = guard.check_and_enforce(
+        current_import_w=600.0,
+        battery_soc_pct=41.0,
+        min_soc_pct=40.0,
+        p_batt_forecast=0.0,
+        reserve_hold_active=True,
     )
 
     assert triggered is False

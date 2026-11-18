@@ -36,6 +36,7 @@ from tests.test_import_guard import (
     test_import_guard_triggers_when_exceeding_threshold,
     test_import_guard_does_not_trigger_when_battery_empty,
     test_import_guard_does_not_trigger_when_charging,
+    test_import_guard_does_not_trigger_when_reserve_hold_active,
 )
 from tests.test_polish_tariffs import (
     test_polish_holidays,
@@ -66,6 +67,9 @@ if __name__ == "__main__":
 
     test_import_guard_does_not_trigger_when_charging()
     print("✓ test_import_guard_does_not_trigger_when_charging passed")
+
+    test_import_guard_does_not_trigger_when_reserve_hold_active()
+    print("✓ test_import_guard_does_not_trigger_when_reserve_hold_active passed")
 
     test_polish_holidays()
     print("✓ test_polish_holidays passed")

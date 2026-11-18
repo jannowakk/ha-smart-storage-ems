@@ -116,6 +116,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_ems_action = "Inicjalizacja"
         self._target_power = 0.0
         self._dynamic_min_soc = config.get(CONF_BASE_MIN_SOC, DEFAULT_BASE_MIN_SOC)
+        self._reserve_hold_active: bool = False
         self._tariff_mode = config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
         self._buy_prices: list[float] = []
         self._buy_prices_start_iso: str = ""
@@ -436,6 +437,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.inverter.async_ensure_export_limit()
 
         # 3. Manual Overrides
+        if self.operation_mode != OPERATION_MODE_AUTO:
+            self._reserve_hold_active = False
+
         if self.operation_mode == OPERATION_MODE_HOLD:
             await self.inverter.async_hold_battery()
             self._last_ems_action = "Ręczny Standby (Hold)"
@@ -460,24 +464,30 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Scenario A: Force Charge (< -20W)
         if p_batt < -20:
+            self._reserve_hold_active = False
             charge_power = int(abs(p_batt))
             await self.inverter.async_charge_battery(charge_power)
             self._last_ems_action = f"Ładowanie z sieci ({charge_power}W)"
 
         # Scenario B: Arbitrage Export to Grid
         elif p_grid < -50 and p_batt > 50:
+            self._reserve_hold_active = False
             load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 0.0)
             export_power = int(abs(p_grid) + load_now)
             await self.inverter.async_export_to_grid(export_power)
             self._last_ems_action = f"Eksport na sieć ({export_power}W)"
 
-        # Scenario C: Normal Self Consumption (Balance house load from battery/solar)
+        # Scenario C: Reserve Protection (Hold in Standby when SoC <= min_soc, return at min_soc + 2%)
+        elif soc <= self._dynamic_min_soc or (self._reserve_hold_active and soc < (self._dynamic_min_soc + 0.02)):
+            self._reserve_hold_active = True
+            await self.inverter.async_hold_battery()
+            self._last_ems_action = "Ochrona Rezerwy (Standby)"
+
+        # Scenario D: Normal Self Consumption (Balance house load from battery/solar)
         else:
+            self._reserve_hold_active = False
             await self.inverter.async_self_consumption()
-            if soc <= self._dynamic_min_soc:
-                self._last_ems_action = "Ochrona Rezerwy (Min SoC)"
-            else:
-                self._last_ems_action = "Autokonsumpcja (Auto)"
+            self._last_ems_action = "Autokonsumpcja (Auto)"
 
         self._notify_coordinator_update()
 
@@ -490,6 +500,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "dynamic_min_soc": self._dynamic_min_soc,
             "season": self.current_season,
             "import_guard_enabled": self.import_guard.enabled,
+            "reserve_hold_active": self._reserve_hold_active,
             "last_mpc_run": self._last_mpc_success.isoformat() if self._last_mpc_success else None,
         }
         self.async_update_listeners()
@@ -514,6 +525,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             battery_soc_pct=soc_pct,
             min_soc_pct=min_soc_pct,
             p_batt_forecast=p_batt,
+            reserve_hold_active=self._reserve_hold_active,
         )
         if triggered:
             self._last_ems_action = "Strażnik Importu (Wymuszono Auto)"
