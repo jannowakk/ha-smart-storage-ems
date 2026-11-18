@@ -52,6 +52,7 @@ class SmartStorageStatusSensor(CoordinatorEntity[SmartStorageCoordinator], Senso
             "current_buy_price": prices[0] if prices else None,
             "buy_prices": prices,
             "buy_prices_start_time": self.coordinator._buy_prices_start_iso,
+            "last_mpc_run": self.coordinator._last_mpc_success.isoformat() if getattr(self.coordinator, "_last_mpc_success", None) else None,
         }
 
 
