@@ -6,7 +6,11 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_state_change_event, async_track_time_interval
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_time_change,
+    async_track_time_interval,
+)
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
@@ -84,7 +88,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(minutes=30),
+            update_interval=None,
         )
         self.config = config
         session = async_get_clientsession(hass)
@@ -116,6 +120,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._buy_prices: list[float] = []
         self._buy_prices_start_iso: str = ""
         self._sell_prices: list[float] = []
+        self._last_mpc_run: datetime | None = None
+        self._last_mpc_success: datetime | None = None
 
         self._unsubscribe_listeners: list[Any] = []
 
@@ -136,10 +142,22 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         )
 
+        # Dedicated clock-aligned MPC run every 30 minutes (:00:15 and :30:15)
+        self._unsubscribe_listeners.append(
+            async_track_time_change(
+                self.hass, self._async_scheduled_mpc_tick, minute=[0, 30], second=15
+            )
+        )
+
         # Immediate tariff & sell prices calculation and plan enforcement
         self.get_buy_prices()
         self.hass.async_create_task(self.async_get_sell_prices())
         await self.async_enforce_plan()
+
+    async def _async_scheduled_mpc_tick(self, _now: Any) -> None:
+        """Scheduled 30-min clock-aligned MPC optimization tick."""
+        _LOGGER.info("Executing scheduled clock-aligned MPC optimization cycle")
+        await self.async_run_mpc()
 
     def _get_float_state(self, entity_id: str | None, default: float = 0.0) -> float:
         """Safely fetch float state of an entity (supports sensors and weather entities)."""
@@ -316,6 +334,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_run_mpc(self) -> bool:
         """Execute full MPC optimization cycle."""
+        self._last_mpc_run = datetime.now()
         self._last_ems_action = "Trwa optymalizacja MPC (EMHASS)..."
         self._notify_coordinator_update()
 
@@ -365,6 +384,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         _LOGGER.info("Starting EMHASS MPC optimization cycle (horizon: %d steps)", horizon)
         success = await self.emhass.async_run_mpc_optimization(payload)
         if success:
+            self._last_mpc_success = datetime.now()
             await self.emhass.async_publish_data()
             await self.async_enforce_plan()
         else:
@@ -373,18 +393,29 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return success
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Coordinator 30-min scheduled run."""
+        """Coordinator initial data load / manual refresh."""
         await self.async_run_mpc()
         return {
             "operation_mode": self.operation_mode,
             "last_action": self._last_ems_action,
             "target_power": self._target_power,
             "dynamic_min_soc": self._dynamic_min_soc,
+            "season": self.current_season,
             "import_guard_enabled": self.import_guard.enabled,
+            "last_mpc_run": self._last_mpc_success.isoformat() if self._last_mpc_success else None,
         }
 
     async def _async_enforce_plan_tick(self, _now: Any) -> None:
-        """Periodic plan enforcement tick."""
+        """Periodic plan enforcement tick (runs every 60s) with MPC watchdog."""
+        now_dt = datetime.now()
+        # Watchdog: ensure MPC has run in the last 35 minutes
+        if self._last_mpc_success and (now_dt - self._last_mpc_success) > timedelta(minutes=35):
+            _LOGGER.warning(
+                "MPC watchdog triggered! No successful run for %s. Forcing async_run_mpc()",
+                now_dt - self._last_mpc_success,
+            )
+            self.hass.async_create_task(self.async_run_mpc())
+
         await self.async_enforce_plan()
 
     async def async_enforce_plan(self) -> None:
@@ -453,17 +484,17 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._notify_coordinator_update()
 
     def _notify_coordinator_update(self) -> None:
-        """Notify all HA entities and cards of the updated state."""
-        self.async_set_updated_data(
-            {
-                "operation_mode": self.operation_mode,
-                "last_action": self._last_ems_action,
-                "target_power": self._target_power,
-                "dynamic_min_soc": self._dynamic_min_soc,
-                "season": self.current_season,
-                "import_guard_enabled": self.import_guard.enabled,
-            }
-        )
+        """Notify all HA entities and cards of the updated state without disrupting timers."""
+        self.data = {
+            "operation_mode": self.operation_mode,
+            "last_action": self._last_ems_action,
+            "target_power": self._target_power,
+            "dynamic_min_soc": self._dynamic_min_soc,
+            "season": self.current_season,
+            "import_guard_enabled": self.import_guard.enabled,
+            "last_mpc_run": self._last_mpc_success.isoformat() if self._last_mpc_success else None,
+        }
+        self.async_update_listeners()
 
     @callback
     def _async_on_import_change(self, event: Any) -> None:
