@@ -183,8 +183,13 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
 | Pole w formularzu | Wymagane? | Domyślnie | Opis i wskazówki |
 | :--- | :---: | :--- | :--- |
 | **Adres URL EMHASS** | Tak | `http://localhost:5000` | Adres serwera/dodatku EMHASS. Pamiętaj o porcie **5000** (nie 8123 od HA!). Klient automatycznie zamienia `localhost` na `127.0.0.1`, aby uniknąć problemów z IPv6 w Dockerze. |
+| **Token API EMHASS** | Opcjonalne* | *(puste)* | **Wymagany od EMHASS v0.18.10+ (w tym v0.18.11+).** Wpisz token z konfiguracji dodatku EMHASS (`emhass_api_token`). W starszych wersjach EMHASS (< v0.18.10) pozostaw to pole puste (pełna kompatybilność wsteczna). |
 | **Horyzont optymalizacji** | Tak | `96` | Liczba kroków 30-minutowych liczonych do przodu. `96` kroków = **48 godzin**. |
 | **Funkcja celu** | Tak | `cost` | Tryb optymalizacji EMHASS: `cost` (minimalizacja kosztów zakupu), `profit` (maksymalizacja zysku z eksportu) lub `self-consumption` (autokonsumpcja). |
+
+> [!NOTE]
+> **Kompatybilność z EMHASS v0.18.10+ i v0.18.11+ (Token Bearer):**  
+> Nowsze wersje EMHASS wymagają nagłówka `Authorization: Bearer <emhass_api_token>` przy wywoływaniu endpointów `/action/naive-mpc-optim` oraz `/action/publish-data`. Wklejając token w pole **Token API EMHASS** w opcjach integracji, Smart Storage EMS automatycznie autoryzuje wszystkie zapytania. W przypadku starszych wersji EMHASS pole można pozostawić puste.
 
 > [!IMPORTANT]
 > **Wymagana wstępna konfiguracja w samym dodatku EMHASS:**
@@ -205,7 +210,10 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
   * Wybierz **`custom`**, jeśli masz taryfę dynamiczną lub własny cennik w zewnętrznym sensorze.
 * **Cena szczytu T1 / T2 / pozaszczytu T3 (zł/kWh):** Domyślnie `0.90`, `1.49`, `0.62`. Używane przez wbudowany generator G13.
 * **Sensor cen zakupu (`buy_price_entity`) + Atrybut listy (`buy_price_attr`, domyślnie `list`):** Używane **tylko w trybie `custom`**. Wskazany sensor musi mieć w wybranym atrybucie listę cen (np. `[0.62, 0.62, 0.90, ...]`) w zł/kWh co 30 min, zaczynającą się **„od teraz”**. Jeśli lista będzie pusta lub błędna, przyjmie domyślne `0.65 zł/kWh`.
-* **Sensor cen sprzedaży RCE (`sell_price_entity`) + Atrybut listy (`sell_price_attr`, domyślnie `list`):** Opcjonalna lista cen sprzedaży energii do sieci w zł/kWh co 30 min **„od teraz”** (np. `sensor.emhass_price_chain_120h`). Jeśli zostawisz puste, integracja przyjmie płaskie `0.40 zł/kWh`.
+* **Model cen sprzedaży / eksportu energii (`sell_price_mode`):**
+  * **`pse_rce` (Domyślny / Zalecany dla Polski):** Integracja automatycznie pobiera dynamiczne ceny rynkowe RCE bezpośrednio z oficjalnego API PSE S.A. (`api.raporty.pse.pl`), agreguje je z kwadransów (15 min) do 30 minut i generuje łańcuch kroczący na 48h. Dostępny jest także konfigurowalny **mnożnik cen PSE RCE** (domyślnie `1.00`, lub np. `1.23` przy rozliczaniu Net-Billing z VAT).
+  * **`sensor`:** Opcjonalna lista cen sprzedaży energii do sieci z zewnętrznego sensora w zł/kWh co 30 min **„od teraz”** (`sell_price_entity` + `sell_price_attr`).
+  * **`static`:** Stała cena sprzedaży (`sell_price_static`, domyślnie `0.40 zł/kWh`).
 
 #### B. Prognoza fotowoltaiki (różnica między wektorem W a sumą kWh!)
 To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy danych:
@@ -302,7 +310,8 @@ To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy da
 - [x] Wbudowany moduł taryf polskich (G12w, G13 z kalendarzem świąt stałych i ruchomych).
 - [x] Dedykowane karty dashboardu Lovelace do sterowania i wizualizacji planu ładowania/rozładowania (48h).
 - [ ] Tryb „Od północy (`00:00`)” dla tablic prognoz i cen (automatyczne składanie D+0/D+1/D+2, cięcie „od teraz” oraz natywne czytanie `detailedForecast` z Solcasta bez pisania YAML-a).
-- [ ] Wbudowane pobieranie cen sprzedaży RCE bezpośrednio z publicznego API PSE S.A. (`api.raporty.pse.pl`).
+- [x] Wbudowane pobieranie cen sprzedaży RCE bezpośrednio z publicznego API PSE S.A. (`api.raporty.pse.pl`).
+- [x] Obsługa autoryzacji Bearer Token dla nowszych wersji EMHASS (v0.18.10+ oraz v0.18.11+).
 - [ ] Intuicyjne suwaki strojenia trendu pracy EMHASS w zakresie `-1 / 0 / +1` (chętniej ładuj / balans / chętniej rozładowuj, agresywność arbitrażu vs ochrona ogniw, sztywność bufora SoC).
 - [ ] Kolejne drivery falowników: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
 
