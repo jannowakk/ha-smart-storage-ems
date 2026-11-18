@@ -123,6 +123,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._sell_prices: list[float] = []
         self._last_mpc_run: datetime | None = None
         self._last_mpc_success: datetime | None = None
+        self._setup_time: datetime = datetime.now()
+        self._mpc_in_progress: bool = False
 
         self._unsubscribe_listeners: list[Any] = []
 
@@ -154,6 +156,13 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.get_buy_prices()
         self.hass.async_create_task(self.async_get_sell_prices())
         await self.async_enforce_plan()
+
+        # Delayed initial MPC run (gives HA Core and Supervisor 20s to finish booting)
+        async def _delayed_initial_mpc(_: Any = None) -> None:
+            await asyncio.sleep(20)
+            await self.async_run_mpc()
+
+        self.hass.async_create_task(_delayed_initial_mpc())
 
     async def _async_scheduled_mpc_tick(self, _now: Any) -> None:
         """Scheduled 30-min clock-aligned MPC optimization tick."""
@@ -334,68 +343,83 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return normalized
 
     async def async_run_mpc(self) -> bool:
-        """Execute full MPC optimization cycle."""
-        self._last_mpc_run = datetime.now()
-        self._last_ems_action = "Trwa optymalizacja MPC (EMHASS)..."
-        self._notify_coordinator_update()
+        """Execute full MPC optimization cycle with transient error retry."""
+        if self._mpc_in_progress:
+            _LOGGER.debug("MPC run already in progress, skipping duplicate call")
+            return False
 
-        horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
-        cost_func = self.config.get(CONF_COST_FUNCTION, DEFAULT_COST_FUNCTION)
-
-        pv_forecast = self._get_list_data(
-            self.config.get(CONF_PV_FORECAST_ENTITY),
-            self.config.get(CONF_PV_FORECAST_ATTR, "list"),
-            None,
-            0.0,
-            horizon,
-        )
-        load_forecast = self._get_list_data(
-            self.config.get(CONF_LOAD_FORECAST_ENTITY),
-            self.config.get(CONF_LOAD_FORECAST_ATTR, "list"),
-            self.config.get(CONF_LOAD_PROFILE_STATIC),
-            400.0,
-            horizon,
-        )
-        buy_prices = self.get_buy_prices(datetime.now(), horizon)
-        sell_prices = await self.async_get_sell_prices(datetime.now(), horizon)
-
-        soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
-        pv_now = self._get_float_state(self.config.get(CONF_SENSOR_PV_POWER), 0.0)
-        load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 400.0)
-        min_soc = self.calculate_dynamic_min_soc()
-        is_winter = (self.current_season == "zima")
-        final_soc = max(min_soc, min_soc) if is_winter else max(1.0 - soc, min_soc)
-        deficit_cost = 1.0 if is_winter else 0.40
-
-        payload = EmhassClient.build_mpc_payload(
-            pv_forecast=pv_forecast,
-            load_forecast=load_forecast,
-            buy_prices=buy_prices,
-            sell_prices=sell_prices,
-            soc_init=soc,
-            soc_final=final_soc,
-            min_soc=min_soc,
-            pv_now=pv_now,
-            load_now=load_now,
-            horizon=horizon,
-            cost_function=cost_func,
-            soc_deficit_cost=deficit_cost,
-        )
-
-        _LOGGER.info("Starting EMHASS MPC optimization cycle (horizon: %d steps)", horizon)
-        success = await self.emhass.async_run_mpc_optimization(payload)
-        if success:
-            self._last_mpc_success = datetime.now()
-            await self.emhass.async_publish_data()
-            await self.async_enforce_plan()
-        else:
-            self._last_ems_action = "Błąd połączenia / optymalizacji EMHASS"
+        self._mpc_in_progress = True
+        try:
+            self._last_mpc_run = datetime.now()
+            self._last_ems_action = "Trwa optymalizacja MPC (EMHASS)..."
             self._notify_coordinator_update()
-        return success
+
+            horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
+            cost_func = self.config.get(CONF_COST_FUNCTION, DEFAULT_COST_FUNCTION)
+
+            pv_forecast = self._get_list_data(
+                self.config.get(CONF_PV_FORECAST_ENTITY),
+                self.config.get(CONF_PV_FORECAST_ATTR, "list"),
+                None,
+                0.0,
+                horizon,
+            )
+            load_forecast = self._get_list_data(
+                self.config.get(CONF_LOAD_FORECAST_ENTITY),
+                self.config.get(CONF_LOAD_FORECAST_ATTR, "list"),
+                self.config.get(CONF_LOAD_PROFILE_STATIC),
+                400.0,
+                horizon,
+            )
+            buy_prices = self.get_buy_prices(datetime.now(), horizon)
+            sell_prices = await self.async_get_sell_prices(datetime.now(), horizon)
+
+            soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
+            pv_now = self._get_float_state(self.config.get(CONF_SENSOR_PV_POWER), 0.0)
+            load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 400.0)
+            min_soc = self.calculate_dynamic_min_soc()
+            is_winter = (self.current_season == "zima")
+            final_soc = max(min_soc, min_soc) if is_winter else max(1.0 - soc, min_soc)
+            deficit_cost = 1.0 if is_winter else 0.40
+
+            payload = EmhassClient.build_mpc_payload(
+                pv_forecast=pv_forecast,
+                load_forecast=load_forecast,
+                buy_prices=buy_prices,
+                sell_prices=sell_prices,
+                soc_init=soc,
+                soc_final=final_soc,
+                min_soc=min_soc,
+                pv_now=pv_now,
+                load_now=load_now,
+                horizon=horizon,
+                cost_function=cost_func,
+                soc_deficit_cost=deficit_cost,
+            )
+
+            _LOGGER.info("Starting EMHASS MPC optimization cycle (horizon: %d steps)", horizon)
+            success = await self.emhass.async_run_mpc_optimization(payload)
+            if not success:
+                # Retry once after 10s (handles transient 502 Bad Gateway during HA restart)
+                _LOGGER.warning("EMHASS MPC optimization failed (possible transient 502). Retrying in 10s...")
+                await asyncio.sleep(10)
+                success = await self.emhass.async_run_mpc_optimization(payload)
+
+            if success:
+                self._last_mpc_success = datetime.now()
+                await self.emhass.async_publish_data()
+                await self.async_enforce_plan()
+            else:
+                self._last_ems_action = "Błąd połączenia / optymalizacji EMHASS"
+                self._notify_coordinator_update()
+            return success
+        finally:
+            self._mpc_in_progress = False
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Coordinator initial data load / manual refresh."""
-        await self.async_run_mpc()
+        if self._last_mpc_success is not None:
+            await self.async_run_mpc()
         return {
             "operation_mode": self.operation_mode,
             "last_action": self._last_ems_action,
@@ -403,19 +427,26 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "dynamic_min_soc": self._dynamic_min_soc,
             "season": self.current_season,
             "import_guard_enabled": self.import_guard.enabled,
+            "reserve_hold_active": self._reserve_hold_active,
             "last_mpc_run": self._last_mpc_success.isoformat() if self._last_mpc_success else None,
         }
 
     async def _async_enforce_plan_tick(self, _now: Any) -> None:
         """Periodic plan enforcement tick (runs every 60s) with MPC watchdog."""
         now_dt = datetime.now()
-        # Watchdog: ensure MPC has run in the last 35 minutes
-        if self._last_mpc_success and (now_dt - self._last_mpc_success) > timedelta(minutes=35):
-            _LOGGER.warning(
-                "MPC watchdog triggered! No successful run for %s. Forcing async_run_mpc()",
-                now_dt - self._last_mpc_success,
-            )
-            self.hass.async_create_task(self.async_run_mpc())
+        # Watchdog: ensure MPC has run successfully
+        if not self._mpc_in_progress:
+            if self._last_mpc_success is None:
+                # If 45s passed since setup and no successful run yet, trigger retry
+                if (now_dt - self._setup_time) >= timedelta(seconds=45):
+                    _LOGGER.info("Initial MPC run pending or failed on boot. Triggering watchdog run...")
+                    self.hass.async_create_task(self.async_run_mpc())
+            elif (now_dt - self._last_mpc_success) > timedelta(minutes=35):
+                _LOGGER.warning(
+                    "MPC watchdog triggered! No successful run for %s. Forcing async_run_mpc()",
+                    now_dt - self._last_mpc_success,
+                )
+                self.hass.async_create_task(self.async_run_mpc())
 
         await self.async_enforce_plan()
 
