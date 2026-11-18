@@ -25,6 +25,8 @@ async def async_setup_entry(
             SmartStorageTargetPowerSensor(coordinator, entry),
             SmartStorageDynamicMinSocSensor(coordinator, entry),
             SmartStorageSeasonModeSensor(coordinator, entry),
+            SmartStoragePvForecastSensor(coordinator, entry),
+            SmartStorageLoadForecastSensor(coordinator, entry),
         ]
     )
 
@@ -56,6 +58,9 @@ class SmartStorageStatusSensor(CoordinatorEntity[SmartStorageCoordinator], Senso
             "sell_price_mode": self.coordinator.config.get("sell_price_mode", "pse_rce"),
             "current_sell_price": sell_prices[0] if sell_prices else None,
             "sell_prices": sell_prices,
+            "sell_prices_start_time": getattr(self.coordinator, "_sell_prices_start_iso", self.coordinator._buy_prices_start_iso),
+            "cost_function": getattr(self.coordinator, "_active_cost_function", "cost"),
+            "configured_cost_function": self.coordinator.config.get("cost_function", "auto"),
             "last_mpc_run": self.coordinator._last_mpc_success.isoformat() if getattr(self.coordinator, "_last_mpc_success", None) else None,
         }
 
@@ -120,3 +125,58 @@ class SmartStorageSeasonModeSensor(CoordinatorEntity[SmartStorageCoordinator], S
             "power_threshold_w": self.coordinator.season_manager.power_threshold,
             "calculated_min_soc_pct": round(self.coordinator._dynamic_min_soc * 100.0, 1),
         }
+
+
+class SmartStoragePvForecastSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
+    """Sensor exposing generated 48h PV forecast array and active source."""
+
+    def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_pv_forecast_48h"
+        self._attr_name = "Smart Storage EMS: Prognoza PV (48h)"
+        self._attr_native_unit_of_measurement = "W"
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_icon = "mdi:solar-power-variant"
+
+    @property
+    def native_value(self) -> float:
+        """Return the forecast power for the current slot."""
+        pv = self.coordinator._pv_forecast
+        return round(pv[0], 0) if pv else 0.0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose full forecast array and source name."""
+        return {
+            "source": self.coordinator._pv_forecast_source,
+            "list": self.coordinator._pv_forecast,
+            "horizon_steps": len(self.coordinator._pv_forecast),
+        }
+
+
+class SmartStorageLoadForecastSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
+    """Sensor exposing generated 48h house load forecast array and active source."""
+
+    def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_load_forecast_48h"
+        self._attr_name = "Smart Storage EMS: Prognoza Zużycia Domu (48h)"
+        self._attr_native_unit_of_measurement = "W"
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_icon = "mdi:home-lightning-bolt-outline"
+
+    @property
+    def native_value(self) -> float:
+        """Return the forecast load power for the current slot."""
+        load = self.coordinator._load_forecast
+        return round(load[0], 0) if load else 400.0
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose full forecast array and source name."""
+        return {
+            "source": self.coordinator._load_forecast_source,
+            "list": self.coordinator._load_forecast,
+            "horizon_steps": len(self.coordinator._load_forecast),
+        }
+

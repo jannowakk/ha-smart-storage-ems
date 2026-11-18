@@ -114,6 +114,8 @@ Po dodaniu integracji otrzymujesz gotowe encje do sterowania i dashboardów Love
 * `sensor.smart_storage_ems_moc_zadana`: Obliczona moc zadana dla baterii w Watach.
 * `sensor.smart_storage_ems_dynamiczny_min_soc`: Dynamiczny próg rezerwy w %.
 * `sensor.smart_storage_ems_tryb_sezonowy`: Aktualny tryb sezonowy (`lato` / `zima`).
+* `sensor.smart_storage_ems_prognoza_pv_48h`: Wygenerowany ciągły wektor prognozy mocy PV na 48h (96 kroków) przekazywany do EMHASS.
+* `sensor.smart_storage_ems_prognoza_zuzycia_domu_48h`: Wygenerowany ciągły wektor prognozy zużycia domu na 48h (96 kroków) przekazywany do EMHASS.
 * `select.smart_storage_ems_tryb_pracy`: Przełącznik trybu (`auto_mpc`, `hold_standby`, `force_charge`, `self_use`).
 * `switch.smart_storage_ems_straznik_importu`: Włącznik/wyłącznik Strażnika Importu.
 * `switch.smart_storage_ems_rezerwa_burzowa`: Włącznik rezerwy na wypadek burzy / blackoutu.
@@ -150,13 +152,14 @@ cards:
 
 Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfiguracji oraz menu opcji (zębatki).
 
-> [!IMPORTANT]
-> **Złota zasada tablic prognoz (dane „od teraz”, a nie od północy!):**
-> Wszystkie pola oczekujące **listy wartości** (prognoza mocy PV, prognoza zużycia domu, ceny zakupu i sprzedaży) muszą zawierać tablicę w formacie **rolling forecast** (kroczącym) – czyli zaczynającą się **od bieżącego 30-minutowego okna („od teraz”)**, a **nie** od północy (`00:00`).
->
-> **Dlaczego to ważne?** Gdy uruchamiasz optymalizację np. o `14:00`, integracja traktuje element `[0]` z tablicy jako bieżący kwadrans (`14:00–14:30`, przy czym krok `[0]` dla PV i zużycia i tak nadpisuje bieżącym odczytem z falownika), element `[1]` jako `14:30–15:00`, itd. Jeśli podasz tablicę zaczynającą się od `00:00`, to o `14:00` EMHASS odczyta z niej prognozę z północy (0 W ze słońca!) i cały plan na 48h będzie przesunięty.
->
-> *Uwaga: Wbudowany w integrację generator taryf **G13** i **G12w** automatycznie buduje taki łańcuch „od teraz” – nie musisz tam podawać żadnych list!*
+> [!TIP]
+> **Koniec z ręcznym tworzeniem wektorów „od teraz” w YAML (Nowość w v1.1.0!):**
+> EMHASS wymaga na wejściu wektorów 48-godzinnych (96 kroków) zaczynających się dokładnie **od bieżącego 30-minutowego slotu („od teraz”)**, a nie od północy (`00:00`).
+> **Od wersji v1.1.0 integracja całkowicie zdejmuje ten ciężar z użytkownika:**
+> * **Prognoza PV:** Wystarczy wskazać 3 standardowe sensory Solcast (Dziś, Jutro, Dzień 3) – integracja sama odczytuje `detailedForecast`, składa dni i kroi ciągły wektor „od teraz”.
+> * **Prognoza zużycia domu:** Jeśli pozostawisz pole puste, integracja sama generuje realistyczny dobowy profil domowy (noc ~350 W, poranek ~600 W, dzień ~450 W, wieczór ~800 W) dopasowany do dni roboczych i świąt w Polsce, kroi go „od teraz”, a slot 0 kotwiczy do bieżącego poboru domu!
+> * **Ceny taryfowe (G13 / G12w) oraz RCE (PSE S.A.):** Są generowane krocząco w 100% automatycznie.
+> *Ręczne wektory „od teraz” (`load_forecast_entity` / `pv_forecast_entity`) są potrzebne wyłącznie wtedy, gdy masz własny, zaawansowany model master.*
 
 ---
 
@@ -185,7 +188,7 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
 | **Adres URL EMHASS** | Tak | `http://localhost:5000` | Adres serwera/dodatku EMHASS. Pamiętaj o porcie **5000** (nie 8123 od HA!). Klient automatycznie zamienia `localhost` na `127.0.0.1`, aby uniknąć problemów z IPv6 w Dockerze. |
 | **Token API EMHASS** | Opcjonalne* | *(puste)* | **Wymagany od EMHASS v0.18.10+ (w tym v0.18.11+).** Wpisz dowolny, ale **dokładnie ten sam ciąg znaków**, który ustawiłeś w konfiguracji dodatku EMHASS (`emhass_api_token`). W starszych wersjach EMHASS (< v0.18.10) pozostaw to pole puste (pełna kompatybilność wsteczna). |
 | **Horyzont optymalizacji** | Tak | `96` | Liczba kroków 30-minutowych liczonych do przodu. `96` kroków = **48 godzin**. |
-| **Funkcja celu** | Tak | `cost` | Tryb optymalizacji EMHASS: `cost` (minimalizacja kosztów zakupu), `profit` (maksymalizacja zysku z eksportu) lub `self-consumption` (autokonsumpcja). |
+| **Funkcja celu** | Tak | `auto` | Tryb optymalizacji EMHASS: `auto` (zalecany: automatycznie przełącza na `self-consumption` w słoneczny dzień >14 kWh, `profit` podczas szpil cenowych PSE RCE, a `cost` w pochmurne/zimowe dni) lub ręczny wybór: `cost`, `profit`, `self-consumption`. |
 
 > [!NOTE]
 > **Kompatybilność z EMHASS v0.18.10+ i v0.18.11+ (Token Bearer):**  
@@ -219,23 +222,28 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
   * **`sensor`:** Opcjonalna lista cen sprzedaży energii do sieci z zewnętrznego sensora w zł/kWh co 30 min **„od teraz”** (`sell_price_entity` + `sell_price_attr`).
   * **`static`:** Stała cena sprzedaży (`sell_price_static`, domyślnie `0.40 zł/kWh`).
 
-#### B. Prognoza fotowoltaiki (różnica między wektorem W a sumą kWh!)
-To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy danych:
+#### B. Prognoza fotowoltaiki (Natywny generator bez szablonów Jinja2!)
+Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w YAML:
 
-1. **Sensor wektora mocy PV (`pv_forecast_entity`) + Atrybut (`pv_forecast_attr`, domyślnie `list`):**
-   * **Czego oczekuje:** Sensora posiadającego w atrybucie (np. `list`) tablicę prognozowanej mocy w **Watach (W)** w krokach 30-minutowych **„od teraz”** na kolejne 48h (np. `[1200, 1450, 900, ...]`).
-   * **Częsty błąd:** Nie podawaj tu zwykłego sensora dziennego z Solcast (np. `sensor.solcast_pv_forecast_prognoza_na_dzisiaj`), bo on ma tylko jedną liczbę w kWh (brak listy w atrybucie `list`) – wtedy EMHASS dostanie same zera `0.0 W`!
-   * Jeśli zostawisz pole puste, integracja wyśle profil zerowy `0.0 W`.
-2. **Sensor energii PV na dzisiaj (`pv_energy_today_entity`) oraz na jutro (`pv_energy_tomorrow_entity`):**
-   * **Czego oczekuje:** Pojedynczej liczby w **kWh** (tutaj właśnie idealnie pasują encje Solcast: `sensor.solcast_pv_forecast_prognoza_na_dzisiaj` i `..._jutro`).
-   * **Do czego służy:** Nie jest wysyłane jako tablica do EMHASS, lecz steruje automatycznym przełącznikiem trybu sezonowego (`lato` / `zima`).
-3. **Próg energii (`14` kWh) i mocy PV (`1000` W):**
+1. **Główne źródło – Solcast (Zalecane):**
+   * Podaj 3 standardowe sensory Solcast: **Dzisiaj** (`solcast_today`), **Jutro** (`solcast_tomorrow`) oraz **Dzień 3** (`solcast_d3`).
+   * Integracja odczytuje atrybuty `detailedForecast` z Solcast, automatycznie przelicza kW na W, składa ciągły 48-godzinny wektor kroczący (96 kroków) rozpoczynający się od bieżącego slotu i wystawia go jako encję `sensor.smart_storage_ems_prognoza_pv_48h`.
+   * Wartości dzienne energii w kWh na dzisiaj i jutro są automatycznie sczytywane z tych samych sensorów na potrzeby przełącznika sezonowego (`lato`/`zima`).
+2. **Awaryjny fallback – Open-Meteo:**
+   * Opcjonalnie wskaż 3 sensory Open-Meteo (`openmeteo_today`, `openmeteo_tomorrow`, `openmeteo_d3`). Jeśli Solcast stanie się niedostępny (`unavailable`), integracja automatycznie przełączy źródło prognozy na Open-Meteo bez przerywania optymalizacji.
+3. **Zaawansowany sensor własny (`pv_forecast_entity`):**
+   * Opcjonalne pole dla użytkowników z własnym, gotowym modelem 48h (np. `sensor.emhass_pv_forecast_48h`, atrybut `list`).
+4. **Próg energii (`14` kWh) i mocy PV (`1000` W):**
    * Przed godz. `15:55` integracja przełącza tryb na `lato`, gdy prognoza na dziś $\ge 14\text{ kWh}$ oraz bieżąca moc PV $\ge 1000\text{ W}$. Po `15:55` utrzymuje `lato` tylko wtedy, gdy jutro również zapowiada się $\ge 14\text{ kWh}$.
 
 #### C. Prognoza zużycia domu (House Load)
-* **Sensor prognozy zużycia (`load_forecast_entity`) + Atrybut (`load_forecast_attr`, domyślnie `list`):** Opcjonalny sensor z tablicą przewidywanego poboru mocy domu w **Watach (W)** co 30 min **„od teraz”**.
-* **Sztywny profil zużycia (`load_profile_static`):** Opcjonalna lista liczb po przecinku w **W** (np. `400, 450, 500, ...`), używana jako profil „od teraz”, gdy nie podano sensora.
-* **Gdy oba pola są puste:** Integracja przyjmuje bezpieczny, płaski profil `400 W` na każdy przyszły krok (a krok 0 zawsze nadpisuje bieżącym zużyciem `load_now` z falownika).
+1. **Tryb „Zero Konfiguracji” (Wbudowany autoprofil 48h):**
+   * Jeśli pozostawisz pole sensora puste, integracja automatycznie buduje realistyczny, dobowy profil obciążenia domu (dolina nocna ~350 W, poranek ~600 W, dzień ~450 W, wieczorny szczyt ~800 W).
+   * Profil automatycznie dostosowuje się do dni roboczych oraz weekendów i świąt ustawowych w Polsce, kroi się krocząco „od teraz” na 96 kroków i wystawia sensor `sensor.smart_storage_ems_prognoza_zuzycia_domu_48h`.
+   * Krok 0 (teraz) jest zawsze automatycznie nadpisywany **bieżącym odczytem mocy z falownika** (`sensor.goodwe_house_consumption`).
+   * W polu `load_profile_static` możesz opcjonalnie podać jedną liczbę (np. `500`), aby przeskalować krzywą do średniego poboru swojego domu.
+2. **Tryb Własnego Wektora (`load_forecast_entity`):**
+   * Dla zaawansowanych użytkowników: możesz podać gotowy sensor sumujący wieloskładnikowe obciążenia (np. `sensor.emhass_master_load_forecast` z atrybutem `list`), a integracja przekaże go bezpośrednio do EMHASS.
 
 #### D. Strażnik Importu, Rezerwy i Mróz
 * **Aktywuj Strażnika Importu & Próg zadziałania (`300` W):** Gdy import z sieci przekroczy próg (np. `> 300 W`), a bateria ma zapas powyżej dynamicznego Min SoC i nie trwa planowe ładowanie, Strażnik natychmiast wymusza autokonsumpcję.
@@ -313,7 +321,7 @@ To najczęstsze źródło pomyłek – rozdzielamy tu dwa zupełnie inne typy da
 - [x] Opcje dynamicznego Min SoC (Sezon zimowy + Współczynnik mrozu + Ostrzeżenia burzowe).
 - [x] Wbudowany moduł taryf polskich (G12w, G13 z kalendarzem świąt stałych i ruchomych).
 - [x] Dedykowane karty dashboardu Lovelace do sterowania i wizualizacji planu ładowania/rozładowania (48h).
-- [ ] Tryb „Od północy (`00:00`)” dla tablic prognoz i cen (automatyczne składanie D+0/D+1/D+2, cięcie „od teraz” oraz natywne czytanie `detailedForecast` z Solcasta bez pisania YAML-a).
+- [x] Natywny silnik prognoz (automatyczne składanie D+0/D+1/D+2, cięcie „od teraz”, czytanie Solcast + fallback Open-Meteo oraz autoprofil dobowy zużycia domu bez pisania YAML-a).
 - [x] Wbudowane pobieranie cen sprzedaży RCE bezpośrednio z publicznego API PSE S.A. (`api.raporty.pse.pl`).
 - [x] Obsługa autoryzacji Bearer Token dla nowszych wersji EMHASS (v0.18.10+ oraz v0.18.11+).
 - [ ] Intuicyjne suwaki strojenia trendu pracy EMHASS w zakresie `-1 / 0 / +1` (chętniej ładuj / balans / chętniej rozładowuj, agresywność arbitrażu vs ochrona ogniw, sztywność bufora SoC).

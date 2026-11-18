@@ -35,11 +35,25 @@ CONF_G13_PRICE_T3 = "g13_price_t3"
 
 CONF_PV_FORECAST_ENTITY = "pv_forecast_entity"
 CONF_PV_FORECAST_ATTR = "pv_forecast_attr"
+CONF_SOLCAST_TODAY = "solcast_today"
+CONF_SOLCAST_TOMORROW = "solcast_tomorrow"
+CONF_SOLCAST_D3 = "solcast_d3"
+CONF_OPENMETEO_TODAY = "openmeteo_today"
+CONF_OPENMETEO_TOMORROW = "openmeteo_tomorrow"
+CONF_OPENMETEO_D3 = "openmeteo_d3"
 CONF_PV_ENERGY_TODAY_ENTITY = "pv_energy_today_entity"
 CONF_PV_ENERGY_TOMORROW_ENTITY = "pv_energy_tomorrow_entity"
 CONF_OUTSIDE_TEMP_ENTITY = "outside_temp_entity"
 CONF_PV_ENERGY_THRESHOLD = "pv_energy_threshold"
 CONF_PV_POWER_THRESHOLD = "pv_power_threshold"
+
+CONF_LOAD_PROFILE_WORKDAY_ENTITY = "load_profile_workday_entity"
+CONF_LOAD_PROFILE_WORKDAY_ATTR = "load_profile_workday_attr"
+CONF_LOAD_PROFILE_WORKDAY_STATIC = "load_profile_workday_static"
+CONF_LOAD_PROFILE_HOLIDAY_ENTITY = "load_profile_holiday_entity"
+CONF_LOAD_PROFILE_HOLIDAY_ATTR = "load_profile_holiday_attr"
+CONF_LOAD_PROFILE_HOLIDAY_STATIC = "load_profile_holiday_static"
+CONF_WORKDAY_SENSOR = "workday_sensor"
 
 CONF_LOAD_FORECAST_ENTITY = "load_forecast_entity"
 CONF_LOAD_FORECAST_ATTR = "load_forecast_attr"
@@ -71,7 +85,8 @@ CONF_WEATHER_ALERT_ENTITY = "weather_alert_entity"
 DEFAULT_EMHASS_URL = "http://localhost:5000"
 DEFAULT_HORIZON_STEPS = 96
 DEFAULT_STEP_MINUTES = 30
-DEFAULT_COST_FUNCTION = "cost"
+DEFAULT_COST_FUNCTION = "auto"
+COST_FUNCTIONS = ["auto", "cost", "profit", "self-consumption"]
 DEFAULT_INVERTER_TYPE = "goodwe"
 DEFAULT_IMPORT_GUARD_THRESHOLD = 300.0  # Watts
 DEFAULT_IMPORT_GUARD_DURATION = 15  # Seconds

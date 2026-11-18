@@ -25,7 +25,7 @@
           "emhass_url": "Adres URL EMHASS",
           "emhass_api_token": "Token API EMHASS (dowolny ciąg znaków, ten sam co w dodatku EMHASS)",
           "horizon_steps": "Horyzont optymalizacji (liczba kroków, np. 96 = 48h)",
-          "cost_function": "Funkcja celu (cost / profit / self-consumption)"
+          "cost_function": "Funkcja celu (auto / cost / profit / self-consumption)"
         }
       },
       "forecasts": {
@@ -36,6 +36,12 @@
           "g13_price_t1": "Cena szczytu przedpołudniowego T1 (zł/kWh)",
           "g13_price_t2": "Cena szczytu popołudniowego T2 (zł/kWh)",
           "g13_price_t3": "Cena pozaszczytu T3 (zł/kWh)",
+          "solcast_today": "Solcast: Prognoza na dzisiaj (sensor.solcast_pv_forecast_prognoza_na_dzisiaj)",
+          "solcast_tomorrow": "Solcast: Prognoza na jutro (sensor.solcast_pv_forecast_prognoza_na_jutro)",
+          "solcast_d3": "Solcast: Prognoza na dzień 3 (sensor.solcast_pv_forecast_prognoza_na_dzien_3)",
+          "openmeteo_today": "Open-Meteo Fallback: Prognoza dzisiaj (np. sensor.dom_energy_production_today)",
+          "openmeteo_tomorrow": "Open-Meteo Fallback: Prognoza jutro (np. sensor.dom_energy_production_tomorrow)",
+          "openmeteo_d3": "Open-Meteo Fallback: Prognoza dzień 3 (np. sensor.dom_energy_production_d2)",
           "pv_forecast_entity": "Sensor wektora mocy PV 48h (np. sensor.emhass_pv_forecast_48h)",
           "pv_forecast_attr": "Atrybut zawierający listę prognozy PV (domyślnie: list)",
           "pv_energy_today_entity": "Sensor energii PV Solcast na dzisiaj (kWh)",
@@ -43,9 +49,9 @@
           "pv_energy_threshold": "Próg energii dla trybu letniego (kWh, domyślnie: 14)",
           "pv_power_threshold": "Próg mocy PV dla trybu letniego (W, domyślnie: 1000)",
           "outside_temp_entity": "Sensor temperatury zewnętrznej (termometr lub z pogody)",
-          "load_forecast_entity": "Sensor prognozy zużycia domu",
-          "load_forecast_attr": "Atrybut listy prognozy zużycia",
-          "load_profile_static": "Sztywny profil zużycia (wartości po przecinku w W)",
+          "load_forecast_entity": "Sensor prognozy zużycia domu 48h (opcjonalny, np. sensor.emhass_master_load_forecast)",
+          "load_forecast_attr": "Atrybut listy prognozy zużycia (domyślnie: list)",
+          "load_profile_static": "Moc bazowa domu lub profil statyczny (W, puste = wbudowany autoprofil 400W)",
           "buy_price_entity": "Sensor cen zakupu energii (np. taryfa G13 / RCE)",
           "buy_price_attr": "Atrybut listy cen zakupu",
           "buy_price_static": "Domyślna cena zakupu (zł/kWh)",
@@ -98,7 +104,7 @@
           "emhass_url": "Adres URL EMHASS",
           "emhass_api_token": "Token API EMHASS (dowolny ciąg znaków, ten sam co w dodatku EMHASS)",
           "horizon_steps": "Horyzont optymalizacji (liczba kroków)",
-          "cost_function": "Funkcja celu"
+          "cost_function": "Funkcja celu (auto / cost / profit / self-consumption)"
         }
       },
       "tariffs": {
@@ -109,15 +115,21 @@
           "g13_price_t1": "Cena szczytu przedpołudniowego T1 (zł/kWh)",
           "g13_price_t2": "Cena szczytu popołudniowego T2 (zł/kWh)",
           "g13_price_t3": "Cena pozaszczytu T3 (zł/kWh)",
+          "solcast_today": "Solcast: Prognoza na dzisiaj (sensor.solcast_pv_forecast_prognoza_na_dzisiaj)",
+          "solcast_tomorrow": "Solcast: Prognoza na jutro (sensor.solcast_pv_forecast_prognoza_na_jutro)",
+          "solcast_d3": "Solcast: Prognoza na dzień 3 (sensor.solcast_pv_forecast_prognoza_na_dzien_3)",
+          "openmeteo_today": "Open-Meteo Fallback: Prognoza dzisiaj (np. sensor.dom_energy_production_today)",
+          "openmeteo_tomorrow": "Open-Meteo Fallback: Prognoza jutro (np. sensor.dom_energy_production_tomorrow)",
+          "openmeteo_d3": "Open-Meteo Fallback: Prognoza dzień 3 (np. sensor.dom_energy_production_d2)",
           "pv_forecast_entity": "Sensor wektora mocy PV 48h (np. sensor.emhass_pv_forecast_48h)",
           "pv_forecast_attr": "Atrybut prognozy PV (domyślnie: list)",
           "pv_energy_today_entity": "Sensor energii PV Solcast na dzisiaj (kWh)",
           "pv_energy_tomorrow_entity": "Sensor energii PV Solcast na jutro (kWh)",
           "pv_energy_threshold": "Próg energii dla trybu letniego (kWh)",
           "pv_power_threshold": "Próg mocy PV dla trybu letniego (W)",
-          "load_forecast_entity": "Sensor prognozy zużycia domu",
-          "load_forecast_attr": "Atrybut prognozy zużycia",
-          "load_profile_static": "Sztywny profil zużycia (W)",
+          "load_forecast_entity": "Sensor prognozy zużycia domu 48h (opcjonalny, np. sensor.emhass_master_load_forecast)",
+          "load_forecast_attr": "Atrybut prognozy zużycia (domyślnie: list)",
+          "load_profile_static": "Moc bazowa domu lub profil statyczny (W, puste = wbudowany autoprofil 400W)",
           "buy_price_entity": "Sensor cen zakupu",
           "sell_price_mode": "Model cen sprzedaży / eksportu energii",
           "pse_rce_multiplier": "Mnożnik cen PSE RCE (np. 1.23 dla Net-Billingu z VAT)",

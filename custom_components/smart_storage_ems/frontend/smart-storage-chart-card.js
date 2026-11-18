@@ -302,6 +302,7 @@ class SmartStorageChartCard extends HTMLElement {
     const sellPriceMode = statusEntity?.attributes?.sell_price_mode || 'pse_rce';
     const tariffMode = (statusEntity?.attributes?.tariff_mode || 'g13').toUpperCase();
     const pricesStartIso = statusEntity?.attributes?.buy_prices_start_time;
+    const sellPricesStartIso = statusEntity?.attributes?.sell_prices_start_time || pricesStartIso;
 
     const dynamicMinSoc = minSocEntity ? parseFloat(minSocEntity.state) || 15 : 15;
 
@@ -313,6 +314,7 @@ class SmartStorageChartCard extends HTMLElement {
     const startMinutes = now.getMinutes() >= 30 ? 30 : 0;
     const baseTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), startMinutes);
     const pricesBaseMs = pricesStartIso ? new Date(pricesStartIso).getTime() : baseTime.getTime();
+    const sellPricesBaseMs = sellPricesStartIso ? new Date(sellPricesStartIso).getTime() : baseTime.getTime();
 
     for (let i = 0; i < stepsCount; i++) {
       const bItem = battList[i] || {};
@@ -343,7 +345,7 @@ class SmartStorageChartCard extends HTMLElement {
       // Align RCE sell price by timestamp offset
       let sellPrice = null;
       if (sellPrices.length > 0) {
-        const priceIdx = Math.round((pointTime.getTime() - pricesBaseMs) / (30 * 60000));
+        const priceIdx = Math.round((pointTime.getTime() - sellPricesBaseMs) / (30 * 60000));
         if (priceIdx >= 0 && priceIdx < sellPrices.length) {
           sellPrice = parseFloat(sellPrices[priceIdx]);
         } else if (i < sellPrices.length) {

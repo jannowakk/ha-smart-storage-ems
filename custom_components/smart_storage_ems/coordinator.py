@@ -13,6 +13,7 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_BASE_MIN_SOC,
@@ -33,6 +34,9 @@ from .const import (
     CONF_LOAD_FORECAST_ATTR,
     CONF_LOAD_FORECAST_ENTITY,
     CONF_LOAD_PROFILE_STATIC,
+    CONF_OPENMETEO_D3,
+    CONF_OPENMETEO_TODAY,
+    CONF_OPENMETEO_TOMORROW,
     CONF_OUTSIDE_TEMP_ENTITY,
     CONF_PV_ENERGY_TODAY_ENTITY,
     CONF_PV_ENERGY_TOMORROW_ENTITY,
@@ -50,6 +54,9 @@ from .const import (
     CONF_SENSOR_LOAD_POWER,
     CONF_SENSOR_PV_POWER,
     CONF_SENSOR_SOC,
+    CONF_SOLCAST_D3,
+    CONF_SOLCAST_TODAY,
+    CONF_SOLCAST_TOMORROW,
     CONF_TARIFF_MODE,
     CONF_WEATHER_ALERT_ENTITY,
     CONF_WINTER_MIN_SOC,
@@ -77,6 +84,8 @@ from .guards.import_guard import ImportGuard
 from .inverters import get_inverter_driver
 from .season_manager import SeasonManager
 from .tariffs import PseRceClient, generate_g12w_chain, generate_g13_chain
+from .pv_forecast import build_rolling_pv_forecast
+from .load_forecast import build_rolling_load_forecast
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -124,6 +133,12 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._buy_prices: list[float] = []
         self._buy_prices_start_iso: str = ""
         self._sell_prices: list[float] = []
+        self._sell_prices_start_iso: str = ""
+        self._pv_forecast: list[float] = []
+        self._pv_forecast_source: str = "Inicjalizacja"
+        self._load_forecast: list[float] = []
+        self._load_forecast_source: str = "Inicjalizacja"
+        self._active_cost_function: str = "cost"
         self._last_mpc_run: datetime | None = None
         self._last_mpc_success: datetime | None = None
         self._setup_time: datetime = datetime.now()
@@ -228,8 +243,10 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # 1. Read solar values & outside temperature
         pv_power = self._get_float_state(self.config.get(CONF_SENSOR_PV_POWER), 0.0)
-        energy_today = self._get_float_state(self.config.get(CONF_PV_ENERGY_TODAY_ENTITY), 0.0)
-        energy_tomorrow = self._get_float_state(self.config.get(CONF_PV_ENERGY_TOMORROW_ENTITY), 0.0)
+        today_ent = self.config.get(CONF_SOLCAST_TODAY) or self.config.get(CONF_PV_ENERGY_TODAY_ENTITY)
+        tomorrow_ent = self.config.get(CONF_SOLCAST_TOMORROW) or self.config.get(CONF_PV_ENERGY_TOMORROW_ENTITY)
+        energy_today = self._get_float_state(today_ent, 0.0)
+        energy_tomorrow = self._get_float_state(tomorrow_ent, 0.0)
 
         # Outside temperature (from dedicated sensor or weather forecast entity)
         temp_entity = self.config.get(CONF_OUTSIDE_TEMP_ENTITY)
@@ -268,7 +285,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> list[float]:
         """Compute and cache rolling buy-price chain for the active tariff."""
         if now_dt is None:
-            now_dt = datetime.now()
+            now_dt = dt_util.now()
+        else:
+            now_dt = dt_util.as_local(now_dt)
         if horizon is None:
             horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
 
@@ -308,7 +327,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     ) -> list[float]:
         """Compute rolling sell-price chain (PSE RCE, sensor, or static)."""
         if now_dt is None:
-            now_dt = datetime.now()
+            now_dt = dt_util.now()
+        else:
+            now_dt = dt_util.as_local(now_dt)
         if horizon is None:
             horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
 
@@ -342,7 +363,10 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             fill = normalized[-1] if normalized else 0.40
             normalized.extend([fill] * (horizon - len(normalized)))
 
+        minute_slot = 30 if now_dt.minute >= 30 else 0
+        slot_dt = now_dt.replace(minute=minute_slot, second=0, microsecond=0)
         self._sell_prices = normalized
+        self._sell_prices_start_iso = slot_dt.isoformat()
         return normalized
 
     async def async_run_mpc(self) -> bool:
@@ -358,24 +382,61 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._notify_coordinator_update()
 
             horizon = int(self.config.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS))
-            cost_func = self.config.get(CONF_COST_FUNCTION, DEFAULT_COST_FUNCTION)
+            configured_cost_func = self.config.get(CONF_COST_FUNCTION, DEFAULT_COST_FUNCTION)
 
-            pv_forecast = self._get_list_data(
-                self.config.get(CONF_PV_FORECAST_ENTITY),
-                self.config.get(CONF_PV_FORECAST_ATTR, "list"),
-                None,
-                0.0,
-                horizon,
+            pv_forecast, pv_source = build_rolling_pv_forecast(
+                hass=self.hass,
+                solcast_today=self.config.get(CONF_SOLCAST_TODAY),
+                solcast_tomorrow=self.config.get(CONF_SOLCAST_TOMORROW),
+                solcast_d3=self.config.get(CONF_SOLCAST_D3),
+                openmeteo_today=self.config.get(CONF_OPENMETEO_TODAY),
+                openmeteo_tomorrow=self.config.get(CONF_OPENMETEO_TOMORROW),
+                openmeteo_d3=self.config.get(CONF_OPENMETEO_D3),
+                custom_entity=self.config.get(CONF_PV_FORECAST_ENTITY),
+                custom_attr=self.config.get(CONF_PV_FORECAST_ATTR, "list"),
+                horizon_steps=horizon,
             )
-            load_forecast = self._get_list_data(
-                self.config.get(CONF_LOAD_FORECAST_ENTITY),
-                self.config.get(CONF_LOAD_FORECAST_ATTR, "list"),
-                self.config.get(CONF_LOAD_PROFILE_STATIC),
-                400.0,
-                horizon,
+            self._pv_forecast = pv_forecast
+            self._pv_forecast_source = pv_source
+            load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 400.0)
+            load_forecast, load_source = build_rolling_load_forecast(
+                hass=self.hass,
+                now_dt=dt_util.now(),
+                custom_entity=self.config.get(CONF_LOAD_FORECAST_ENTITY),
+                custom_attr=self.config.get(CONF_LOAD_FORECAST_ATTR, "list"),
+                custom_static=self.config.get(CONF_LOAD_PROFILE_STATIC),
+                current_load_w=load_now,
+                horizon_steps=horizon,
+                default_base_power=400.0,
             )
+            self._load_forecast = load_forecast
+            self._load_forecast_source = load_source
             buy_prices = self.get_buy_prices(datetime.now(), horizon)
             sell_prices = await self.async_get_sell_prices(datetime.now(), horizon)
+
+            # Dynamic Cost Function calculation (replicated from EMHASS active costfun logic)
+            if configured_cost_func == "auto":
+                near_horizon = min(4, len(sell_prices))
+                price_data = [float(p) for p in sell_prices[:near_horizon] if p is not None]
+                buy_data = [float(b) for b in buy_prices[:near_horizon] if b is not None]
+
+                avg_sell = (sum(price_data) / len(price_data)) if price_data else 0.0
+                max_sell = max(price_data) if price_data else 0.0
+                max_idx = price_data.index(max_sell) if price_data and max_sell in price_data else 0
+                buy_at_max = buy_data[max_idx] if max_idx < len(buy_data) else 0.62
+
+                is_price_spike = (max_sell > avg_sell * 1.6) and (max_sell > 1.2 * buy_at_max)
+
+                if is_price_spike:
+                    cost_func = "profit"
+                elif self.current_season == "lato":
+                    cost_func = "self-consumption"
+                else:
+                    cost_func = "cost"
+            else:
+                cost_func = configured_cost_func
+
+            self._active_cost_function = cost_func
 
             soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
             pv_now = self._get_float_state(self.config.get(CONF_SENSOR_PV_POWER), 0.0)
@@ -432,6 +493,11 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "import_guard_enabled": self.import_guard.enabled,
             "reserve_hold_active": self._reserve_hold_active,
             "last_mpc_run": self._last_mpc_success.isoformat() if self._last_mpc_success else None,
+            "pv_forecast": self._pv_forecast,
+            "pv_forecast_source": self._pv_forecast_source,
+            "load_forecast": self._load_forecast,
+            "load_forecast_source": self._load_forecast_source,
+            "active_cost_function": self._active_cost_function,
         }
 
     async def _async_enforce_plan_tick(self, _now: Any) -> None:
@@ -536,6 +602,11 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "import_guard_enabled": self.import_guard.enabled,
             "reserve_hold_active": self._reserve_hold_active,
             "last_mpc_run": self._last_mpc_success.isoformat() if self._last_mpc_success else None,
+            "pv_forecast": self._pv_forecast,
+            "pv_forecast_source": self._pv_forecast_source,
+            "load_forecast": self._load_forecast,
+            "load_forecast_source": self._load_forecast_source,
+            "active_cost_function": self._active_cost_function,
         }
         self.async_update_listeners()
 

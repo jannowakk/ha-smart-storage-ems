@@ -25,7 +25,7 @@
           "emhass_url": "EMHASS Server URL",
           "emhass_api_token": "EMHASS API Token (Bearer Token)",
           "horizon_steps": "Prediction Horizon (number of steps, e.g. 96 = 48h)",
-          "cost_function": "Cost Function (cost / profit / self-consumption)"
+          "cost_function": "Cost Function (auto / cost / profit / self-consumption)"
         }
       },
       "forecasts": {
@@ -36,6 +36,12 @@
           "g13_price_t1": "Morning Peak Price T1 (PLN/kWh)",
           "g13_price_t2": "Evening Peak Price T2 (PLN/kWh)",
           "g13_price_t3": "Off-peak Price T3 (PLN/kWh)",
+          "solcast_today": "Solcast Forecast Today Sensor",
+          "solcast_tomorrow": "Solcast Forecast Tomorrow Sensor",
+          "solcast_d3": "Solcast Forecast Day 3 Sensor",
+          "openmeteo_today": "Open-Meteo Fallback Today Sensor",
+          "openmeteo_tomorrow": "Open-Meteo Fallback Tomorrow Sensor",
+          "openmeteo_d3": "Open-Meteo Fallback Day 3 Sensor",
           "pv_forecast_entity": "48h PV Power Forecast Sensor (e.g. sensor.emhass_pv_forecast_48h)",
           "pv_forecast_attr": "PV Forecast List Attribute (default: list)",
           "pv_energy_today_entity": "Solcast PV Energy Forecast Today (kWh)",
@@ -43,9 +49,9 @@
           "pv_energy_threshold": "Solar Day Energy Threshold (kWh, default: 14)",
           "pv_power_threshold": "Solar Day Power Threshold (W, default: 1000)",
           "outside_temp_entity": "Outside Temperature Sensor (thermometer or weather forecast)",
-          "load_forecast_entity": "Load Forecast Entity",
-          "load_forecast_attr": "Load Forecast List Attribute",
-          "load_profile_static": "Static Load Profile (comma-separated Watts)",
+          "load_forecast_entity": "48h House Load Forecast Sensor (optional, e.g. sensor.emhass_master_load_forecast)",
+          "load_forecast_attr": "Load Forecast List Attribute (default: list)",
+          "load_profile_static": "Baseline House Load (W, empty = built-in auto profile 400W)",
           "buy_price_entity": "Grid Buy Price Forecast Entity",
           "buy_price_attr": "Buy Price List Attribute",
           "buy_price_static": "Default Static Buy Price",
@@ -96,7 +102,7 @@
           "emhass_url": "EMHASS Server URL",
           "emhass_api_token": "EMHASS API Token (Bearer Token)",
           "horizon_steps": "Prediction Horizon (steps)",
-          "cost_function": "Cost Function"
+          "cost_function": "Cost Function (auto / cost / profit / self-consumption)"
         }
       },
       "tariffs": {
@@ -107,15 +113,21 @@
           "g13_price_t1": "Morning Peak Price T1 (PLN/kWh)",
           "g13_price_t2": "Evening Peak Price T2 (PLN/kWh)",
           "g13_price_t3": "Off-peak Price T3 (PLN/kWh)",
+          "solcast_today": "Solcast Forecast Today Sensor",
+          "solcast_tomorrow": "Solcast Forecast Tomorrow Sensor",
+          "solcast_d3": "Solcast Forecast Day 3 Sensor",
+          "openmeteo_today": "Open-Meteo Fallback Today Sensor",
+          "openmeteo_tomorrow": "Open-Meteo Fallback Tomorrow Sensor",
+          "openmeteo_d3": "Open-Meteo Fallback Day 3 Sensor",
           "pv_forecast_entity": "48h PV Power Forecast Sensor (e.g. sensor.emhass_pv_forecast_48h)",
           "pv_forecast_attr": "PV Forecast List Attribute (default: list)",
           "pv_energy_today_entity": "Solcast PV Energy Forecast Today (kWh)",
           "pv_energy_tomorrow_entity": "Solcast PV Energy Forecast Tomorrow (kWh)",
           "pv_energy_threshold": "Solar Day Energy Threshold (kWh)",
           "pv_power_threshold": "Solar Day Power Threshold (W)",
-          "load_forecast_entity": "Load Forecast Entity",
-          "load_forecast_attr": "Load Forecast List Attribute",
-          "load_profile_static": "Static Load Profile (W)",
+          "load_forecast_entity": "48h House Load Forecast Sensor (optional, e.g. sensor.emhass_master_load_forecast)",
+          "load_forecast_attr": "Load Forecast List Attribute (default: list)",
+          "load_profile_static": "Baseline House Load (W, empty = built-in auto profile 400W)",
           "buy_price_entity": "Grid Buy Price Entity",
           "sell_price_entity": "Grid Sell Price Entity (RCE)"
         }

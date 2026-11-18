@@ -113,8 +113,8 @@ class PseRceClient:
         d0_30m = self.aggregate_15m_to_30m(d0_raw, multiplier)
         d1_30m = self.aggregate_15m_to_30m(d1_raw, multiplier)
 
-        # If today is empty, fallback to default_price
-        if not d0_30m or len(d0_30m) < 48:
+        # If today is empty, fallback to default_price (DST spring day has 46 slots, normal has 48)
+        if not d0_30m or len(d0_30m) < 46:
             _LOGGER.warning(
                 "PSE RCE: Incomplete data for today (%s, got %d slots), filling with default %.2f PLN/kWh",
                 today,
@@ -124,7 +124,7 @@ class PseRceClient:
             d0_30m = [default_price] * 48
 
         # If tomorrow is not yet published, mirror today
-        if not d1_30m or len(d1_30m) < 48:
+        if not d1_30m or len(d1_30m) < 46:
             _LOGGER.debug(
                 "PSE RCE: Tomorrow (%s) not yet available, mirroring today's profile", tomorrow
             )
