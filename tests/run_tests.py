@@ -31,7 +31,10 @@ sys.modules["aiohttp"] = MagicMock()
 
 sys.path.insert(0, ".")
 
-from tests.test_emhass_payload import test_build_mpc_payload_length_and_types
+from tests.test_emhass_payload import (
+    test_build_mpc_payload_length_and_types,
+    test_emhass_client_headers,
+)
 from tests.test_import_guard import (
     test_import_guard_triggers_when_exceeding_threshold,
     test_import_guard_does_not_trigger_when_battery_empty,
@@ -58,6 +61,9 @@ if __name__ == "__main__":
     print("Running Smart Storage EMS unit tests...")
     test_build_mpc_payload_length_and_types()
     print("✓ test_build_mpc_payload_length_and_types passed")
+
+    test_emhass_client_headers()
+    print("✓ test_emhass_client_headers passed")
 
     test_import_guard_triggers_when_exceeding_threshold()
     print("✓ test_import_guard_triggers_when_exceeding_threshold passed")

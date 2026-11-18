@@ -23,6 +23,7 @@
         "description": "Configure connection to the EMHASS optimization server.",
         "data": {
           "emhass_url": "EMHASS Server URL",
+          "emhass_api_token": "EMHASS API Token (Bearer Token)",
           "horizon_steps": "Prediction Horizon (number of steps, e.g. 96 = 48h)",
           "cost_function": "Cost Function (cost / profit / self-consumption)"
         }
@@ -93,6 +94,7 @@
         "description": "Adjust EMHASS server parameters.",
         "data": {
           "emhass_url": "EMHASS Server URL",
+          "emhass_api_token": "EMHASS API Token (Bearer Token)",
           "horizon_steps": "Prediction Horizon (steps)",
           "cost_function": "Cost Function"
         }

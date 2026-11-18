@@ -1,5 +1,6 @@
 """DataUpdateCoordinator for Smart Storage EMS."""
 
+import asyncio
 from datetime import datetime, timedelta
 import logging
 from typing import Any
@@ -20,6 +21,7 @@ from .const import (
     CONF_BUY_PRICE_ENTITY,
     CONF_BUY_PRICE_STATIC,
     CONF_COST_FUNCTION,
+    CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
     CONF_ENABLE_IMPORT_GUARD,
     CONF_G13_PRICE_T1,
@@ -93,7 +95,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.config = config
         session = async_get_clientsession(hass)
         emhass_url = config.get(CONF_EMHASS_URL, DEFAULT_EMHASS_URL)
-        self.emhass = EmhassClient(emhass_url, session)
+        emhass_token = config.get(CONF_EMHASS_TOKEN)
+        self.emhass = EmhassClient(emhass_url, session, emhass_token)
         self.inverter = get_inverter_driver(hass, config)
 
         self.import_guard = ImportGuard(

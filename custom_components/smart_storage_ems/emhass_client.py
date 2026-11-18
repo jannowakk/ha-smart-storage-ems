@@ -11,13 +11,26 @@ _LOGGER = logging.getLogger(__name__)
 class EmhassClient:
     """Client for communicating with EMHASS service."""
 
-    def __init__(self, base_url: str, session: aiohttp.ClientSession) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        session: aiohttp.ClientSession,
+        token: str | None = None,
+    ) -> None:
         """Initialize the EMHASS client."""
         # In Docker / HAOS, localhost can resolve to IPv6 ::1 where EMHASS is not listening.
         # Normalize localhost to 127.0.0.1 for maximum network reliability.
         clean_url = base_url.rstrip("/").replace("://localhost", "://127.0.0.1")
         self._base_url = clean_url
         self._session = session
+        self._token = token.strip() if token else None
+
+    def _get_headers(self) -> dict[str, str]:
+        """Build request headers with optional Bearer token."""
+        headers = {"Content-Type": "application/json"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        return headers
 
     async def async_run_mpc_optimization(self, payload: dict[str, Any]) -> bool:
         """Send naive-mpc-optim request to EMHASS."""
@@ -27,7 +40,7 @@ class EmhassClient:
             async with self._session.post(
                 url,
                 data=json.dumps(payload),
-                headers={"Content-Type": "application/json"},
+                headers=self._get_headers(),
                 timeout=aiohttp.ClientTimeout(total=90),
             ) as response:
                 if response.status in (200, 201):
@@ -48,7 +61,7 @@ class EmhassClient:
             async with self._session.post(
                 url,
                 data=json.dumps({}),
-                headers={"Content-Type": "application/json"},
+                headers=self._get_headers(),
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as response:
                 if response.status in (200, 201):

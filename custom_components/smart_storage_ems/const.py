@@ -4,6 +4,7 @@ DOMAIN = "smart_storage_ems"
 
 # Configuration Keys - EMHASS
 CONF_EMHASS_URL = "emhass_url"
+CONF_EMHASS_TOKEN = "emhass_api_token"
 CONF_HORIZON_STEPS = "horizon_steps"
 CONF_STEP_MINUTES = "step_minutes"
 CONF_COST_FUNCTION = "cost_function"

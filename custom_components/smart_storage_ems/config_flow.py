@@ -13,6 +13,7 @@ from .const import (
     CONF_BUY_PRICE_ENTITY,
     CONF_BUY_PRICE_STATIC,
     CONF_COST_FUNCTION,
+    CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
     CONF_ENABLE_IMPORT_GUARD,
     CONF_G13_PRICE_T1,
@@ -136,6 +137,9 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_EMHASS_URL, default=DEFAULT_EMHASS_URL): str,
+                vol.Optional(CONF_EMHASS_TOKEN, default=""): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                ),
                 vol.Required(CONF_HORIZON_STEPS, default=DEFAULT_HORIZON_STEPS): int,
                 vol.Required(CONF_COST_FUNCTION, default=DEFAULT_COST_FUNCTION): selector.SelectSelector(
                     selector.SelectSelectorConfig(
@@ -316,6 +320,12 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     CONF_EMHASS_URL,
                     default=data.get(CONF_EMHASS_URL, DEFAULT_EMHASS_URL),
                 ): str,
+                vol.Optional(
+                    CONF_EMHASS_TOKEN,
+                    description={"suggested_value": data.get(CONF_EMHASS_TOKEN, "")},
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
+                ),
                 vol.Required(
                     CONF_HORIZON_STEPS,
                     default=int(data.get(CONF_HORIZON_STEPS, DEFAULT_HORIZON_STEPS)),

@@ -45,3 +45,15 @@ def test_build_mpc_payload_length_and_types() -> None:
     assert payload["battery_minimum_state_of_charge"] == 0.15
     assert payload["battery_soc_deficit_threshold"] == 0.15
     assert payload["battery_stress_cost"] == 0.05
+
+
+def test_emhass_client_headers() -> None:
+    """Test that headers include Bearer token when provided."""
+    client_no_token = EmhassClient("http://localhost:5000", session=None)
+    assert client_no_token._get_headers() == {"Content-Type": "application/json"}
+
+    client_with_token = EmhassClient("http://localhost:5000", session=None, token="secret_token_123")
+    assert client_with_token._get_headers() == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer secret_token_123",
+    }
