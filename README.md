@@ -183,13 +183,17 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
 | Pole w formularzu | Wymagane? | Domyślnie | Opis i wskazówki |
 | :--- | :---: | :--- | :--- |
 | **Adres URL EMHASS** | Tak | `http://localhost:5000` | Adres serwera/dodatku EMHASS. Pamiętaj o porcie **5000** (nie 8123 od HA!). Klient automatycznie zamienia `localhost` na `127.0.0.1`, aby uniknąć problemów z IPv6 w Dockerze. |
-| **Token API EMHASS** | Opcjonalne* | *(puste)* | **Wymagany od EMHASS v0.18.10+ (w tym v0.18.11+).** Wpisz token z konfiguracji dodatku EMHASS (`emhass_api_token`). W starszych wersjach EMHASS (< v0.18.10) pozostaw to pole puste (pełna kompatybilność wsteczna). |
+| **Token API EMHASS** | Opcjonalne* | *(puste)* | **Wymagany od EMHASS v0.18.10+ (w tym v0.18.11+).** Wpisz dowolny, ale **dokładnie ten sam ciąg znaków**, który ustawiłeś w konfiguracji dodatku EMHASS (`emhass_api_token`). W starszych wersjach EMHASS (< v0.18.10) pozostaw to pole puste (pełna kompatybilność wsteczna). |
 | **Horyzont optymalizacji** | Tak | `96` | Liczba kroków 30-minutowych liczonych do przodu. `96` kroków = **48 godzin**. |
 | **Funkcja celu** | Tak | `cost` | Tryb optymalizacji EMHASS: `cost` (minimalizacja kosztów zakupu), `profit` (maksymalizacja zysku z eksportu) lub `self-consumption` (autokonsumpcja). |
 
 > [!NOTE]
 > **Kompatybilność z EMHASS v0.18.10+ i v0.18.11+ (Token Bearer):**  
-> Nowsze wersje EMHASS wymagają nagłówka `Authorization: Bearer <emhass_api_token>` przy wywoływaniu endpointów `/action/naive-mpc-optim` oraz `/action/publish-data`. Wklejając token w pole **Token API EMHASS** w opcjach integracji, Smart Storage EMS automatycznie autoryzuje wszystkie zapytania. W przypadku starszych wersji EMHASS pole można pozostawić puste.
+> Nowsze wersje EMHASS wymagają nagłówka `Authorization: Bearer <emhass_api_token>` przy wywoływaniu endpointów `/action/naive-mpc-optim` oraz `/action/publish-data`.  
+> **Jak to skonfigurować w praktyce?** Nie musisz generować żadnych skomplikowanych kluczy:
+> 1. W opcjach dodatku EMHASS (*Ustawienia -> Dodatki -> EMHASS -> Konfiguracja*) w polu `emhass_api_token` wpisz **dowolny, wymyślony przez siebie ciąg znaków** (np. `moj_tajny_token_123` lub dowolne hasło).
+> 2. Dokładnie **ten sam ciąg znaków** wpisz w formularzu naszej integracji w polu **Token API EMHASS**.
+> W przypadku starszych wersji EMHASS (< v0.18.10) pole można pozostawić puste.
 
 > [!IMPORTANT]
 > **Wymagana wstępna konfiguracja w samym dodatku EMHASS:**

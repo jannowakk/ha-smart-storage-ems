@@ -23,7 +23,7 @@
         "description": "Podaj adres URL serwera EMHASS oraz parametry optymalizacji.",
         "data": {
           "emhass_url": "Adres URL EMHASS",
-          "emhass_api_token": "Token API EMHASS (Bearer Token)",
+          "emhass_api_token": "Token API EMHASS (dowolny ciąg znaków, ten sam co w dodatku EMHASS)",
           "horizon_steps": "Horyzont optymalizacji (liczba kroków, np. 96 = 48h)",
           "cost_function": "Funkcja celu (cost / profit / self-consumption)"
         }
@@ -96,7 +96,7 @@
         "description": "Zmień parametry połączenia z serwerem optymalizacyjnym EMHASS.",
         "data": {
           "emhass_url": "Adres URL EMHASS",
-          "emhass_api_token": "Token API EMHASS (Bearer Token)",
+          "emhass_api_token": "Token API EMHASS (dowolny ciąg znaków, ten sam co w dodatku EMHASS)",
           "horizon_steps": "Horyzont optymalizacji (liczba kroków)",
           "cost_function": "Funkcja celu"
         }
