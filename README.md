@@ -245,10 +245,14 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
 ### Krok 3: Taryfy, Prognozy i Zabezpieczenia
 
 #### A. Model taryfowy i ceny zakupu/sprzedaży
-* **Model taryfy energii (`g13` / `g12w` / `custom`):**
-  * Wybierz **`g13`** lub **`g12w`**, aby użyć **wbudowanego polskiego generatora cen**. Sam wylicza on tablicę cen na 96 kroków **„od teraz”** z pełnym kalendarzem polskich świąt stałych i ruchomych (bez potrzeby używania integracji `workday`).
-  * Wybierz **`custom`**, jeśli masz taryfę dynamiczną lub własny cennik w zewnętrznym sensorze.
-* **Cena szczytu T1 / T2 / pozaszczytu T3 (zł/kWh):** Domyślnie `0.90`, `1.49`, `0.62`. Używane przez wbudowany generator G13.
+* **Model taryfy energii (`g13s` / `g13` / `g12w` / `g12` / `g12r` / `g12n` / `g11` / `custom`):**
+  * **`g13s` (Tauron):** Specjalna taryfa dla prosumentów z PV i magazynem energii. Uwzględnia sezon letni (1.04-30.09) ze strefą słoneczną T3 (13:00-16:00), sezon zimowy (1.10-31.03) oraz weekendy i święta.
+  * **`g13` (Tauron):** Standardowa taryfa trójstrefowa (T1 przedpołudnie, T2 szczyt popołudniowy, T3 dolina nocna i popołudniowa).
+  * **`g12w` / `g12`:** Klasyczne taryfy dwustrefowe (dzień / noc i weekendy).
+  * **`g12r` (Energa) / `g12n` (PGE):** Dedykowane profile dwustrefowe OSD z rozszerzonymi dolinami pozaszczytowymi.
+  * **`g11`:** Taryfa jednostrefowa (płaska) do optymalizacji magazynu pod ceny dynamiczne RCE.
+  * **`custom`:** Własny cennik lub taryfa dynamiczna przekazywana w zewnętrznym sensorze.
+* **Ceny w strefach T1 / T2 / T3 (zł/kWh):** Konfigurowalne stawki brutto dla poszczególnych stref taryfowych.
 * **Sensor cen zakupu (`buy_price_entity`) + Atrybut listy (`buy_price_attr`, domyślnie `list`):** Używane **tylko w trybie `custom`**. Wskazany sensor musi mieć w wybranym atrybucie listę cen (np. `[0.62, 0.62, 0.90, ...]`) w zł/kWh co 30 min, zaczynającą się **„od teraz”**. Jeśli lista będzie pusta lub błędna, przyjmie domyślne `0.65 zł/kWh`.
 * **Model cen sprzedaży / eksportu energii (`sell_price_mode`):**
   * **`pse_rce` (Domyślny / Zalecany dla Polski):** Integracja automatycznie pobiera dynamiczne ceny rynkowe RCE bezpośrednio z oficjalnego API PSE S.A. (`api.raporty.pse.pl`), agreguje je z kwadransów (15 min) do 30 minut i generuje łańcuch kroczący na 48h. Dostępny jest także konfigurowalny **mnożnik cen PSE RCE** (domyślnie `1.00`, lub np. `1.23` przy rozliczaniu Net-Billing z VAT).

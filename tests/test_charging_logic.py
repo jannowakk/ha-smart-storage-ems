@@ -14,6 +14,9 @@ from custom_components.smart_storage_ems.coordinator import SmartStorageCoordina
 
 
 def _create_test_coordinator(now_dt: datetime) -> SmartStorageCoordinator:
+    from homeassistant.util import dt as dt_util
+    dt_util.now = lambda: now_dt
+
     hass_mock = MagicMock()
     config = {
         CONF_TARIFF_MODE: TARIFF_MODE_G13,

@@ -6,6 +6,6 @@
   "documentation": "https://github.com/jannowakk/ha-smart-storage-ems",
   "issue_tracker": "https://github.com/jannowakk/ha-smart-storage-ems/issues",
   "iot_class": "local_push",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "requirements": []
 }
