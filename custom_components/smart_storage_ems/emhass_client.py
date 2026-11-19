@@ -115,6 +115,7 @@ class EmhassClient:
             "load_power_forecast": load_list,
             "prod_price_forecast": sell_list,
             "load_cost_forecast": buy_list,
+            "cost_forecast_per_deferrable_load": [buy_list],
             "soc_init": round(soc_init, 2),
             "soc_final": round(soc_final, 2),
             "prediction_horizon": horizon,

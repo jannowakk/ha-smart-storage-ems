@@ -31,6 +31,8 @@ def test_build_mpc_payload_length_and_types() -> None:
     assert len(payload["load_power_forecast"]) == horizon
     assert len(payload["load_cost_forecast"]) == horizon
     assert len(payload["prod_price_forecast"]) == horizon
+    assert payload["cost_forecast_per_deferrable_load"] == [payload["load_cost_forecast"]]
+    assert isinstance(payload["cost_forecast_per_deferrable_load"][0], list)
 
     # Step 0 should have real-time injected values
     assert payload["pv_power_forecast"][0] == 120.0
