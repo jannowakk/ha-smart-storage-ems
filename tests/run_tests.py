@@ -26,7 +26,25 @@ sys.modules["homeassistant.helpers.selector"] = ha_mock
 sys.modules["homeassistant.helpers.aiohttp_client"] = ha_mock
 sys.modules["homeassistant.helpers.event"] = ha_mock
 sys.modules["homeassistant.helpers.update_coordinator"] = ha_mock
+class FakeCoordinator:
+    def __init__(self, hass, logger=None, name=None, update_interval=None):
+        self.hass = hass
+        self.data = {}
+    def __class_getitem__(cls, item):
+        return cls
+    def async_update_listeners(self):
+        pass
+
+from datetime import datetime
+dt_mock = MagicMock()
+dt_mock.now = datetime.now
+dt_mock.as_local = lambda dt: dt
+ha_mock.dt = dt_mock
+
+sys.modules["homeassistant.helpers.update_coordinator"].DataUpdateCoordinator = FakeCoordinator
 sys.modules["homeassistant.helpers.entity_platform"] = ha_mock
+sys.modules["homeassistant.util"] = ha_mock
+sys.modules["homeassistant.util.dt"] = dt_mock
 sys.modules["aiohttp"] = MagicMock()
 
 sys.path.insert(0, ".")
@@ -49,6 +67,11 @@ from tests.test_season_manager import (
     test_season_manager_solar_day_transition,
     test_season_manager_afternoon_cutoff,
     test_dynamic_min_soc_frost_factor,
+)
+from tests.test_charging_logic import (
+    test_pv_surplus_charging_keeps_self_consumption,
+    test_peak_zone_blocks_grid_charging_safety_guard,
+    test_cheap_valley_allows_grid_charging,
 )
 from tests.test_pse_rce import (
     test_aggregate_15m_to_30m,
@@ -103,6 +126,15 @@ if __name__ == "__main__":
 
     test_get_rolling_rce_chain_when_tomorrow_missing_mirrors_today()
     print("✓ test_get_rolling_rce_chain_when_tomorrow_missing_mirrors_today passed")
+
+    test_pv_surplus_charging_keeps_self_consumption()
+    print("✓ test_pv_surplus_charging_keeps_self_consumption passed")
+
+    test_peak_zone_blocks_grid_charging_safety_guard()
+    print("✓ test_peak_zone_blocks_grid_charging_safety_guard passed")
+
+    test_cheap_valley_allows_grid_charging()
+    print("✓ test_cheap_valley_allows_grid_charging passed")
 
     print("\nAll unit tests passed successfully!")
 

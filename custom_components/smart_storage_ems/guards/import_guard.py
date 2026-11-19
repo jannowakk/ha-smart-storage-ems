@@ -47,15 +47,24 @@ class ImportGuard:
         current_import_w: float,
         battery_soc_pct: float,
         min_soc_pct: float,
-        p_batt_forecast: float,
+        p_batt_forecast: float = 0.0,
         reserve_hold_active: bool = False,
+        is_grid_charging: bool | None = None,
     ) -> bool:
         """Check if grid import violates zero-import policy and intervene if necessary."""
         if not self._enabled:
             return False
 
-        # If battery is empty, reserve hold is active, or EMHASS is charging, do not intervene
-        if reserve_hold_active or battery_soc_pct <= min_soc_pct or p_batt_forecast < -20:
+        # If is_grid_charging flag is explicitly provided, respect it;
+        # otherwise fallback to p_batt_forecast < -20 for backward compatibility
+        grid_charging = (
+            is_grid_charging
+            if is_grid_charging is not None
+            else (p_batt_forecast < -20)
+        )
+
+        # If battery is empty, reserve hold is active, or actively charging from grid, do not intervene
+        if reserve_hold_active or battery_soc_pct <= min_soc_pct or grid_charging:
             return False
 
         # If import power exceeds threshold, trigger rapid switch to self-use

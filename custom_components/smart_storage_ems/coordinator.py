@@ -83,7 +83,7 @@ from .emhass_client import EmhassClient
 from .guards.import_guard import ImportGuard
 from .inverters import get_inverter_driver
 from .season_manager import SeasonManager
-from .tariffs import PseRceClient, generate_g12w_chain, generate_g13_chain
+from .tariffs import PseRceClient, generate_g12w_chain, generate_g13_chain, is_free_day
 from .pv_forecast import build_rolling_pv_forecast
 from .load_forecast import build_rolling_load_forecast
 
@@ -129,6 +129,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._target_power = 0.0
         self._dynamic_min_soc = config.get(CONF_BASE_MIN_SOC, DEFAULT_BASE_MIN_SOC)
         self._reserve_hold_active: bool = False
+        self._is_grid_charging: bool = False
         self._tariff_mode = config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
         self._buy_prices: list[float] = []
         self._buy_prices_start_iso: str = ""
@@ -321,6 +322,43 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._buy_prices = normalized
         self._buy_prices_start_iso = slot_dt.isoformat()
         return normalized
+
+    def _is_cheap_buy_price(self, now_dt: datetime) -> bool:
+        """Check if current time slot is in a cheap price valley suitable for grid charging."""
+        tariff_mode = self.config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
+        current_price = self._buy_prices[0] if self._buy_prices else None
+
+        if tariff_mode == TARIFF_MODE_G13:
+            t3 = float(self.config.get(CONF_G13_PRICE_T3, 0.62))
+            if current_price is not None:
+                return current_price <= (t3 + 0.03)
+            # Fallback to direct time check
+            d = now_dt.date()
+            if is_free_day(d):
+                return True
+            hour = now_dt.hour
+            is_winter = now_dt.month in (10, 11, 12, 1, 2, 3)
+            if 7 <= hour < 13:
+                return False  # T1 peak
+            if (is_winter and 16 <= hour < 21) or (not is_winter and 19 <= hour < 22):
+                return False  # T2 peak
+            return True  # T3 valley
+
+        if tariff_mode == TARIFF_MODE_G12W:
+            d = now_dt.date()
+            if is_free_day(d):
+                return True
+            hour = now_dt.hour
+            return (13 <= hour < 15) or (hour >= 22 or hour < 6)
+
+        # Custom sensor / PSE RCE / static:
+        if current_price is not None and len(self._buy_prices) > 1:
+            sorted_prices = sorted(self._buy_prices)
+            cutoff_idx = int(len(sorted_prices) * 0.35)
+            cheap_threshold = sorted_prices[cutoff_idx]
+            return current_price <= cheap_threshold
+
+        return True
 
     async def async_get_sell_prices(
         self, now_dt: datetime | None = None, horizon: int | None = None
@@ -541,16 +579,19 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._reserve_hold_active = False
 
         if self.operation_mode == OPERATION_MODE_HOLD:
+            self._is_grid_charging = False
             await self.inverter.async_hold_battery()
             self._last_ems_action = "Ręczny Standby (Hold)"
             self._notify_coordinator_update()
             return
         if self.operation_mode == OPERATION_MODE_CHARGE:
+            self._is_grid_charging = True
             await self.inverter.async_charge_battery(3000)
             self._last_ems_action = "Ręczne Wymuszone Ładowanie"
             self._notify_coordinator_update()
             return
         if self.operation_mode == OPERATION_MODE_SELF_USE:
+            self._is_grid_charging = False
             await self.inverter.async_self_consumption()
             self._last_ems_action = "Czysta Autokonsumpcja"
             self._notify_coordinator_update()
@@ -561,16 +602,35 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         p_grid = self._get_float_state("sensor.p_grid_forecast", 0.0)
         soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
         self._target_power = p_batt
+        now_dt = dt_util.now()
 
-        # Scenario A: Force Charge (< -20W)
+        # Scenario A: Charging requested by EMHASS (< -20W)
         if p_batt < -20:
             self._reserve_hold_active = False
             charge_power = int(abs(p_batt))
-            await self.inverter.async_charge_battery(charge_power)
-            self._last_ems_action = f"Ładowanie z sieci ({charge_power}W)"
+            is_cheap = self._is_cheap_buy_price(now_dt)
+
+            # Forced grid charging ONLY when EMHASS actually planned grid import AND price is in cheap valley
+            if p_grid > 50 and is_cheap:
+                self._is_grid_charging = True
+                await self.inverter.async_charge_battery(charge_power)
+                self._last_ems_action = f"Ładowanie z sieci ({charge_power}W)"
+            else:
+                self._is_grid_charging = False
+                await self.inverter.async_self_consumption()
+                if p_grid > 50 and not is_cheap:
+                    _LOGGER.warning(
+                        "EMS: EMHASS requested grid charge (%dW, p_grid=%.0fW), but blocked by price guard in peak zone! Staying in Auto",
+                        charge_power,
+                        p_grid,
+                    )
+                    self._last_ems_action = f"Blokada Szczytu Cenowego (Auto {charge_power}W)"
+                else:
+                    self._last_ems_action = f"Ładowanie z PV (Auto {charge_power}W)"
 
         # Scenario B: Arbitrage Export to Grid
         elif p_grid < -50 and p_batt > 50:
+            self._is_grid_charging = False
             self._reserve_hold_active = False
             load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 0.0)
             export_power = int(abs(p_grid) + load_now)
@@ -579,12 +639,14 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         # Scenario C: Reserve Protection (Hold in Standby when SoC <= min_soc, return at min_soc + 2%)
         elif soc <= self._dynamic_min_soc or (self._reserve_hold_active and soc < (self._dynamic_min_soc + 0.02)):
+            self._is_grid_charging = False
             self._reserve_hold_active = True
             await self.inverter.async_hold_battery()
             self._last_ems_action = "Ochrona Rezerwy (Standby)"
 
         # Scenario D: Normal Self Consumption (Balance house load from battery/solar)
         else:
+            self._is_grid_charging = False
             self._reserve_hold_active = False
             await self.inverter.async_self_consumption()
             self._last_ems_action = "Autokonsumpcja (Auto)"
@@ -601,6 +663,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "season": self.current_season,
             "import_guard_enabled": self.import_guard.enabled,
             "reserve_hold_active": self._reserve_hold_active,
+            "is_grid_charging": self._is_grid_charging,
             "last_mpc_run": self._last_mpc_success.isoformat() if self._last_mpc_success else None,
             "pv_forecast": self._pv_forecast,
             "pv_forecast_source": self._pv_forecast_source,
@@ -631,6 +694,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             min_soc_pct=min_soc_pct,
             p_batt_forecast=p_batt,
             reserve_hold_active=self._reserve_hold_active,
+            is_grid_charging=self._is_grid_charging,
         )
         if triggered:
             self._last_ems_action = "Strażnik Importu (Wymuszono Auto)"
