@@ -105,6 +105,45 @@ def generate_g13_chain(
     return prices
 
 
+def generate_g11_chain(
+    start_time: datetime,
+    horizon_steps: int = 96,
+    p_flat: float = 0.95,
+) -> list[float]:
+    """Generate flat G11 price forecast in 30-minute intervals."""
+    return [round(float(p_flat), 2)] * horizon_steps
+
+
+def generate_g12_chain(
+    start_time: datetime,
+    horizon_steps: int = 96,
+    p_peak: float = 1.15,
+    p_offpeak: float = 0.65,
+) -> list[float]:
+    """Generate rolling G12 (standard day/night without weekend rules) in 30-minute intervals.
+
+    Szczyt: 06:00-13:00 oraz 15:00-22:00 codziennie
+    Pozaszczyt: 13:00-15:00 oraz 22:00-06:00 codziennie
+    """
+    minute_slot = 30 if start_time.minute >= 30 else 0
+    current_step_dt = start_time.replace(minute=minute_slot, second=0, microsecond=0)
+
+    prices: list[float] = []
+    for _ in range(horizon_steps):
+        dt = current_step_dt
+        hour = dt.hour
+
+        if (6 <= hour < 13) or (15 <= hour < 22):
+            price = p_peak
+        else:
+            price = p_offpeak
+
+        prices.append(round(price, 2))
+        current_step_dt += timedelta(minutes=30)
+
+    return prices
+
+
 def generate_g12w_chain(
     start_time: datetime,
     horizon_steps: int = 96,
@@ -135,3 +174,116 @@ def generate_g12w_chain(
         current_step_dt += timedelta(minutes=30)
 
     return prices
+
+
+def generate_g12r_chain(
+    start_time: datetime,
+    horizon_steps: int = 96,
+    p_peak: float = 1.15,
+    p_offpeak: float = 0.65,
+) -> list[float]:
+    """Generate rolling G12r (Energa - Ekonomiczna Dolina) in 30-minute intervals.
+
+    Wydłużony pozaszczyt: 13:00-16:00 oraz 22:00-07:00 codziennie
+    Szczyt: 07:00-13:00 oraz 16:00-22:00 codziennie
+    """
+    minute_slot = 30 if start_time.minute >= 30 else 0
+    current_step_dt = start_time.replace(minute=minute_slot, second=0, microsecond=0)
+
+    prices: list[float] = []
+    for _ in range(horizon_steps):
+        dt = current_step_dt
+        hour = dt.hour
+
+        if (7 <= hour < 13) or (16 <= hour < 22):
+            price = p_peak
+        else:
+            price = p_offpeak
+
+        prices.append(round(price, 2))
+        current_step_dt += timedelta(minutes=30)
+
+    return prices
+
+
+def generate_g12n_chain(
+    start_time: datetime,
+    horizon_steps: int = 96,
+    p_peak: float = 1.15,
+    p_offpeak: float = 0.65,
+) -> list[float]:
+    """Generate rolling G12n (PGE - Tania Niedziela) in 30-minute intervals.
+
+    Dni powszednie i soboty: szczyt 06:00-13:00 oraz 15:00-22:00, pozaszczyt 13:00-15:00 i 22:00-06:00
+    Niedziele i dni ustawowo wolne od pracy: cała doba pozaszczyt
+    """
+    minute_slot = 30 if start_time.minute >= 30 else 0
+    current_step_dt = start_time.replace(minute=minute_slot, second=0, microsecond=0)
+
+    prices: list[float] = []
+    for _ in range(horizon_steps):
+        dt = current_step_dt
+        d = dt.date()
+        hour = dt.hour
+
+        if d.weekday() == 6 or is_polish_holiday(d):
+            price = p_offpeak
+        elif (6 <= hour < 13) or (15 <= hour < 22):
+            price = p_peak
+        else:
+            price = p_offpeak
+
+        prices.append(round(price, 2))
+        current_step_dt += timedelta(minutes=30)
+
+    return prices
+
+
+def generate_g13s_chain(
+    start_time: datetime,
+    horizon_steps: int = 96,
+    p_peak: float = 1.25,
+    p_day_offpeak: float = 0.55,
+    p_night: float = 0.60,
+) -> list[float]:
+    """Generate rolling G13s (Tauron Sezonowa OZE / Magazyny) in 30-minute intervals.
+
+    Okres letni (1.04 - 30.09):
+      - Dzienna pozaszczytowa (09:00 - 17:00): p_day_offpeak
+      - Dzienna szczytowa (07:00 - 09:00, 17:00 - 21:00): p_peak
+      - Nocna (21:00 - 07:00): p_night
+
+    Okres zimowy (1.10 - 31.03):
+      - Dzienna pozaszczytowa (10:00 - 15:00): p_day_offpeak
+      - Dzienna szczytowa (07:00 - 10:00, 15:00 - 21:00): p_peak
+      - Nocna (21:00 - 07:00): p_night
+    """
+    minute_slot = 30 if start_time.minute >= 30 else 0
+    current_step_dt = start_time.replace(minute=minute_slot, second=0, microsecond=0)
+
+    prices: list[float] = []
+    for _ in range(horizon_steps):
+        dt = current_step_dt
+        hour = dt.hour
+        is_summer = 4 <= dt.month <= 9
+
+        if is_summer:
+            if 9 <= hour < 17:
+                price = p_day_offpeak
+            elif (7 <= hour < 9) or (17 <= hour < 21):
+                price = p_peak
+            else:
+                price = p_night
+        else:
+            if 10 <= hour < 15:
+                price = p_day_offpeak
+            elif (7 <= hour < 10) or (15 <= hour < 21):
+                price = p_peak
+            else:
+                price = p_night
+
+        prices.append(round(price, 2))
+        current_step_dt += timedelta(minutes=30)
+
+    return prices
+

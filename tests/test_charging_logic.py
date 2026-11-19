@@ -113,3 +113,37 @@ def test_cheap_valley_allows_grid_charging() -> None:
         assert "Ładowanie z sieci (3000W)" in coord._last_ems_action
     finally:
         dt_util.now = original_now
+
+
+def test_g13s_price_guard_solar_window_and_peak_blocking() -> None:
+    """Test G13s allows charging in daytime solar valley (09-17) and blocks in evening peak (17-21)."""
+    from homeassistant.util import dt as dt_util
+    from custom_components.smart_storage_ems.const import (
+        CONF_G13S_PRICE_DAY_OFFPEAK,
+        CONF_G13S_PRICE_NIGHT,
+        CONF_G13S_PRICE_PEAK,
+        TARIFF_MODE_G13S,
+    )
+
+    hass_mock = MagicMock()
+    config = {
+        CONF_TARIFF_MODE: TARIFF_MODE_G13S,
+        CONF_G13S_PRICE_PEAK: 1.25,
+        CONF_G13S_PRICE_DAY_OFFPEAK: 0.55,
+        CONF_G13S_PRICE_NIGHT: 0.60,
+    }
+
+    # 1. Daytime solar valley in summer (13:00) -> Cheap zone
+    dt_midday = datetime(2026, 6, 17, 13, 0, 0)
+    coord_day = SmartStorageCoordinator(hass_mock, config)
+    assert coord_day._is_cheap_buy_price(dt_midday) is True
+
+    # 2. Evening peak in summer (18:00) -> Expensive peak
+    dt_evening = datetime(2026, 6, 17, 18, 0, 0)
+    coord_evening = SmartStorageCoordinator(hass_mock, config)
+    assert coord_evening._is_cheap_buy_price(dt_evening) is False
+
+    # 3. Night in summer (02:00) -> Cheap zone
+    dt_night = datetime(2026, 6, 17, 2, 0, 0)
+    coord_night = SmartStorageCoordinator(hass_mock, config)
+    assert coord_night._is_cheap_buy_price(dt_night) is True

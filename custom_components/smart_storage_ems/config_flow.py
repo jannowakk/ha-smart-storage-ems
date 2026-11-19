@@ -16,9 +16,15 @@ from .const import (
     CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
     CONF_ENABLE_IMPORT_GUARD,
+    CONF_G11_PRICE,
+    CONF_G12_PRICE_OFFPEAK,
+    CONF_G12_PRICE_PEAK,
     CONF_G13_PRICE_T1,
     CONF_G13_PRICE_T2,
     CONF_G13_PRICE_T3,
+    CONF_G13S_PRICE_DAY_OFFPEAK,
+    CONF_G13S_PRICE_NIGHT,
+    CONF_G13S_PRICE_PEAK,
     CONF_HORIZON_STEPS,
     CONF_IMPORT_GUARD_DURATION,
     CONF_IMPORT_GUARD_THRESHOLD,
@@ -71,8 +77,13 @@ from .const import (
     SELL_PRICE_MODE_SENSOR,
     SELL_PRICE_MODE_STATIC,
     TARIFF_MODE_CUSTOM,
+    TARIFF_MODE_G11,
+    TARIFF_MODE_G12,
+    TARIFF_MODE_G12N,
+    TARIFF_MODE_G12R,
     TARIFF_MODE_G12W,
     TARIFF_MODE_G13,
+    TARIFF_MODE_G13S,
     TARIFF_MODES,
 )
 
@@ -171,19 +182,30 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 # --- Grupa 1: Ceny Zakupu Energii (Import / Taryfy) ---
-                vol.Required(CONF_TARIFF_MODE, default=TARIFF_MODE_G13): selector.SelectSelector(
+                vol.Required(CONF_TARIFF_MODE, default=TARIFF_MODE_G13S): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"value": TARIFF_MODE_G13, "label": "Taryfa G13 (Tauron - wbudowany kalendarz świąt)"},
+                            {"value": TARIFF_MODE_G13S, "label": "Taryfa G13s (Tauron Sezonowa OZE / Magazyny - wbudowana)"},
+                            {"value": TARIFF_MODE_G13, "label": "Taryfa G13 (Tauron / Enea - 3 strefy zima/lato)"},
                             {"value": TARIFF_MODE_G12W, "label": "Taryfa G12w (Weekendowa - wbudowana)"},
+                            {"value": TARIFF_MODE_G12, "label": "Taryfa G12 (Standardowa dzień/noc)"},
+                            {"value": TARIFF_MODE_G12R, "label": "Taryfa G12r (Energa - Ekonomiczna Dolina)"},
+                            {"value": TARIFF_MODE_G12N, "label": "Taryfa G12n (PGE - Tania niedziela)"},
+                            {"value": TARIFF_MODE_G11, "label": "Taryfa G11 (Jednostrefowa - stała)"},
                             {"value": TARIFF_MODE_CUSTOM, "label": "Własna encja / Ceny z sensora"},
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
+                vol.Optional(CONF_G13S_PRICE_PEAK, default=1.25): float,
+                vol.Optional(CONF_G13S_PRICE_DAY_OFFPEAK, default=0.55): float,
+                vol.Optional(CONF_G13S_PRICE_NIGHT, default=0.60): float,
                 vol.Optional(CONF_G13_PRICE_T1, default=0.90): float,
                 vol.Optional(CONF_G13_PRICE_T2, default=1.49): float,
                 vol.Optional(CONF_G13_PRICE_T3, default=0.62): float,
+                vol.Optional(CONF_G12_PRICE_PEAK, default=1.15): float,
+                vol.Optional(CONF_G12_PRICE_OFFPEAK, default=0.65): float,
+                vol.Optional(CONF_G11_PRICE, default=0.95): float,
                 vol.Optional(CONF_BUY_PRICE_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
@@ -296,9 +318,15 @@ EMHASS_STEP_FIELDS = [
 
 TARIFFS_STEP_FIELDS = [
     CONF_TARIFF_MODE,
+    CONF_G13S_PRICE_PEAK,
+    CONF_G13S_PRICE_DAY_OFFPEAK,
+    CONF_G13S_PRICE_NIGHT,
     CONF_G13_PRICE_T1,
     CONF_G13_PRICE_T2,
     CONF_G13_PRICE_T3,
+    CONF_G12_PRICE_PEAK,
+    CONF_G12_PRICE_OFFPEAK,
+    CONF_G11_PRICE,
     CONF_BUY_PRICE_ENTITY,
     CONF_BUY_PRICE_ATTR,
     CONF_SELL_PRICE_MODE,
@@ -466,17 +494,34 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                 # --- Grupa 1: Ceny Zakupu Energii (Import / Taryfy) ---
                 vol.Required(
                     CONF_TARIFF_MODE,
-                    default=data.get(CONF_TARIFF_MODE, TARIFF_MODE_G13),
+                    default=data.get(CONF_TARIFF_MODE, TARIFF_MODE_G13S),
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"value": TARIFF_MODE_G13, "label": "Taryfa G13 (Tauron - wbudowany kalendarz świąt)"},
+                            {"value": TARIFF_MODE_G13S, "label": "Taryfa G13s (Tauron Sezonowa OZE / Magazyny - wbudowana)"},
+                            {"value": TARIFF_MODE_G13, "label": "Taryfa G13 (Tauron / Enea - 3 strefy zima/lato)"},
                             {"value": TARIFF_MODE_G12W, "label": "Taryfa G12w (Weekendowa - wbudowana)"},
+                            {"value": TARIFF_MODE_G12, "label": "Taryfa G12 (Standardowa dzień/noc)"},
+                            {"value": TARIFF_MODE_G12R, "label": "Taryfa G12r (Energa - Ekonomiczna Dolina)"},
+                            {"value": TARIFF_MODE_G12N, "label": "Taryfa G12n (PGE - Tania niedziela)"},
+                            {"value": TARIFF_MODE_G11, "label": "Taryfa G11 (Jednostrefowa - stała)"},
                             {"value": TARIFF_MODE_CUSTOM, "label": "Własna encja / Ceny z sensora"},
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
+                vol.Optional(
+                    CONF_G13S_PRICE_PEAK,
+                    default=float(data.get(CONF_G13S_PRICE_PEAK, 1.25)),
+                ): float,
+                vol.Optional(
+                    CONF_G13S_PRICE_DAY_OFFPEAK,
+                    default=float(data.get(CONF_G13S_PRICE_DAY_OFFPEAK, 0.55)),
+                ): float,
+                vol.Optional(
+                    CONF_G13S_PRICE_NIGHT,
+                    default=float(data.get(CONF_G13S_PRICE_NIGHT, 0.60)),
+                ): float,
                 vol.Optional(
                     CONF_G13_PRICE_T1,
                     default=float(data.get(CONF_G13_PRICE_T1, 0.90)),
@@ -488,6 +533,18 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_G13_PRICE_T3,
                     default=float(data.get(CONF_G13_PRICE_T3, 0.62)),
+                ): float,
+                vol.Optional(
+                    CONF_G12_PRICE_PEAK,
+                    default=float(data.get(CONF_G12_PRICE_PEAK, 1.15)),
+                ): float,
+                vol.Optional(
+                    CONF_G12_PRICE_OFFPEAK,
+                    default=float(data.get(CONF_G12_PRICE_OFFPEAK, 0.65)),
+                ): float,
+                vol.Optional(
+                    CONF_G11_PRICE,
+                    default=float(data.get(CONF_G11_PRICE, 0.95)),
                 ): float,
                 vol.Optional(
                     CONF_BUY_PRICE_ENTITY,

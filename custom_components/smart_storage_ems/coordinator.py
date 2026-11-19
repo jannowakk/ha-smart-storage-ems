@@ -25,9 +25,15 @@ from .const import (
     CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
     CONF_ENABLE_IMPORT_GUARD,
+    CONF_G11_PRICE,
+    CONF_G12_PRICE_OFFPEAK,
+    CONF_G12_PRICE_PEAK,
     CONF_G13_PRICE_T1,
     CONF_G13_PRICE_T2,
     CONF_G13_PRICE_T3,
+    CONF_G13S_PRICE_DAY_OFFPEAK,
+    CONF_G13S_PRICE_NIGHT,
+    CONF_G13S_PRICE_PEAK,
     CONF_HORIZON_STEPS,
     CONF_IMPORT_GUARD_DURATION,
     CONF_IMPORT_GUARD_THRESHOLD,
@@ -76,14 +82,30 @@ from .const import (
     SELL_PRICE_MODE_PSE_RCE,
     SELL_PRICE_MODE_SENSOR,
     SELL_PRICE_MODE_STATIC,
+    TARIFF_MODE_G11,
+    TARIFF_MODE_G12,
+    TARIFF_MODE_G12N,
+    TARIFF_MODE_G12R,
     TARIFF_MODE_G12W,
     TARIFF_MODE_G13,
+    TARIFF_MODE_G13S,
 )
 from .emhass_client import EmhassClient
 from .guards.import_guard import ImportGuard
 from .inverters import get_inverter_driver
 from .season_manager import SeasonManager
-from .tariffs import PseRceClient, generate_g12w_chain, generate_g13_chain, is_free_day
+from .tariffs import (
+    PseRceClient,
+    generate_g11_chain,
+    generate_g12_chain,
+    generate_g12n_chain,
+    generate_g12r_chain,
+    generate_g12w_chain,
+    generate_g13_chain,
+    generate_g13s_chain,
+    is_free_day,
+    is_polish_holiday,
+)
 from .pv_forecast import build_rolling_pv_forecast
 from .load_forecast import build_rolling_load_forecast
 
@@ -295,13 +317,41 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         tariff_mode = self.config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
         self._tariff_mode = tariff_mode
 
-        if tariff_mode == TARIFF_MODE_G13:
+        if tariff_mode == TARIFF_MODE_G13S:
+            p_peak = float(self.config.get(CONF_G13S_PRICE_PEAK, 1.25))
+            p_day_offpeak = float(self.config.get(CONF_G13S_PRICE_DAY_OFFPEAK, 0.55))
+            p_night = float(self.config.get(CONF_G13S_PRICE_NIGHT, 0.60))
+            buy_prices = generate_g13s_chain(
+                now_dt,
+                horizon_steps=horizon,
+                p_peak=p_peak,
+                p_day_offpeak=p_day_offpeak,
+                p_night=p_night,
+            )
+        elif tariff_mode == TARIFF_MODE_G13:
             t1 = float(self.config.get(CONF_G13_PRICE_T1, 0.90))
             t2 = float(self.config.get(CONF_G13_PRICE_T2, 1.49))
             t3 = float(self.config.get(CONF_G13_PRICE_T3, 0.62))
             buy_prices = generate_g13_chain(now_dt, horizon_steps=horizon, p_t1=t1, p_t2=t2, p_t3=t3)
         elif tariff_mode == TARIFF_MODE_G12W:
-            buy_prices = generate_g12w_chain(now_dt, horizon_steps=horizon)
+            p_peak = float(self.config.get(CONF_G12_PRICE_PEAK, 1.15))
+            p_offpeak = float(self.config.get(CONF_G12_PRICE_OFFPEAK, 0.65))
+            buy_prices = generate_g12w_chain(now_dt, horizon_steps=horizon, p_peak=p_peak, p_offpeak=p_offpeak)
+        elif tariff_mode == TARIFF_MODE_G12:
+            p_peak = float(self.config.get(CONF_G12_PRICE_PEAK, 1.15))
+            p_offpeak = float(self.config.get(CONF_G12_PRICE_OFFPEAK, 0.65))
+            buy_prices = generate_g12_chain(now_dt, horizon_steps=horizon, p_peak=p_peak, p_offpeak=p_offpeak)
+        elif tariff_mode == TARIFF_MODE_G12R:
+            p_peak = float(self.config.get(CONF_G12_PRICE_PEAK, 1.15))
+            p_offpeak = float(self.config.get(CONF_G12_PRICE_OFFPEAK, 0.65))
+            buy_prices = generate_g12r_chain(now_dt, horizon_steps=horizon, p_peak=p_peak, p_offpeak=p_offpeak)
+        elif tariff_mode == TARIFF_MODE_G12N:
+            p_peak = float(self.config.get(CONF_G12_PRICE_PEAK, 1.15))
+            p_offpeak = float(self.config.get(CONF_G12_PRICE_OFFPEAK, 0.65))
+            buy_prices = generate_g12n_chain(now_dt, horizon_steps=horizon, p_peak=p_peak, p_offpeak=p_offpeak)
+        elif tariff_mode == TARIFF_MODE_G11:
+            p_flat = float(self.config.get(CONF_G11_PRICE, 0.95))
+            buy_prices = generate_g11_chain(now_dt, horizon_steps=horizon, p_flat=p_flat)
         else:
             buy_prices = self._get_list_data(
                 self.config.get(CONF_BUY_PRICE_ENTITY),
@@ -327,16 +377,32 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Check if current time slot is in a cheap price valley suitable for grid charging."""
         tariff_mode = self.config.get(CONF_TARIFF_MODE, TARIFF_MODE_G13)
         current_price = self._buy_prices[0] if self._buy_prices else None
+        d = now_dt.date()
+        hour = now_dt.hour
+
+        if tariff_mode == TARIFF_MODE_G13S:
+            is_summer = 4 <= now_dt.month <= 9
+            if current_price is not None:
+                p_day_offpeak = float(self.config.get(CONF_G13S_PRICE_DAY_OFFPEAK, 0.55))
+                p_night = float(self.config.get(CONF_G13S_PRICE_NIGHT, 0.60))
+                cheap_limit = max(p_day_offpeak, p_night) + 0.03
+                return current_price <= cheap_limit
+            # Time fallback:
+            if hour < 7 or hour >= 21:
+                return True
+            if is_summer and 9 <= hour < 17:
+                return True
+            if not is_summer and 10 <= hour < 15:
+                return True
+            return False
 
         if tariff_mode == TARIFF_MODE_G13:
             t3 = float(self.config.get(CONF_G13_PRICE_T3, 0.62))
             if current_price is not None:
                 return current_price <= (t3 + 0.03)
             # Fallback to direct time check
-            d = now_dt.date()
             if is_free_day(d):
                 return True
-            hour = now_dt.hour
             is_winter = now_dt.month in (10, 11, 12, 1, 2, 3)
             if 7 <= hour < 13:
                 return False  # T1 peak
@@ -345,17 +411,30 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return True  # T3 valley
 
         if tariff_mode == TARIFF_MODE_G12W:
-            d = now_dt.date()
             if is_free_day(d):
                 return True
-            hour = now_dt.hour
             return (13 <= hour < 15) or (hour >= 22 or hour < 6)
 
-        # Custom sensor / PSE RCE / static:
+        if tariff_mode == TARIFF_MODE_G12:
+            return (13 <= hour < 15) or (hour >= 22 or hour < 6)
+
+        if tariff_mode == TARIFF_MODE_G12R:
+            return (13 <= hour < 16) or (hour >= 22 or hour < 7)
+
+        if tariff_mode == TARIFF_MODE_G12N:
+            if d.weekday() == 6 or is_polish_holiday(d):
+                return True
+            return (13 <= hour < 15) or (hour >= 22 or hour < 6)
+
+        if tariff_mode == TARIFF_MODE_G11:
+            return False
+
+        # Custom / dynamic buy price sensor:
         if current_price is not None and len(self._buy_prices) > 1:
             sorted_prices = sorted(self._buy_prices)
             cutoff_idx = int(len(sorted_prices) * 0.35)
             cheap_threshold = sorted_prices[cutoff_idx]
+            return current_price <= cheap_threshold
             return current_price <= cheap_threshold
 
         return True

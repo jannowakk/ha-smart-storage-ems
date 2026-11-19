@@ -62,6 +62,8 @@ from tests.test_import_guard import (
 from tests.test_polish_tariffs import (
     test_polish_holidays,
     test_g13_chain_generation,
+    test_g13s_summer_and_winter_chain_generation,
+    test_g12_g12r_g12n_g11_chain_generation,
 )
 from tests.test_season_manager import (
     test_season_manager_solar_day_transition,
@@ -72,6 +74,7 @@ from tests.test_charging_logic import (
     test_pv_surplus_charging_keeps_self_consumption,
     test_peak_zone_blocks_grid_charging_safety_guard,
     test_cheap_valley_allows_grid_charging,
+    test_g13s_price_guard_solar_window_and_peak_blocking,
 )
 from tests.test_pse_rce import (
     test_aggregate_15m_to_30m,
@@ -106,6 +109,12 @@ if __name__ == "__main__":
     test_g13_chain_generation()
     print("✓ test_g13_chain_generation passed")
 
+    test_g13s_summer_and_winter_chain_generation()
+    print("✓ test_g13s_summer_and_winter_chain_generation passed")
+
+    test_g12_g12r_g12n_g11_chain_generation()
+    print("✓ test_g12_g12r_g12n_g11_chain_generation passed")
+
     test_season_manager_solar_day_transition()
     print("✓ test_season_manager_solar_day_transition passed")
 
@@ -135,6 +144,9 @@ if __name__ == "__main__":
 
     test_cheap_valley_allows_grid_charging()
     print("✓ test_cheap_valley_allows_grid_charging passed")
+
+    test_g13s_price_guard_solar_window_and_peak_blocking()
+    print("✓ test_g13s_price_guard_solar_window_and_peak_blocking passed")
 
     print("\nAll unit tests passed successfully!")
 
