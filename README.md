@@ -318,6 +318,7 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
 
 ### 3. Dlaczego rozładowywanie baterii bywa blokowane mimo zapotrzebowania domu na prąd?
 * **Przesłanka ekonomiczna:** Rozładowywanie baterii w taniej dolinie taryfy G13 (~0,62 zł/kWh) lub wyczerpanie jej przed pochmurnym dniem powoduje marnowanie z trudem zgromadzonej energii, która w szczycie popołudniowym (np. 1,49 zł/kWh) przyniesie wielokrotnie większą oszczędność.
+* **Szczegółowa analiza przypadku i matematyka kosztu cyklu:** Zobacz pełne studium przypadku w **[docs/CASE_STUDY_SOLVER_DECISIONS.md](docs/CASE_STUDY_SOLVER_DECISIONS.md)** (wyjaśnienie bilansu sprawności 81%, kosztu energii z baterii 0,81 zł vs 0,62 zł z sieci oraz horyzontu 48h).
 * **Zasada działania:** Gdy prąd z sieci jest tani (w dolinie cenowej w trybie zimowym) lub gdy SoC spadnie do chronionego progu rezerwy, magazyn przechodzi w `battery_standby`, a zasilanie domu przejmuje sieć.
 
 ---
