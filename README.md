@@ -106,6 +106,39 @@ Po otwarciu okna:
 
 ---
 
+## 🚀 Szybki start
+
+Po zainstalowaniu integracji przejdź do **Ustawienia -> Urządzenia i usługi -> Dodaj integrację -> Smart Storage EMS**. 
+
+Kreator składa się z 3 kroków:
+
+### 1. Falownik (GoodWe)
+Wskaż encje ze swojej integracji falownika. Poniższy zestaw encji jest potrzebny, aby integracja mogła zadawać moce i chronić przed drogim importem:
+
+* **SoC baterii:** np. `sensor.goodwe_battery_state_of_charge`
+* **Moc PV:** np. `sensor.goodwe_pv_power`
+* **Pobór domu:** np. `sensor.goodwe_load_power`
+* **Moc sieci (Grid in/out):** np. `sensor.goodwe_active_power` *(dla Strażnika Importu)*
+* **Moc baterii:** np. `sensor.goodwe_battery_power`
+* **Tryb EMS:** np. `select.goodwe_ems_mode`
+* **Tryb inwertera:** np. `select.goodwe_operation_mode`
+* **Limit mocy EMS:** np. `number.goodwe_ems_power_limit` *(do zadawania mocy ładowania/rozładowania)*
+* **Limit eksportu:** np. `number.goodwe_export_limit` *(do arbitrażu RCE)*
+* **Praca wyspowa (opcjonalnie):** np. `binary_sensor.goodwe_on_grid`
+
+### 2. Połączenie z EMHASS
+* **URL:** `http://localhost:5000`
+* **Horyzont:** `96` (48h w krokach 30-minutowych)
+* **Funkcja celu:** `auto` (zima: cost, lato: self-consumption, szpila RCE: profit)
+
+### 3. Taryfy i prognozy
+* **Ceny zakupu:** Wybierz `G13` lub `G12w` (stawki i kalendarz świąt są wbudowane).
+* **Ceny sprzedaży:** Wybierz `Wbudowane PSE S.A. (RCE)` (pobiera oficjalne ceny z API PSE bez żadnych encji w HA).
+* **Prognoza PV:** Wskaż 3 standardowe sensory Solcast (dziś, jutro, pojutrze) – integracja sama tnie wektor 48h od bieżącej półgodziny.
+* **Prognoza zużycia domu:** Zostaw puste pole (integracja sama wygeneruje profil dobowy zakotwiczony w bieżącym poborze).
+
+---
+
 ## ⚙️ Wystawiane Encje
 
 Po dodaniu integracji otrzymujesz gotowe encje do sterowania i dashboardów Lovelace:
