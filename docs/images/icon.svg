@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Squircle card geometry -->
+    <rect id="squircle-shape" x="64" y="64" width="384" height="384" rx="88" />
+
+    <!-- Squircle background gradient -->
+    <linearGradient id="bg-squircle" x1="15%" y1="0%" x2="85%" y2="100%">
+      <stop offset="0%" stop-color="#1e273d" />
+      <stop offset="50%" stop-color="#131929" />
+      <stop offset="100%" stop-color="#0b0f1a" />
+    </linearGradient>
+
+    <!-- Subtle top-lit metallic rim -->
+    <linearGradient id="rim-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1" stop-opacity="0.7" />
+      <stop offset="35%" stop-color="#475569" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0.6" />
+    </linearGradient>
+
+    <!-- Battery chassis stroke gradient -->
+    <linearGradient id="battery-border" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22e69c" />
+      <stop offset="50%" stop-color="#00c4f5" />
+      <stop offset="100%" stop-color="#0080ff" />
+    </linearGradient>
+
+    <!-- Liquid energy fill gradient -->
+    <linearGradient id="liquid-main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14e09b" />
+      <stop offset="45%" stop-color="#00b4e6" />
+      <stop offset="100%" stop-color="#0073ff" />
+    </linearGradient>
+
+    <!-- Translucent secondary liquid wave -->
+    <linearGradient id="liquid-crest" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2ee59d" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#00a8ff" stop-opacity="0.35" />
+    </linearGradient>
+
+    <!-- Unified Arc -> Leaf -> Cyan Stem continuous gradient (userSpaceOnUse so outer arc & peeling leaf match 100%!) -->
+    <linearGradient id="unified-arc-grad" gradientUnits="userSpaceOnUse" x1="150" y1="205" x2="345" y2="282">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="38%" stop-color="#facc15" />
+      <stop offset="68%" stop-color="#84cc16" />
+      <stop offset="84%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#00d2ff" />
+    </linearGradient>
+
+    <!-- Bright cyan stem inside battery -->
+    <linearGradient id="inner-stem-grad" gradientUnits="userSpaceOnUse" x1="338" y1="302" x2="260" y2="352">
+      <stop offset="0%" stop-color="#00d2ff" />
+      <stop offset="100%" stop-color="#a5f3fc" />
+    </linearGradient>
+
+    <!-- Lightning bolt gradient -->
+    <linearGradient id="bolt-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#5eead4" />
+      <stop offset="40%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+
+    <!-- Soft drop shadow for squircle -->
+    <filter id="card-shadow" x="-15%" y="-10%" width="130%" height="135%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+
+    <!-- Subtle glow only for nodes and bolt -->
+    <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Mask ONLY on the battery border stroke so the crossing cyan stem creates a clean 3D weave without touching liquid -->
+    <mask id="battery-border-mask">
+      <rect width="512" height="512" fill="white" />
+      <path d="M 332 307 L 319 315" stroke="black" stroke-width="10" stroke-linecap="round" />
+    </mask>
+
+    <!-- Inner battery clip -->
+    <clipPath id="inner-battery">
+      <rect x="190.5" y="166.5" width="131" height="225" rx="23.5" />
+    </clipPath>
+  </defs>
+
+  <!-- 1. Squircle Card Base -->
+  <use href="#squircle-shape" fill="url(#bg-squircle)" filter="url(#card-shadow)" />
+  <use href="#squircle-shape" fill="none" stroke="url(#rim-grad)" stroke-width="2" />
+
+  <!-- 2. Battery Top Terminal & Interior Liquid -->
+  <rect x="228" y="144" width="56" height="12" rx="6" fill="#22e69c" />
+
+  <!-- Dark glass interior fill (unmasked) -->
+  <rect x="186" y="162" width="140" height="234" rx="28" fill="#0e1422" />
+
+  <!-- Inside Battery (Clipped Liquid & Node 1) -->
+  <g clip-path="url(#inner-battery)">
+    <!-- Background liquid swell -->
+    <path d="M 188 278 C 218 276, 245 314, 282 308 C 300 305, 314 300, 326 302 L 326 396 L 188 396 Z"
+          fill="url(#liquid-crest)" />
+
+    <!-- Foreground liquid energy wave -->
+    <path d="M 188 292 C 222 292, 246 324, 282 318 C 300 315, 312 310, 326 312 L 326 396 L 188 396 Z"
+          fill="url(#liquid-main)" />
+
+    <!-- Algorithmic Line 1 (Green curve rising cleanly to Node 1) -->
+    <path d="M 188 318 Q 242 316, 286 276"
+          fill="none"
+          stroke="#4effb8"
+          stroke-width="3.5"
+          stroke-linecap="round" />
+
+    <!-- Node 1 (Upper right green ring) -->
+    <circle cx="286" cy="276" r="6.5" fill="#0e1422" stroke="#6ee7b7" stroke-width="3.2" filter="url(#soft-glow)" />
+  </g>
+
+  <!-- Battery Border Stroke (with 3D weave cutout mask ONLY on the border!) -->
+  <rect x="186" y="162" width="140" height="234" rx="28"
+        fill="none"
+        stroke="url(#battery-border)"
+        stroke-width="5.5"
+        mask="url(#battery-border-mask)" />
+
+  <!-- 3. SINGLE UNIFIED CALLIGRAPHIC VECTOR: Solar Arc + Outer Cyan Sweep + Peeling S-Leaf (Zero overlap, zero seams!) -->
+  <path fill="url(#unified-arc-grad)" fill-rule="evenodd" d="
+    M 164.59 295.42
+    A 116 116 0 0 1 256.0 108.0
+    A 116 116 0 0 1 372.0 224.0
+    A 116 116 0 0 1 342.2 301.62
+    L 339.23 298.94
+    A 112.0 112.0 0 0 0 367.5 224.0
+    A 111.5 111.5 0 0 0 345.64 158.87
+    C 355 180, 357 216, 351 248
+    C 347 262, 342 271, 338 278
+    C 330 266, 330 248, 336 228
+    C 342 208, 347 182, 338 158
+    C 333 147, 327 142, 321.63 140.0
+    A 106.5 106.5 0 0 0 256.0 118.0
+    A 106.0 106.0 0 0 0 172.47 289.26
+    A 5.0 5.0 0 0 1 164.59 295.42 Z
+
+    M 349 188
+    C 347 205, 342 220, 338 234
+    C 334.5 247, 335 258, 338.5 266.5
+    C 342.5 256, 346 240, 348.5 222
+    C 349 234, 348.5 247, 345.5 257
+    C 350.5 244, 352 220, 349 188 Z
+  " />
+
+  <!-- 4. Continuation of Bright Cyan Stem from 42° across battery weave down to Node 2 (260, 352) -->
+  <path d="M 340.7 300.3 C 330 310, 304 323, 260 352"
+        fill="none"
+        stroke="url(#inner-stem-grad)"
+        stroke-width="3.9"
+        stroke-linecap="round" />
+
+  <!-- Node 2 (Lower center cyan ring) -->
+  <circle cx="260" cy="352" r="6.5" fill="#0b2847" stroke="#a5f3fc" stroke-width="3.2" filter="url(#soft-glow)" />
+
+  <!-- 6. Central Electric Cyan Lightning Bolt -->
+  <polygon points="266,192 234,234 255,234 245,268 278,224 257,224"
+           fill="url(#bolt-fill)"
+           filter="url(#soft-glow)" />
+</svg>
