@@ -3,6 +3,7 @@
 from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -27,6 +28,7 @@ async def async_setup_entry(
             SmartStorageSeasonModeSensor(coordinator, entry),
             SmartStoragePvForecastSensor(coordinator, entry),
             SmartStorageLoadForecastSensor(coordinator, entry),
+            SmartStorageDiagnosticSensor(coordinator, entry),
         ]
     )
 
@@ -179,4 +181,53 @@ class SmartStorageLoadForecastSensor(CoordinatorEntity[SmartStorageCoordinator],
             "list": self.coordinator._load_forecast,
             "horizon_steps": len(self.coordinator._load_forecast),
         }
+
+
+class SmartStorageDiagnosticSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
+    """Diagnostic sensor exposing last EMS decisions and system health."""
+
+    def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_diagnostics"
+        self._attr_name = "Smart Storage EMS: Diagnostyka"
+        self._attr_icon = "mdi:clipboard-pulse-outline"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    @property
+    def native_value(self) -> str:
+        """Return status summary."""
+        if getattr(self.coordinator, "_last_mpc_success", None) is None:
+            return "Inicjalizacja / Oczekiwanie na MPC"
+        return self.coordinator._last_ems_action
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose recent decision history and system diagnostic snapshot."""
+        diag = self.coordinator.get_diagnostics_data()
+        issues = [
+            f"{e['label']}: {e['issue']}"
+            for e in diag.get("entities_health", {}).values()
+            if e.get("issue")
+        ]
+        return {
+            "ostatnie_decyzje": diag.get("recent_decisions", []),
+            "problemy_encji": issues if issues else "Brak uwag (Wszystkie encje OK)",
+            "odczyt_falownika": {
+                item["label"]: item["state"]
+                for item in diag.get("inverter_readback", {}).values()
+            },
+            "blad_emhass": diag.get("emhass", {}).get("last_error"),
+            "zrodlo_prognozy_pv": diag.get("forecasts", {}).get("pv_source"),
+            "zrodlo_prognozy_zuzycia": diag.get("forecasts", {}).get("load_source"),
+            "taryfa": diag.get("tariffs", {}).get("tariff_mode"),
+            "dynamiczny_min_soc": diag.get("dynamic_min_soc_pct"),
+            "status_emhass": "OK" if diag.get("emhass", {}).get("last_mpc_success") else "Brak danych / Błąd",
+            "ostatnie_przeliczenie_mpc": diag.get("emhass", {}).get("last_mpc_success"),
+            "entities_health": diag.get("entities_health", {}),
+            "recent_logs": diag.get("recent_logs", []),
+            "emhass_summary": diag.get("emhass", {}).get("last_payload_summary", {}),
+            "guards": diag.get("guards", {}),
+            "live_sensors": diag.get("live_sensors", {}),
+        }
+
 

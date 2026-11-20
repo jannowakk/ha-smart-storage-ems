@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime
 from typing import Any
 import aiohttp
 
@@ -24,6 +25,7 @@ class EmhassClient:
         self._base_url = clean_url
         self._session = session
         self._token = token.strip() if token else None
+        self._last_error: dict[str, Any] | None = None
 
     def _get_headers(self) -> dict[str, str]:
         """Build request headers with optional Bearer token."""
@@ -45,12 +47,25 @@ class EmhassClient:
             ) as response:
                 if response.status in (200, 201):
                     _LOGGER.info("EMHASS MPC optimization completed successfully")
+                    self._last_error = None
                     return True
                 text = await response.text()
                 _LOGGER.error("EMHASS MPC failed (status %s): %s", response.status, text)
+                self._last_error = {
+                    "timestamp": datetime.now().isoformat(),
+                    "action": "naive-mpc-optim",
+                    "status": response.status,
+                    "error": text[:300],
+                }
                 return False
         except Exception as err:
             _LOGGER.error("Failed to connect to EMHASS at %s: %s", url, err)
+            self._last_error = {
+                "timestamp": datetime.now().isoformat(),
+                "action": "naive-mpc-optim",
+                "status": None,
+                "error": str(err),
+            }
             return False
 
     async def async_publish_data(self) -> bool:
@@ -69,9 +84,21 @@ class EmhassClient:
                     return True
                 text = await response.text()
                 _LOGGER.error("EMHASS publish-data failed (status %s): %s", response.status, text)
+                self._last_error = {
+                    "timestamp": datetime.now().isoformat(),
+                    "action": "publish-data",
+                    "status": response.status,
+                    "error": text[:300],
+                }
                 return False
         except Exception as err:
             _LOGGER.error("Failed to connect to EMHASS publish at %s: %s", url, err)
+            self._last_error = {
+                "timestamp": datetime.now().isoformat(),
+                "action": "publish-data",
+                "status": None,
+                "error": str(err),
+            }
             return False
 
     @staticmethod

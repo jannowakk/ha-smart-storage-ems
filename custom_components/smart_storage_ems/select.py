@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, OPERATION_MODES
+from .const import DOMAIN, OPERATION_MODES, OPERATION_MODE_AUTO
 from .coordinator import SmartStorageCoordinator
 
 
@@ -38,6 +38,9 @@ class SmartStorageModeSelect(CoordinatorEntity[SmartStorageCoordinator], SelectE
     async def async_select_option(self, option: str) -> None:
         """Change the active EMS operation mode."""
         if option in OPERATION_MODES:
+            prev_mode = self.coordinator.operation_mode
             self.coordinator.operation_mode = option
+            if option == OPERATION_MODE_AUTO and prev_mode != OPERATION_MODE_AUTO:
+                self.hass.async_create_task(self.coordinator.async_run_mpc())
             await self.coordinator.async_enforce_plan()
             self.async_write_ha_state()

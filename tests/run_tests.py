@@ -82,6 +82,7 @@ from tests.test_pse_rce import (
     test_get_rolling_rce_chain_with_tomorrow_available,
     test_get_rolling_rce_chain_when_tomorrow_missing_mirrors_today,
 )
+from tests.test_diagnostics import TestDiagnostics
 
 if __name__ == "__main__":
     print("Running Smart Storage EMS unit tests...")
@@ -147,6 +148,10 @@ if __name__ == "__main__":
 
     test_g13s_price_guard_solar_window_and_peak_blocking()
     print("✓ test_g13s_price_guard_solar_window_and_peak_blocking passed")
+
+    import asyncio
+    asyncio.run(TestDiagnostics().test_async_get_config_entry_diagnostics())
+    print("✓ test_async_get_config_entry_diagnostics passed")
 
     print("\nAll unit tests passed successfully!")
 

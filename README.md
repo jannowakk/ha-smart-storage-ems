@@ -8,6 +8,9 @@
 
 Zaprojektowana tak, aby całkowicie wyeliminować konieczność pisania setek linijek szablonów Jinja2, skomplikowanych automatyzacji i rest_commandów w YAML.
 
+> [!NOTE]
+> **Status projektu:** Integracja znajduje się w fazie intensywnego, aktywnego rozwoju. Chociaż działa stabilnie i bezpiecznie w instalacjach produkcyjnych (m.in. GoodWe ET/ES + EMHASS), nie należy oczekiwać bezobsługowego „gotowca OOB” pod każdą dowolną konfigurację sprzętową. Zachęcamy do zgłaszania uwag, testowania i współtworzenia projektu!
+
 ---
 
 ## 💡 Filozofia Projektu: Zrównoważony EMS zamiast Ślepego Arbitrażu
@@ -158,14 +161,28 @@ Po dodaniu integracji otrzymujesz gotowe encje do sterowania i dashboardów Love
 
 ## 📊 Wbudowane Karty Dashboardu Lovelace
 
-Integracja automatycznie rejestruje dwie dedykowane karty frontendowe (bez zewnętrznych zależności):
+Integracja automatycznie rejestruje trzy dedykowane karty frontendowe (w 100% czyste Web Components, bez zewnętrznych zależności i bez potrzeby instalacji dodatków z HACS):
+
+### 1. Karta Sterująca oraz Interaktywny Wykres 48h MPC
 
 | Karta Sterująca (`custom:smart-storage-card`) | Interaktywny Wykres 48h MPC (`custom:smart-storage-chart-card`) |
 | :---: | :---: |
 | ![Karta sterująca Smart Storage EMS](docs/images/smart-storage-card.png) | ![Plan Optymalizacji 48h MPC](docs/images/smart-storage-chart-card.png) |
 
-1. **Karta sterująca (`custom:smart-storage-card`)** – podgląd SoC z markerem dynamicznej rezerwy, parametry mocy w czasie rzeczywistym, wskaźnik Strażnika Importu oraz szybkie przyciski zmiany trybu pracy.
-2. **Interaktywny wykres 48h MPC (`custom:smart-storage-chart-card`)** – dwuosiowy wykres Canvas pokazujący plan ładowania/rozładowania baterii, krzywą SoC, prognozę PV, zużycie domu, strefy taryfowe oraz kafle podsumowań KPI (z w pełni interaktywną legendą).
+* **Karta sterująca (`custom:smart-storage-card`)** – podgląd SoC z markerem dynamicznej rezerwy, parametry mocy w czasie rzeczywistym, wskaźnik Strażnika Importu oraz szybkie przyciski zmiany trybu pracy.
+* **Interaktywny wykres 48h MPC (`custom:smart-storage-chart-card`)** – dwuosiowy wykres Canvas pokazujący plan ładowania/rozładowania baterii, krzywą SoC, prognozę PV, zużycie domu, strefy taryfowe oraz kafle podsumowań KPI (z w pełni interaktywną legendą).
+
+### 2. Karta Autodiagnostyki Systemu (Nowość w v1.3.0!)
+
+| Zakładka: Sensory i Falownik | Zakładka: Wektory 48h i Solver |
+| :---: | :---: |
+| ![Autodiagnostyka - Sensory i Falownik](docs/images/smart-storage-diagnostic-card-health.png) | ![Autodiagnostyka - Wektory i Solver](docs/images/smart-storage-diagnostic-card-vectors.png) |
+
+* **Karta autodiagnostyczna (`custom:smart-storage-diagnostic-card`)** – kompletne centrum kontroli zdrowia systemu w 3 przejrzystych zakładkach:
+  * **Sensory i Falownik:** Automatyczna weryfikacja dostępności encji, wskaźniki poprawności, wykrywanie pułapek skali jednostek (alert przy `kW` zamiast `W`), audyt długości i próbek wektorów oraz odczyt stanów falownika w Home Assistant.
+  * **Wektory 48h i Solver:** Statystyki min/śr/max dla prognozy zużycia domu, taryfy zakupu, prognozy PV i wyceny RCE, a także rejestr ewentualnych błędów komunikacji z solverem EMHASS.
+  * **Decyzje i Logi:** Dziennik ostatnich decyzji silnika EMS oraz terminal z buforem logów w pamięci RAM (`INFO`, `WARNING`, `ERROR`).
+  * **Pobieranie raportu:** Przycisk *Raport JSON* umożliwiający pobranie zanonimizowanego pliku diagnostycznego jednym kliknięciem bezpośrednio w przeglądarce.
 
 Przykładowa konfiguracja YAML w dashboardzie:
 
@@ -177,7 +194,18 @@ cards:
   - type: custom:smart-storage-chart-card
     title: "Smart Storage EMS: Plan Optymalizacji MPC (48h)"
     horizon_hours: 48
+  - type: custom:smart-storage-diagnostic-card
+    title: "Smart Storage EMS: Autodiagnostyka"
 ```
+
+---
+
+## 🔍 Narzędzia Diagnostyczne i Rozwiązywanie Problemów
+
+Oprócz dedykowanej karty na pulpicie, integracja wspiera natywny mechanizm diagnostyki Home Assistant:
+* Przejdź do: **Ustawienia -> Urządzenia oraz usługi -> Smart Storage EMS**.
+* W menu z trzema kropkami (`⋮`) wybierz opcję **„Pobierz diagnostykę”** (*Download diagnostics*).
+* Home Assistant wygeneruje w locie zanonimizowany plik JSON (tokeny i hasła są maskowane jako `***REDACTED***`), zawierający pełny stan środowiska, rejestr encji, historię decyzji oraz wektory wejściowe EMHASS – idealny do dołączenia do zgłoszeń błędów na GitHubie lub forum.
 
 ---
 

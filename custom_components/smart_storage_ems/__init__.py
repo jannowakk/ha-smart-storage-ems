@@ -29,6 +29,7 @@ async def _async_register_frontend(hass: HomeAssistant) -> None:
     cards = [
         ("smart-storage-card.js", "/smart_storage_ems/smart-storage-card.js"),
         ("smart-storage-chart-card.js", "/smart_storage_ems/smart-storage-chart-card.js"),
+        ("smart-storage-diagnostic-card.js", "/smart_storage_ems/smart-storage-diagnostic-card.js"),
     ]
 
     for filename, url_path in cards:
