@@ -44,6 +44,16 @@ const CARD_I18N = {
   },
 };
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 class SmartStorageCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
@@ -359,8 +369,8 @@ class SmartStorageCard extends HTMLElement {
       <div class="ems-container">
         <!-- Header -->
         <div class="ems-header-row">
-          <span class="ems-status-badge">${statusVal}</span>
-          <span class="ems-power-badge">${powerLabel}</span>
+          <span class="ems-status-badge">${escapeHtml(statusVal)}</span>
+          <span class="ems-power-badge">${escapeHtml(powerLabel)}</span>
         </div>
 
         <!-- Metrics Grid -->

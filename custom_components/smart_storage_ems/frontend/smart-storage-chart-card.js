@@ -89,6 +89,16 @@ const CHART_I18N = {
   },
 };
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 class SmartStorageChartCard extends HTMLElement {
   _lang() {
     const raw = (this._hass?.locale?.language || this._hass?.language || 'en').toLowerCase();
@@ -320,7 +330,7 @@ class SmartStorageChartCard extends HTMLElement {
           <div class="legend-item" data-series="load"><div class="legend-dash" style="border-top-color: #90a4ae;"></div> ${t.legLoad}</div>
           <div class="legend-item" data-series="soc"><div class="legend-line" style="background: #e91e63;"></div> ${t.legSoc}</div>
           <div class="legend-item" data-series="min_soc"><div class="legend-dash" style="border-top-color: #d32f2f;"></div> ${t.legMinSoc}</div>
-          <div class="legend-item" data-series="tariff"><div class="legend-line" style="background: #ab47bc;"></div> ${t.legTariff} (${curr}/kWh)</div>
+          <div class="legend-item" data-series="tariff"><div class="legend-line" style="background: #ab47bc;"></div> ${escapeHtml(t.legTariff)} (${escapeHtml(curr)}/kWh)</div>
           <div class="legend-item" data-series="rce"><div class="legend-line" style="background: #00bcd4;"></div> ${t.legRce} (${curr}/kWh)</div>
         </div>
       </div>
@@ -933,22 +943,22 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     const tariffLine = (point.buy_price !== null && !isNaN(point.buy_price))
-      ? `<div>💰 <b>${t.ttBuy} (${this._tariffMode || 'EMS'}):</b> ${point.buy_price.toFixed(2)} ${curr}/kWh</div>`
+      ? `<div>💰 <b>${escapeHtml(t.ttBuy)} (${escapeHtml(this._tariffMode || 'EMS')}):</b> ${point.buy_price.toFixed(2)} ${escapeHtml(curr)}/kWh</div>`
       : '';
 
     const rceLine = (point.sell_price !== null && !isNaN(point.sell_price))
-      ? `<div>📈 <b>${t.ttSell}:</b> ${point.sell_price.toFixed(3)} ${curr}/kWh</div>`
+      ? `<div>📈 <b>${escapeHtml(t.ttSell)}:</b> ${point.sell_price.toFixed(3)} ${escapeHtml(curr)}/kWh</div>`
       : '';
 
     this._tooltip.innerHTML = `
       <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 4px; margin-bottom: 4px;">
-        🕒 ${timeStr}
+        🕒 ${escapeHtml(timeStr)}
       </div>
-      <div>🔋 <b>${t.ttBattPlan}:</b> ${battState}</div>
-      <div>🔌 <b>${t.ttGrid}:</b> ${gridState}</div>
-      <div>📊 <b>${t.ttSoc}:</b> ${point.soc.toFixed(1)}% (${t.ttReserve}: ${point.min_soc}%)</div>
-      <div>☀️ <b>${t.ttPv}:</b> ${Math.round(point.pv)} W</div>
-      <div>🏠 <b>${t.ttLoad}:</b> ${Math.round(point.load)} W</div>
+      <div>🔋 <b>${escapeHtml(t.ttBattPlan)}:</b> ${escapeHtml(battState)}</div>
+      <div>🔌 <b>${escapeHtml(t.ttGrid)}:</b> ${escapeHtml(gridState)}</div>
+      <div>📊 <b>${escapeHtml(t.ttSoc)}:</b> ${point.soc.toFixed(1)}% (${escapeHtml(t.ttReserve)}: ${point.min_soc}%)</div>
+      <div>☀️ <b>${escapeHtml(t.ttPv)}:</b> ${Math.round(point.pv)} W</div>
+      <div>🏠 <b>${escapeHtml(t.ttLoad)}:</b> ${Math.round(point.load)} W</div>
       ${tariffLine}
       ${rceLine}
     `;

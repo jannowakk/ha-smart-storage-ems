@@ -98,6 +98,16 @@ const DIAG_I18N = {
   }
 };
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 class SmartStorageDiagnosticCard extends HTMLElement {
   constructor() {
     super();
@@ -267,8 +277,8 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       this.content.innerHTML = `
         <div style="padding: 16px; text-align: center; color: var(--secondary-text-color);">
           <ha-icon icon="mdi:alert-circle-outline" style="color: var(--warning-color); --mdc-icon-size: 40px;"></ha-icon>
-          <div style="margin-top: 8px; font-weight: bold;">${this._t('waiting_title')}</div>
-          <div style="font-size: 0.85em; opacity: 0.8;">${this._t('not_found')} ${diagEntityId}</div>
+          <div style="margin-top: 8px; font-weight: bold;">${escapeHtml(this._t('waiting_title'))}</div>
+          <div style="font-size: 0.85em; opacity: 0.8;">${escapeHtml(this._t('not_found'))} ${escapeHtml(diagEntityId)}</div>
         </div>
       `;
       return;
@@ -321,32 +331,32 @@ class SmartStorageDiagnosticCard extends HTMLElement {
         <div style="display: flex; align-items: center; gap: 8px;">
           <ha-icon icon="${errorCount > 0 ? 'mdi:alert-circle' : 'mdi:check-circle'}" style="color: ${statusBadgeColor}; --mdc-icon-size: 28px;"></ha-icon>
           <div>
-            <div style="font-weight: bold; font-size: 1em;">${statusBadgeText}</div>
-            <div style="font-size: 0.85em; opacity: 0.8;">${this._t('status_label')} ${this._translateBackendText(diagState.state)}</div>
+            <div style="font-weight: bold; font-size: 1em;">${escapeHtml(statusBadgeText)}</div>
+            <div style="font-size: 0.85em; opacity: 0.8;">${escapeHtml(this._t('status_label'))} ${escapeHtml(this._translateBackendText(diagState.state))}</div>
           </div>
         </div>
         <div style="display: flex; gap: 8px;">
           <button id="btn-opt" style="padding: 6px 12px; background: rgba(127,127,127,0.15); border: 1px solid rgba(127,127,127,0.25); border-radius: 6px; cursor: pointer; font-size: 0.85em; color: inherit; display: flex; align-items: center; gap: 4px;">
-            <ha-icon icon="mdi:calculator-variant" style="--mdc-icon-size: 16px;"></ha-icon> ${this._t('btn_recalc')}
+            <ha-icon icon="mdi:calculator-variant" style="--mdc-icon-size: 16px;"></ha-icon> ${escapeHtml(this._t('btn_recalc'))}
           </button>
           <button id="btn-download" style="padding: 6px 12px; background: var(--primary-color, #03a9f4); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-            <ha-icon icon="mdi:download" style="--mdc-icon-size: 16px;"></ha-icon> ${this._t('btn_report')}
+            <ha-icon icon="mdi:download" style="--mdc-icon-size: 16px;"></ha-icon> ${escapeHtml(this._t('btn_report'))}
           </button>
         </div>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px;">
         <div style="padding: 8px; background: rgba(127,127,127,0.04); border-radius: 6px; text-align: center;">
-          <div style="font-size: 0.75em; opacity: 0.7;">${this._t('kpi_emhass')}</div>
-          <div style="font-weight: bold; color: ${emhassStatus === 'OK' ? 'var(--success-color, #43a047)' : 'var(--error-color, #e53935)'}; font-size: 0.95em;">${emhassStatus} (${lastMpc})</div>
+          <div style="font-size: 0.75em; opacity: 0.7;">${escapeHtml(this._t('kpi_emhass'))}</div>
+          <div style="font-weight: bold; color: ${emhassStatus === 'OK' ? 'var(--success-color, #43a047)' : 'var(--error-color, #e53935)'}; font-size: 0.95em;">${escapeHtml(emhassStatus)} (${escapeHtml(lastMpc)})</div>
         </div>
         <div style="padding: 8px; background: rgba(127,127,127,0.04); border-radius: 6px; text-align: center;">
-          <div style="font-size: 0.75em; opacity: 0.7;">${this._t('kpi_tariff')}</div>
-          <div style="font-weight: bold; font-size: 0.95em; text-transform: uppercase;">${tariffMode}</div>
+          <div style="font-size: 0.75em; opacity: 0.7;">${escapeHtml(this._t('kpi_tariff'))}</div>
+          <div style="font-weight: bold; font-size: 0.95em; text-transform: uppercase;">${escapeHtml(tariffMode)}</div>
         </div>
         <div style="padding: 8px; background: rgba(127,127,127,0.04); border-radius: 6px; text-align: center;">
-          <div style="font-size: 0.75em; opacity: 0.7;">${this._t('kpi_min_soc')}</div>
-          <div style="font-weight: bold; font-size: 0.95em;">${dynMinSoc}</div>
+          <div style="font-size: 0.75em; opacity: 0.7;">${escapeHtml(this._t('kpi_min_soc'))}</div>
+          <div style="font-weight: bold; font-size: 0.95em;">${escapeHtml(dynMinSoc)}</div>
         </div>
       </div>
     `;
@@ -360,22 +370,22 @@ class SmartStorageDiagnosticCard extends HTMLElement {
         const iconColor = isOk ? 'var(--success-color, #43a047)' : 'var(--error-color, #e53935)';
         const iconName = isOk ? 'mdi:check-circle-outline' : 'mdi:alert-circle';
         const rawAttrInfo = data.raw_attribute
-          ? `<div style="font-size: 0.75em; opacity: 0.8; color: var(--primary-color);">${this._t('vector_prefix')} ${data.raw_attribute.count} ${this._t('samples')} (min: ${data.raw_attribute.min}, max: ${data.raw_attribute.max})</div>`
+          ? `<div style="font-size: 0.75em; opacity: 0.8; color: var(--primary-color);">${escapeHtml(this._t('vector_prefix'))} ${escapeHtml(data.raw_attribute.count)} ${escapeHtml(this._t('samples'))} (min: ${escapeHtml(data.raw_attribute.min)}, max: ${escapeHtml(data.raw_attribute.max)})</div>`
           : '';
         const issueAlert = data.issue
-          ? `<div style="font-size: 0.8em; color: var(--error-color, #e53935); font-weight: bold; margin-top: 2px;">⚠️ ${this._translateIssue(data.issue)}</div>`
+          ? `<div style="font-size: 0.8em; color: var(--error-color, #e53935); font-weight: bold; margin-top: 2px;">⚠️ ${escapeHtml(this._translateIssue(data.issue))}</div>`
           : '';
 
         rowsHtml += `
           <tr style="border-bottom: 1px solid rgba(127,127,127,0.08);">
             <td style="padding: 6px 4px; vertical-align: top;">
-              <div style="font-weight: 500; font-size: 0.9em;">${this._translateLabel(data.label || entId)}</div>
-              <div style="font-size: 0.75em; opacity: 0.6; word-break: break-all;">${entId}</div>
+              <div style="font-weight: 500; font-size: 0.9em;">${escapeHtml(this._translateLabel(data.label || entId))}</div>
+              <div style="font-size: 0.75em; opacity: 0.6; word-break: break-all;">${escapeHtml(entId)}</div>
               ${rawAttrInfo}
               ${issueAlert}
             </td>
             <td style="padding: 6px 4px; text-align: right; vertical-align: top; font-weight: bold; font-size: 0.9em;">
-              ${data.state !== null && data.state !== undefined ? data.state : '--'} ${data.unit || ''}
+              ${escapeHtml(data.state !== null && data.state !== undefined ? data.state : '--')} ${escapeHtml(data.unit || '')}
             </td>
             <td style="padding: 6px 4px; text-align: center; vertical-align: top; width: 36px;">
               <ha-icon icon="${iconName}" style="color: ${iconColor}; --mdc-icon-size: 20px;"></ha-icon>
@@ -389,8 +399,8 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       Object.entries(inverterReadback).forEach(([label, state]) => {
         inverterHtml += `
           <div style="display: flex; justify-content: space-between; padding: 6px 8px; background: rgba(127,127,127,0.04); border-radius: 4px; font-size: 0.85em;">
-            <span style="opacity: 0.8;">${this._translateLabel(label)}:</span>
-            <span style="font-weight: bold;">${state}</span>
+            <span style="opacity: 0.8;">${escapeHtml(this._translateLabel(label))}:</span>
+            <span style="font-weight: bold;">${escapeHtml(state)}</span>
           </div>
         `;
       });
@@ -432,21 +442,21 @@ class SmartStorageDiagnosticCard extends HTMLElement {
         return `
           <div style="padding: 10px; background: rgba(127,127,127,0.05); border-radius: 6px; border: 1px solid rgba(127,127,127,0.1);">
             <div style="display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 0.85em; margin-bottom: 6px;">
-              <ha-icon icon="${icon}" style="--mdc-icon-size: 16px; color: var(--primary-color);"></ha-icon> ${title}
-              <span style="font-size: 0.8em; opacity: 0.6; margin-left: auto;">${stats.count} ${this._t('steps_48h')}</span>
+              <ha-icon icon="${icon}" style="--mdc-icon-size: 16px; color: var(--primary-color);"></ha-icon> ${escapeHtml(title)}
+              <span style="font-size: 0.8em; opacity: 0.6; margin-left: auto;">${escapeHtml(stats.count)} ${escapeHtml(this._t('steps_48h'))}</span>
             </div>
             <div style="display: flex; justify-content: space-around; text-align: center; font-size: 0.85em;">
               <div>
-                <div style="font-size: 0.75em; opacity: 0.6;">${this._t('stat_min')}</div>
-                <div style="font-weight: bold;">${stats.min} ${unit}</div>
+                <div style="font-size: 0.75em; opacity: 0.6;">${escapeHtml(this._t('stat_min'))}</div>
+                <div style="font-weight: bold;">${escapeHtml(stats.min)} ${escapeHtml(unit)}</div>
               </div>
               <div>
-                <div style="font-size: 0.75em; opacity: 0.6;">${this._t('stat_avg')}</div>
-                <div style="font-weight: bold; color: var(--primary-color);">${stats.avg} ${unit}</div>
+                <div style="font-size: 0.75em; opacity: 0.6;">${escapeHtml(this._t('stat_avg'))}</div>
+                <div style="font-weight: bold; color: var(--primary-color);">${escapeHtml(stats.avg)} ${escapeHtml(unit)}</div>
               </div>
               <div>
-                <div style="font-size: 0.75em; opacity: 0.6;">${this._t('stat_max')}</div>
-                <div style="font-weight: bold;">${stats.max} ${unit}</div>
+                <div style="font-size: 0.75em; opacity: 0.6;">${escapeHtml(this._t('stat_max'))}</div>
+                <div style="font-weight: bold;">${escapeHtml(stats.max)} ${escapeHtml(unit)}</div>
               </div>
             </div>
           </div>
@@ -455,14 +465,14 @@ class SmartStorageDiagnosticCard extends HTMLElement {
 
       const errBlock = emhassError ? `
         <div style="padding: 10px; background: rgba(229, 57, 53, 0.1); border-left: 4px solid var(--error-color, #e53935); border-radius: 4px; margin-bottom: 12px; font-size: 0.85em;">
-          <div style="font-weight: bold; color: var(--error-color, #e53935); margin-bottom: 4px;">${this._t('emhass_err_title')}</div>
-          <div style="opacity: 0.9;"><strong>${this._t('err_status')}</strong> ${emhassError.status || this._t('conn_err')} (${emhassError.action || 'MPC'})</div>
-          <div style="font-family: monospace; font-size: 0.8em; margin-top: 4px; word-break: break-all; opacity: 0.85;">${emhassError.error || emhassError.message || ''}</div>
-          <div style="font-size: 0.75em; opacity: 0.6; margin-top: 4px;">${this._t('err_time')} ${emhassError.timestamp}</div>
+          <div style="font-weight: bold; color: var(--error-color, #e53935); margin-bottom: 4px;">${escapeHtml(this._t('emhass_err_title'))}</div>
+          <div style="opacity: 0.9;"><strong>${escapeHtml(this._t('err_status'))}</strong> ${escapeHtml(emhassError.status || this._t('conn_err'))} (${escapeHtml(emhassError.action || 'MPC')})</div>
+          <div style="font-family: monospace; font-size: 0.8em; margin-top: 4px; word-break: break-all; opacity: 0.85;">${escapeHtml(emhassError.error || emhassError.message || '')}</div>
+          <div style="font-size: 0.75em; opacity: 0.6; margin-top: 4px;">${escapeHtml(this._t('err_time'))} ${escapeHtml(emhassError.timestamp)}</div>
         </div>
       ` : `
         <div style="padding: 8px 12px; background: rgba(67, 160, 71, 0.08); border-left: 4px solid var(--success-color, #43a047); border-radius: 4px; margin-bottom: 12px; font-size: 0.85em; color: var(--success-color, #43a047); font-weight: 500;">
-          ${this._t('emhass_ok')}
+          ${escapeHtml(this._t('emhass_ok'))}
         </div>
       `;
 
@@ -482,16 +492,16 @@ class SmartStorageDiagnosticCard extends HTMLElement {
     else if (this._activeTab === 'logs') {
       let decisionsHtml = '';
       if (recentDecisions.length === 0) {
-        decisionsHtml = `<div style="font-size: 0.85em; opacity: 0.6;">${this._t('no_decisions')}</div>`;
+        decisionsHtml = `<div style="font-size: 0.85em; opacity: 0.6;">${escapeHtml(this._t('no_decisions'))}</div>`;
       } else {
         recentDecisions.slice(-6).reverse().forEach(d => {
           decisionsHtml += `
             <div style="padding: 6px 8px; border-left: 3px solid var(--primary-color); background: rgba(127,127,127,0.04); border-radius: 0 4px 4px 0; font-size: 0.85em; margin-bottom: 6px;">
               <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 2px;">
-                <span>${this._translateBackendText(d.trigger)} → ${this._translateBackendText(d.action)}</span>
-                <span style="font-size: 0.8em; opacity: 0.6;">${d.timestamp ? d.timestamp.split(' ')[1] : ''}</span>
+                <span>${escapeHtml(this._translateBackendText(d.trigger))} → ${escapeHtml(this._translateBackendText(d.action))}</span>
+                <span style="font-size: 0.8em; opacity: 0.6;">${escapeHtml(d.timestamp ? d.timestamp.split(' ')[1] : '')}</span>
               </div>
-              <div style="font-size: 0.8em; opacity: 0.85;">${this._translateBackendText(d.reason)}</div>
+              <div style="font-size: 0.8em; opacity: 0.85;">${escapeHtml(this._translateBackendText(d.reason))}</div>
             </div>
           `;
         });
@@ -499,7 +509,7 @@ class SmartStorageDiagnosticCard extends HTMLElement {
 
       let logsHtml = '';
       if (recentLogs.length === 0) {
-        logsHtml = `<div style="color: #888;">${this._t('no_logs')}</div>`;
+        logsHtml = `<div style="color: #888;">${escapeHtml(this._t('no_logs'))}</div>`;
       } else {
         recentLogs.forEach(l => {
           let lvlColor = '#81c784'; // INFO
@@ -507,10 +517,10 @@ class SmartStorageDiagnosticCard extends HTMLElement {
           if (l.level === 'ERROR') lvlColor = '#e57373';
           logsHtml += `
             <div style="margin-bottom: 4px; word-break: break-all;">
-              <span style="color: #888;">[${l.timestamp ? l.timestamp.split(' ')[1] : ''}]</span>
-              <span style="color: ${lvlColor}; font-weight: bold;">[${l.level}]</span>
-              <span style="color: #64b5f6;">[${l.logger}]</span>
-              <span style="color: #eee;">${l.message}</span>
+              <span style="color: #888;">[${escapeHtml(l.timestamp ? l.timestamp.split(' ')[1] : '')}]</span>
+              <span style="color: ${lvlColor}; font-weight: bold;">[${escapeHtml(l.level)}]</span>
+              <span style="color: #64b5f6;">[${escapeHtml(l.logger)}]</span>
+              <span style="color: #eee;">${escapeHtml(l.message)}</span>
             </div>
           `;
         });
