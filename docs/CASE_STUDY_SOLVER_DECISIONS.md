@@ -1,6 +1,8 @@
 # Studium Przypadku: Dlaczego optymalizator nie rozładował baterii w taniej strefie?
 ## Analiza decyzyjności solvera EMHASS w instalacji hybrydowej z taryfą wielostrefową
 
+[🇬🇧 English](CASE_STUDY_SOLVER_DECISIONS_EN.md) | **🇵🇱 Polski**
+
 > **Dokument referencyjny dla użytkowników i twórców Smart Storage EMS.**  
 > Wyjaśnia zjawisko, które intuicyjnie wydaje się użytkownikom „błędem planowania”, a w rzeczywistości stanowi matematycznie i ekonomicznie optymalną strategię zarządzania magazynem energii.
 

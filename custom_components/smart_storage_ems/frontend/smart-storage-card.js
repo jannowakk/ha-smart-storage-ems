@@ -3,6 +3,47 @@
  * Pure vanilla Web Component for Home Assistant (Zero external dependencies)
  */
 
+const CARD_I18N = {
+  pl: {
+    activeFallback: 'Aktywny',
+    standby: 'Standby (0 W)',
+    charging: 'Ładowanie',
+    selfUse: 'Autokonsumpcja',
+    discharging: 'Rozładowanie',
+    pvProd: '☀️ PV Produkcja',
+    houseLoad: '🏠 Dom Zużycie',
+    battPower: '🔋 Moc Baterii',
+    socLabel: 'Poziom Naładowania (SoC)',
+    btnAuto: 'Auto MPC',
+    btnStandby: 'Standby',
+    btnCharge: 'Ładuj',
+    btnSelfUse: 'Autokonsumpcja',
+    importGuard: 'Strażnik Importu',
+    stormReserve: 'Rezerwa Burzowa',
+    optimizeNow: 'Przelicz MPC',
+    calculating: 'Obliczam...',
+  },
+  en: {
+    activeFallback: 'Active',
+    standby: 'Standby (0 W)',
+    charging: 'Charging',
+    selfUse: 'Self-Use',
+    discharging: 'Discharging',
+    pvProd: '☀️ Solar PV',
+    houseLoad: '🏠 House Load',
+    battPower: '🔋 Battery Power',
+    socLabel: 'Battery State of Charge (SoC)',
+    btnAuto: 'Auto MPC',
+    btnStandby: 'Standby',
+    btnCharge: 'Force Charge',
+    btnSelfUse: 'Self-Use',
+    importGuard: 'Zero Import Guard',
+    stormReserve: 'Storm Reserve',
+    optimizeNow: 'Optimize MPC',
+    calculating: 'Calculating...',
+  },
+};
+
 class SmartStorageCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
@@ -25,6 +66,38 @@ class SmartStorageCard extends HTMLElement {
     return 5;
   }
 
+  _lang() {
+    const raw = (this._hass?.locale?.language || this._hass?.language || 'en').toLowerCase();
+    return raw.startsWith('pl') ? 'pl' : 'en';
+  }
+
+  _t() {
+    return CARD_I18N[this._lang()];
+  }
+
+  _translateStatus(val) {
+    if (!val || this._lang() === 'pl') return val;
+    const exact = {
+      'Inicjalizacja': 'Initializing',
+      'Inicjalizacja / Oczekiwanie na MPC': 'Initializing / Waiting for MPC',
+      'Trwa optymalizacja MPC (EMHASS)...': 'MPC optimization in progress (EMHASS)...',
+      'Błąd połączenia / optymalizacji EMHASS': 'EMHASS connection / optimization error',
+      'Zabezpieczenie Off-Grid (Pauza)': 'Off-Grid Protection (Paused)',
+      'Ręczny Standby (Hold)': 'Manual Standby (Hold)',
+      'Ręczne Wymuszone Ładowanie': 'Manual Forced Charge',
+      'Czysta Autokonsumpcja': 'Pure Self-Consumption',
+      'Ochrona Rezerwy (Standby)': 'Reserve Protection (Standby)',
+      'Autokonsumpcja (Auto)': 'Self-Consumption (Auto)',
+      'Strażnik Importu (Wymuszono Auto)': 'Import Guard (Forced Auto)'
+    };
+    if (exact[val]) return exact[val];
+    return String(val)
+      .replace(/^Ładowanie z sieci \((\d+W)\)$/, 'Grid Charging ($1)')
+      .replace(/^Blokada Szczytu Cenowego \(Auto (\d+W)\)$/, 'Price Peak Blocked (Auto $1)')
+      .replace(/^Ładowanie z PV \(Auto (\d+W)\)$/, 'PV Charging (Auto $1)')
+      .replace(/^Eksport na sieć \((\d+W)\)$/, 'Grid Export ($1)');
+  }
+
   _getState(entityId, defaultVal = null) {
     if (!this._hass || !entityId) return defaultVal;
     return this._hass.states[entityId] || defaultVal;
@@ -45,6 +118,7 @@ class SmartStorageCard extends HTMLElement {
 
   updateCard() {
     if (!this._hass) return;
+    const t = this._t();
 
     // Resolve entities with automatic fallback to Polish and English slugs
     const statusId = this._resolveEntity('status', [
@@ -95,7 +169,7 @@ class SmartStorageCard extends HTMLElement {
 
     // Read values
     const statusState = this._getState(statusId);
-    const statusVal = statusState ? statusState.state : 'Aktywny';
+    const statusVal = statusState ? this._translateStatus(statusState.state) : t.activeFallback;
 
     const powerState = this._getState(powerId);
     const targetPower = powerState ? parseFloat(powerState.state) || 0 : 0;
@@ -126,24 +200,24 @@ class SmartStorageCard extends HTMLElement {
 
     // Power badge styling
     let powerBadgeBg = '#757575';
-    let powerLabel = 'Standby (0 W)';
+    let powerLabel = t.standby;
 
     if (targetPower < -50) {
       powerBadgeBg = '#4caf50'; // Green
-      powerLabel = `Ładowanie (${Math.abs(Math.round(targetPower))} W)`;
+      powerLabel = `${t.charging} (${Math.abs(Math.round(targetPower))} W)`;
     } else if (targetPower > 50) {
       powerBadgeBg = '#2196f3'; // Blue
-      powerLabel = `Autokonsumpcja (${Math.round(targetPower)} W)`;
+      powerLabel = `${t.selfUse} (${Math.round(targetPower)} W)`;
     }
 
     // Battery power format (GoodWe / EMHASS convention: negative = charging, positive = discharging)
     let battPowerFormatted = `${Math.abs(Math.round(battPower))} W`;
     let battPowerColor = '#616161';
     if (battPower < -50) {
-      battPowerFormatted = `-${Math.abs(Math.round(battPower))} W (Ładowanie)`;
+      battPowerFormatted = `-${Math.abs(Math.round(battPower))} W (${t.charging})`;
       battPowerColor = '#388e3c';
     } else if (battPower > 50) {
-      battPowerFormatted = `+${Math.round(battPower)} W (Rozładowanie)`;
+      battPowerFormatted = `+${Math.round(battPower)} W (${t.discharging})`;
       battPowerColor = '#1976d2';
     }
 
@@ -292,15 +366,15 @@ class SmartStorageCard extends HTMLElement {
         <!-- Metrics Grid -->
         <div class="ems-metrics-grid">
           <div class="ems-metric-card">
-            <div class="ems-metric-label">☀️ PV Produkcja</div>
+            <div class="ems-metric-label">${t.pvProd}</div>
             <div class="ems-metric-val" style="color: #f57f17;">${Math.round(pvPower)} W</div>
           </div>
           <div class="ems-metric-card">
-            <div class="ems-metric-label">🏠 Dom Zużycie</div>
+            <div class="ems-metric-label">${t.houseLoad}</div>
             <div class="ems-metric-val">${Math.round(loadPower)} W</div>
           </div>
           <div class="ems-metric-card">
-            <div class="ems-metric-label">🔋 Moc Baterii</div>
+            <div class="ems-metric-label">${t.battPower}</div>
             <div class="ems-metric-val" style="color: ${battPowerColor}; font-size: 0.95rem;">${battPowerFormatted}</div>
           </div>
         </div>
@@ -308,7 +382,7 @@ class SmartStorageCard extends HTMLElement {
         <!-- Battery SoC Box -->
         <div class="ems-battery-box">
           <div class="ems-soc-row">
-            <span>Poziom Naładowania (SoC)</span>
+            <span>${t.socLabel}</span>
             <span style="font-size: 1.25rem;">${currentSoc.toFixed(1)}%</span>
           </div>
           <div style="position: relative;">
@@ -322,10 +396,10 @@ class SmartStorageCard extends HTMLElement {
 
         <!-- Mode Buttons -->
         <div class="ems-actions-grid">
-          <button class="ems-btn ${currentMode === 'auto_mpc' ? 'active' : ''}" data-mode="auto_mpc">Auto MPC</button>
-          <button class="ems-btn ${currentMode === 'hold_standby' ? 'active' : ''}" data-mode="hold_standby">Standby</button>
-          <button class="ems-btn ${currentMode === 'force_charge' ? 'active' : ''}" data-mode="force_charge">Ładuj</button>
-          <button class="ems-btn ${currentMode === 'self_use' ? 'active' : ''}" data-mode="self_use">Autokonsumpcja</button>
+          <button class="ems-btn ${currentMode === 'auto_mpc' ? 'active' : ''}" data-mode="auto_mpc">${t.btnAuto}</button>
+          <button class="ems-btn ${currentMode === 'hold_standby' ? 'active' : ''}" data-mode="hold_standby">${t.btnStandby}</button>
+          <button class="ems-btn ${currentMode === 'force_charge' ? 'active' : ''}" data-mode="force_charge">${t.btnCharge}</button>
+          <button class="ems-btn ${currentMode === 'self_use' ? 'active' : ''}" data-mode="self_use">${t.btnSelfUse}</button>
         </div>
 
         <!-- Toggles and Optimize Button -->
@@ -333,14 +407,14 @@ class SmartStorageCard extends HTMLElement {
           <div style="display: flex; gap: 14px; font-size: 0.85rem;">
             <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
               <input type="checkbox" id="guardToggle" ${guardActive ? 'checked' : ''} />
-              Strażnik Importu
+              ${t.importGuard}
             </label>
             <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
               <input type="checkbox" id="stormToggle" ${stormActive ? 'checked' : ''} />
-              Rezerwa Burzowa
+              ${t.stormReserve}
             </label>
           </div>
-          <button class="ems-btn" id="optimizeNowBtn" style="padding: 6px 12px; font-size: 0.82rem;">Przelicz MPC</button>
+          <button class="ems-btn" id="optimizeNowBtn" style="padding: 6px 12px; font-size: 0.82rem;">${t.optimizeNow}</button>
         </div>
       </div>
     `;
@@ -377,11 +451,11 @@ class SmartStorageCard extends HTMLElement {
     const optBtn = this.content.querySelector('#optimizeNowBtn');
     if (optBtn) {
       optBtn.onclick = () => {
-        optBtn.textContent = 'Obliczam...';
+        optBtn.textContent = t.calculating;
         this._hass.callService('button', 'press', {
           entity_id: optBtnId
         });
-        setTimeout(() => { optBtn.textContent = 'Przelicz MPC'; }, 2000);
+        setTimeout(() => { optBtn.textContent = t.optimizeNow; }, 2000);
       };
     }
   }
@@ -393,5 +467,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'smart-storage-card',
   name: 'Smart Storage EMS Card',
-  description: 'Interaktywna karta sterowania magazynem energii, produkcją PV i EMHASS.'
+  description: 'Interactive control card for home battery storage, solar PV, and EMHASS MPC optimization.'
 });

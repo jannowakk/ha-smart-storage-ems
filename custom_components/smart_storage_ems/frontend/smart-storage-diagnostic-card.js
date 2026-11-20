@@ -3,27 +3,222 @@
  * Pure vanilla Web Component for Home Assistant (Zero external dependencies)
  */
 
+const DIAG_I18N = {
+  pl: {
+    card_title: 'Smart Storage EMS: Autodiagnostyka',
+    waiting_title: 'Oczekiwanie na encję diagnostyczną...',
+    not_found: 'Nie odnaleziono:',
+    no_data: 'Brak danych',
+    unknown: 'Nieznany',
+    none: 'Brak',
+    no_data_or_error: 'Brak danych / Błąd',
+    system_healthy: 'System w 100% sprawny',
+    tab_health: 'Sensory i Falownik',
+    tab_emhass: 'Wektory 48h i Solver',
+    tab_logs: 'Decyzje i Logi',
+    status_label: 'Status:',
+    btn_recalc: 'Przelicz MPC',
+    btn_recalc_running: 'Przeliczam...',
+    btn_report: 'Raport JSON',
+    kpi_emhass: 'EMHASS MPC',
+    kpi_tariff: 'Aktywna Taryfa',
+    kpi_min_soc: 'Dynamiczny Min SoC',
+    vector_prefix: 'Wektor:',
+    samples: 'próbek',
+    sec_sensors: 'Integralność i Jednostki Sensorów',
+    col_sensor: 'Sensor',
+    col_value: 'Wartość',
+    col_status: 'Status',
+    sec_inverter: 'Odczyt Zwrotny Falownika (Home Assistant)',
+    steps_48h: 'kroków (48h)',
+    stat_min: 'MIN',
+    stat_avg: 'ŚREDNIA',
+    stat_max: 'MAX',
+    emhass_err_title: '⚠️ Ostatni Błąd Komunikacji z EMHASS:',
+    conn_err: 'Błąd połączenia',
+    err_status: 'Status:',
+    err_time: 'Czas:',
+    emhass_ok: '✓ Komunikacja z EMHASS bez zakłóceń. Brak zarejestrowanych błędów HTTP.',
+    vectors_heading: 'Krzywe Wejściowe Wysłane do Solvera (Horyzont 48h):',
+    vec_load: 'Prognoza Zużycia Domu',
+    vec_buy: 'Ceny Zakupu Energii (Taryfa)',
+    vec_pv: 'Prognoza Produkcji PV',
+    vec_sell: 'Wycena Sprzedaży (PSE RCE)',
+    no_decisions: 'Brak zarejestrowanych decyzji po starcie.',
+    no_logs: 'Brak komunikatów diagnostycznych w buforze RAM.',
+    sec_decisions: 'Ostatnie Decyzje Sterujące EMS',
+    sec_logs: 'Konsola Logów na Żywo (Bufor RAM)',
+    issues_detected: (n) => `Wykryto ${n} uwag`
+  },
+  en: {
+    card_title: 'Smart Storage EMS: Autodiagnostics',
+    waiting_title: 'Waiting for diagnostic entity...',
+    not_found: 'Not found:',
+    no_data: 'No data',
+    unknown: 'Unknown',
+    none: 'None',
+    no_data_or_error: 'No data / Error',
+    system_healthy: 'System 100% healthy',
+    tab_health: 'Sensors & Inverter',
+    tab_emhass: '48h Vectors & Solver',
+    tab_logs: 'Decisions & Logs',
+    status_label: 'Status:',
+    btn_recalc: 'Run MPC Now',
+    btn_recalc_running: 'Running...',
+    btn_report: 'JSON Report',
+    kpi_emhass: 'EMHASS MPC',
+    kpi_tariff: 'Active Tariff',
+    kpi_min_soc: 'Dynamic Min SoC',
+    vector_prefix: 'Vector:',
+    samples: 'samples',
+    sec_sensors: 'Sensor Integrity & Units',
+    col_sensor: 'Sensor',
+    col_value: 'Value',
+    col_status: 'Status',
+    sec_inverter: 'Inverter Readback (Home Assistant)',
+    steps_48h: 'steps (48h)',
+    stat_min: 'MIN',
+    stat_avg: 'AVG',
+    stat_max: 'MAX',
+    emhass_err_title: '⚠️ Last EMHASS Communication Error:',
+    conn_err: 'Connection error',
+    err_status: 'Status:',
+    err_time: 'Time:',
+    emhass_ok: '✓ EMHASS communication healthy. No HTTP errors recorded.',
+    vectors_heading: 'Input Curves Sent to Solver (48h Horizon):',
+    vec_load: 'Home Load Forecast',
+    vec_buy: 'Grid Buy Prices (Tariff)',
+    vec_pv: 'PV Production Forecast',
+    vec_sell: 'Grid Export Prices',
+    no_decisions: 'No control decisions recorded since startup.',
+    no_logs: 'No diagnostic log entries in RAM buffer.',
+    sec_decisions: 'Recent EMS Control Decisions',
+    sec_logs: 'Live Log Console (RAM Buffer)',
+    issues_detected: (n) => `${n} ${n === 1 ? 'issue' : 'issues'} detected`
+  }
+};
+
 class SmartStorageDiagnosticCard extends HTMLElement {
   constructor() {
     super();
     this._activeTab = 'health';
   }
 
+  _lang() {
+    const raw = (this._hass?.locale?.language || this._hass?.language || 'en').toLowerCase();
+    return raw.startsWith('pl') ? 'pl' : 'en';
+  }
+
+  _t(key, ...args) {
+    const lang = this._lang();
+    const val = DIAG_I18N[lang][key] ?? DIAG_I18N.en[key] ?? key;
+    return typeof val === 'function' ? val(...args) : val;
+  }
+
+  _currency() {
+    return this._hass?.config?.currency || 'PLN';
+  }
+
+  _translateLabel(label) {
+    if (!label || this._lang() === 'pl') return label;
+    const map = {
+      'SoC Baterii': 'Battery SoC',
+      'Moc PV': 'PV Power',
+      'Moc Domu': 'House Load Power',
+      'Import z Sieci': 'Grid Import',
+      'Moc Baterii': 'Battery Power',
+      'Temperatura Zewnętrzna': 'Outside Temperature',
+      'Sensor Off-Grid': 'Off-Grid Sensor',
+      'Prognoza PV (wektor)': 'PV Forecast (vector)',
+      'Prognoza Zużycia (wektor)': 'Load Forecast (vector)',
+      'Ceny Zakupu': 'Buy Prices',
+      'Ceny Sprzedaży': 'Sell Prices',
+      'Energia PV Dziś': 'PV Energy Today',
+      'Energia PV Jutro': 'PV Energy Tomorrow',
+      'Tryb EMS': 'EMS Mode',
+      'Tryb Inwertera': 'Inverter Mode',
+      'Limit Mocy EMS': 'EMS Power Limit',
+      'Limit Eksportu': 'Export Limit'
+    };
+    return map[label] || label;
+  }
+
+  _translateIssue(issue) {
+    if (!issue || this._lang() === 'pl') return issue;
+    return String(issue)
+      .replace(/^Encja sterująca (.+) nie istnieje w Home Assistant!$/, 'Control entity $1 does not exist in Home Assistant!')
+      .replace(/^Encja (.+) nie istnieje w Home Assistant!$/, 'Entity $1 does not exist in Home Assistant!')
+      .replace(/^Encja w stanie niedostępnym \((.+)\)$/, 'Entity is in unavailable state ($1)')
+      .replace(/^Wykryto niezgodność jednostki! Oczekiwano 'W', encja raportuje '([^']+)' \(skala 1000x\)$/, "Unit mismatch detected! Expected 'W', entity reports '$1' (1000x scale)")
+      .replace(/^Encja istnieje, ale brakuje atrybutu '([^']+)'!$/, "Entity exists, but attribute '$1' is missing!")
+      .replace(/^Atrybut '([^']+)' ma tylko (\d+) próbek \(oczekiwano min\. 24\/48\)!$/, "Attribute '$1' has only $2 samples (expected min. 24/48)!");
+  }
+
+  _translateBackendText(text) {
+    if (!text || this._lang() === 'pl') return text;
+    const exact = {
+      'Inicjalizacja': 'Initializing',
+      'Inicjalizacja / Oczekiwanie na MPC': 'Initializing / Waiting for MPC',
+      'Trwa optymalizacja MPC (EMHASS)...': 'MPC optimization in progress (EMHASS)...',
+      'Błąd połączenia / optymalizacji EMHASS': 'EMHASS connection / optimization error',
+      'Zabezpieczenie Off-Grid (Pauza)': 'Off-Grid Protection (Paused)',
+      'Ręczny Standby (Hold)': 'Manual Standby (Hold)',
+      'Ręczne Wymuszone Ładowanie': 'Manual Forced Charge',
+      'Czysta Autokonsumpcja': 'Pure Self-Consumption',
+      'Ochrona Rezerwy (Standby)': 'Reserve Protection (Standby)',
+      'Autokonsumpcja (Auto)': 'Self-Consumption (Auto)',
+      'Strażnik Importu (Wymuszono Auto)': 'Import Guard (Forced Auto)',
+      'Tryb Ręczny': 'Manual Mode',
+      'Autokonsumpcja PV': 'PV Self-Consumption',
+      'Arbitraż RCE': 'Export Arbitrage',
+      'Ochrona Rezerwy': 'Reserve Protection',
+      'Autokonsumpcja': 'Self-Consumption',
+      'Strażnik Importu': 'Import Guard',
+      'Pauza': 'Paused',
+      'Wymuszone Ładowanie (3000W)': 'Forced Charge (3000W)',
+      'Standby (Zamrożenie)': 'Standby (Hold)',
+      'Wymuszono Auto': 'Forced Auto',
+      'Wykryto pracę wyspową / off-grid': 'Island / off-grid mode detected',
+      'Użytkownik wybrał tryb hold_standby': 'User selected hold_standby mode',
+      'Użytkownik wybrał tryb force_charge': 'User selected force_charge mode',
+      'Użytkownik wybrał tryb self_use (Bypass EMS)': 'User selected self_use mode (EMS Bypass)',
+      'Plan EMHASS w taniej dolinie cenowej': 'EMHASS plan in cheap price valley',
+      'EMHASS żądał importu w drogiej strefie taryfowej. Zablokowano ładowanie z sieci.': 'EMHASS requested grid import during peak tariff zone. Grid charging blocked.',
+      'Ładowanie darmową energią ze słońca (p_grid <= 50W)': 'Charging with free solar energy (p_grid <= 50W)',
+      'Planowana sprzedaż energii w szczycie cenowym RCE': 'Planned energy export during peak feed-in price',
+      'Normalne pokrywanie potrzeb domu ze słońca i baterii': 'Normal home load balancing from solar and battery'
+    };
+    if (exact[text]) return exact[text];
+    return String(text)
+      .replace(/^Ładowanie z sieci \((\d+W)\)$/, 'Grid Charging ($1)')
+      .replace(/^Blokada Szczytu Cenowego \(Auto (\d+W)\)$/, 'Price Peak Blocked (Auto $1)')
+      .replace(/^Ładowanie z PV \(Auto (\d+W)\)$/, 'PV Charging (Auto $1)')
+      .replace(/^Eksport na sieć \((\d+W)\)$/, 'Grid Export ($1)')
+      .replace(/^SoC \(([^)]+)\) <= Min SoC \(([^)]+)\)\. Zabezpieczenie rezerwy\.$/, 'SoC ($1) <= Min SoC ($2). Reserve protection active.')
+      .replace(/^Import z sieci \(([^)]+)\) przekroczył próg \(([^)]+)\) przy baterii ([^%]+%)\. Wymuszenie autokonsumpcji\.$/, 'Grid import ($1) exceeded threshold ($2) at $3 battery. Enforcing self-consumption.');
+  }
+
   set hass(hass) {
     this._hass = hass;
     if (!this.content) {
       const card = document.createElement('ha-card');
-      card.header = this.config?.title || 'Smart Storage EMS: Autodiagnostyka';
+      this._card = card;
+      card.header = this.config?.title || this._t('card_title');
       this.content = document.createElement('div');
       this.content.style.padding = '16px';
       card.appendChild(this.content);
       this.appendChild(card);
+    } else if (this._card && !this.config?.title) {
+      this._card.header = this._t('card_title');
     }
     this.updateCard();
   }
 
   setConfig(config) {
     this.config = config || {};
+    if (this._card) {
+      this._card.header = this.config?.title || this._t('card_title');
+    }
   }
 
   getCardSize() {
@@ -59,6 +254,9 @@ class SmartStorageDiagnosticCard extends HTMLElement {
   updateCard() {
     if (!this._hass || !this.content) return;
 
+    const lang = this._lang();
+    const currency = this._currency();
+
     const diagEntityId = this._resolveEntity('diagnostic_sensor', [
       'sensor.smart_storage_ems_diagnostyka',
       'sensor.smart_storage_ems_diagnostics'
@@ -69,8 +267,8 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       this.content.innerHTML = `
         <div style="padding: 16px; text-align: center; color: var(--secondary-text-color);">
           <ha-icon icon="mdi:alert-circle-outline" style="color: var(--warning-color); --mdc-icon-size: 40px;"></ha-icon>
-          <div style="margin-top: 8px; font-weight: bold;">Oczekiwanie na encję diagnostyczną...</div>
-          <div style="font-size: 0.85em; opacity: 0.8;">Nie odnaleziono: ${diagEntityId}</div>
+          <div style="margin-top: 8px; font-weight: bold;">${this._t('waiting_title')}</div>
+          <div style="font-size: 0.85em; opacity: 0.8;">${this._t('not_found')} ${diagEntityId}</div>
         </div>
       `;
       return;
@@ -83,12 +281,14 @@ class SmartStorageDiagnosticCard extends HTMLElement {
     const recentLogs = attrs.recent_logs || [];
     const emhassSummary = attrs.emhass_summary || {};
     const emhassError = attrs.blad_emhass;
-    const tariffMode = attrs.taryfa || 'Brak danych';
+    const tariffMode = attrs.taryfa || this._t('no_data');
     const dynMinSoc = attrs.dynamiczny_min_soc !== undefined ? attrs.dynamiczny_min_soc + '%' : '--';
-    const emhassStatus = attrs.status_emhass || 'Nieznany';
-    const lastMpc = attrs.ostatnie_przeliczenie_mpc ? new Date(attrs.ostatnie_przeliczenie_mpc).toLocaleTimeString('pl-PL') : 'Brak';
-    const issues = attrs.problemy_encji || [];
-    const hasIssues = Array.isArray(issues) ? issues.length > 0 : (issues !== 'Brak uwag (Wszystkie encje OK)');
+    const rawEmhassStatus = attrs.status_emhass;
+    const emhassStatus = !rawEmhassStatus
+      ? this._t('unknown')
+      : (rawEmhassStatus === 'Brak danych / Błąd' && lang !== 'pl' ? this._t('no_data_or_error') : rawEmhassStatus);
+    const timeLocale = lang === 'pl' ? 'pl-PL' : 'en-GB';
+    const lastMpc = attrs.ostatnie_przeliczenie_mpc ? new Date(attrs.ostatnie_przeliczenie_mpc).toLocaleTimeString(timeLocale) : this._t('none');
 
     // Count issues
     let errorCount = 0;
@@ -98,19 +298,19 @@ class SmartStorageDiagnosticCard extends HTMLElement {
     if (emhassError) errorCount++;
 
     const statusBadgeColor = errorCount > 0 ? 'var(--error-color, #e53935)' : 'var(--success-color, #43a047)';
-    const statusBadgeText = errorCount > 0 ? `Wykryto ${errorCount} uwag` : 'System w 100% sprawny';
+    const statusBadgeText = errorCount > 0 ? this._t('issues_detected', errorCount) : this._t('system_healthy');
 
     // Tabs HTML
     const tabsHtml = `
       <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.1)); margin-bottom: 16px; padding-bottom: 8px;">
         <button id="tab-health" style="flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; background: ${this._activeTab === 'health' ? 'var(--primary-color, #03a9f4)' : 'rgba(127,127,127,0.1)'}; color: ${this._activeTab === 'health' ? '#fff' : 'inherit'}; font-weight: bold; font-size: 0.9em;">
-          Sensory i Falownik
+          ${this._t('tab_health')}
         </button>
         <button id="tab-emhass" style="flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; background: ${this._activeTab === 'emhass' ? 'var(--primary-color, #03a9f4)' : 'rgba(127,127,127,0.1)'}; color: ${this._activeTab === 'emhass' ? '#fff' : 'inherit'}; font-weight: bold; font-size: 0.9em;">
-          Wektory 48h i Solver
+          ${this._t('tab_emhass')}
         </button>
         <button id="tab-logs" style="flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; background: ${this._activeTab === 'logs' ? 'var(--primary-color, #03a9f4)' : 'rgba(127,127,127,0.1)'}; color: ${this._activeTab === 'logs' ? '#fff' : 'inherit'}; font-weight: bold; font-size: 0.9em;">
-          Decyzje i Logi (${recentLogs.length})
+          ${this._t('tab_logs')} (${recentLogs.length})
         </button>
       </div>
     `;
@@ -122,30 +322,30 @@ class SmartStorageDiagnosticCard extends HTMLElement {
           <ha-icon icon="${errorCount > 0 ? 'mdi:alert-circle' : 'mdi:check-circle'}" style="color: ${statusBadgeColor}; --mdc-icon-size: 28px;"></ha-icon>
           <div>
             <div style="font-weight: bold; font-size: 1em;">${statusBadgeText}</div>
-            <div style="font-size: 0.85em; opacity: 0.8;">Status: ${diagState.state}</div>
+            <div style="font-size: 0.85em; opacity: 0.8;">${this._t('status_label')} ${this._translateBackendText(diagState.state)}</div>
           </div>
         </div>
         <div style="display: flex; gap: 8px;">
           <button id="btn-opt" style="padding: 6px 12px; background: rgba(127,127,127,0.15); border: 1px solid rgba(127,127,127,0.25); border-radius: 6px; cursor: pointer; font-size: 0.85em; color: inherit; display: flex; align-items: center; gap: 4px;">
-            <ha-icon icon="mdi:calculator-variant" style="--mdc-icon-size: 16px;"></ha-icon> Przelicz MPC
+            <ha-icon icon="mdi:calculator-variant" style="--mdc-icon-size: 16px;"></ha-icon> ${this._t('btn_recalc')}
           </button>
           <button id="btn-download" style="padding: 6px 12px; background: var(--primary-color, #03a9f4); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; gap: 4px;">
-            <ha-icon icon="mdi:download" style="--mdc-icon-size: 16px;"></ha-icon> Raport JSON
+            <ha-icon icon="mdi:download" style="--mdc-icon-size: 16px;"></ha-icon> ${this._t('btn_report')}
           </button>
         </div>
       </div>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px;">
         <div style="padding: 8px; background: rgba(127,127,127,0.04); border-radius: 6px; text-align: center;">
-          <div style="font-size: 0.75em; opacity: 0.7;">EMHASS MPC</div>
+          <div style="font-size: 0.75em; opacity: 0.7;">${this._t('kpi_emhass')}</div>
           <div style="font-weight: bold; color: ${emhassStatus === 'OK' ? 'var(--success-color, #43a047)' : 'var(--error-color, #e53935)'}; font-size: 0.95em;">${emhassStatus} (${lastMpc})</div>
         </div>
         <div style="padding: 8px; background: rgba(127,127,127,0.04); border-radius: 6px; text-align: center;">
-          <div style="font-size: 0.75em; opacity: 0.7;">Aktywna Taryfa</div>
+          <div style="font-size: 0.75em; opacity: 0.7;">${this._t('kpi_tariff')}</div>
           <div style="font-weight: bold; font-size: 0.95em; text-transform: uppercase;">${tariffMode}</div>
         </div>
         <div style="padding: 8px; background: rgba(127,127,127,0.04); border-radius: 6px; text-align: center;">
-          <div style="font-size: 0.75em; opacity: 0.7;">Dynamiczny Min SoC</div>
+          <div style="font-size: 0.75em; opacity: 0.7;">${this._t('kpi_min_soc')}</div>
           <div style="font-weight: bold; font-size: 0.95em;">${dynMinSoc}</div>
         </div>
       </div>
@@ -160,16 +360,16 @@ class SmartStorageDiagnosticCard extends HTMLElement {
         const iconColor = isOk ? 'var(--success-color, #43a047)' : 'var(--error-color, #e53935)';
         const iconName = isOk ? 'mdi:check-circle-outline' : 'mdi:alert-circle';
         const rawAttrInfo = data.raw_attribute
-          ? `<div style="font-size: 0.75em; opacity: 0.8; color: var(--primary-color);">Wektor: ${data.raw_attribute.count} próbek (min: ${data.raw_attribute.min}, max: ${data.raw_attribute.max})</div>`
+          ? `<div style="font-size: 0.75em; opacity: 0.8; color: var(--primary-color);">${this._t('vector_prefix')} ${data.raw_attribute.count} ${this._t('samples')} (min: ${data.raw_attribute.min}, max: ${data.raw_attribute.max})</div>`
           : '';
         const issueAlert = data.issue
-          ? `<div style="font-size: 0.8em; color: var(--error-color, #e53935); font-weight: bold; margin-top: 2px;">⚠️ ${data.issue}</div>`
+          ? `<div style="font-size: 0.8em; color: var(--error-color, #e53935); font-weight: bold; margin-top: 2px;">⚠️ ${this._translateIssue(data.issue)}</div>`
           : '';
 
         rowsHtml += `
           <tr style="border-bottom: 1px solid rgba(127,127,127,0.08);">
             <td style="padding: 6px 4px; vertical-align: top;">
-              <div style="font-weight: 500; font-size: 0.9em;">${data.label || entId}</div>
+              <div style="font-weight: 500; font-size: 0.9em;">${this._translateLabel(data.label || entId)}</div>
               <div style="font-size: 0.75em; opacity: 0.6; word-break: break-all;">${entId}</div>
               ${rawAttrInfo}
               ${issueAlert}
@@ -189,7 +389,7 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       Object.entries(inverterReadback).forEach(([label, state]) => {
         inverterHtml += `
           <div style="display: flex; justify-content: space-between; padding: 6px 8px; background: rgba(127,127,127,0.04); border-radius: 4px; font-size: 0.85em;">
-            <span style="opacity: 0.8;">${label}:</span>
+            <span style="opacity: 0.8;">${this._translateLabel(label)}:</span>
             <span style="font-weight: bold;">${state}</span>
           </div>
         `;
@@ -198,14 +398,14 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       tabContentHtml = `
         <div style="margin-bottom: 16px;">
           <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <ha-icon icon="mdi:server-network" style="--mdc-icon-size: 18px;"></ha-icon> Integralność i Jednostki Sensorów
+            <ha-icon icon="mdi:server-network" style="--mdc-icon-size: 18px;"></ha-icon> ${this._t('sec_sensors')}
           </div>
           <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
             <thead>
               <tr style="border-bottom: 1px solid rgba(127,127,127,0.2); font-size: 0.8em; opacity: 0.7; text-align: left;">
-                <th style="padding: 4px;">Sensor</th>
-                <th style="padding: 4px; text-align: right;">Wartość</th>
-                <th style="padding: 4px; text-align: center;">Status</th>
+                <th style="padding: 4px;">${this._t('col_sensor')}</th>
+                <th style="padding: 4px; text-align: right;">${this._t('col_value')}</th>
+                <th style="padding: 4px; text-align: center;">${this._t('col_status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -216,7 +416,7 @@ class SmartStorageDiagnosticCard extends HTMLElement {
 
         <div>
           <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <ha-icon icon="mdi:solar-power" style="--mdc-icon-size: 18px;"></ha-icon> Odczyt Zwrotny Falownika (Home Assistant)
+            <ha-icon icon="mdi:solar-power" style="--mdc-icon-size: 18px;"></ha-icon> ${this._t('sec_inverter')}
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
             ${inverterHtml}
@@ -233,19 +433,19 @@ class SmartStorageDiagnosticCard extends HTMLElement {
           <div style="padding: 10px; background: rgba(127,127,127,0.05); border-radius: 6px; border: 1px solid rgba(127,127,127,0.1);">
             <div style="display: flex; align-items: center; gap: 6px; font-weight: bold; font-size: 0.85em; margin-bottom: 6px;">
               <ha-icon icon="${icon}" style="--mdc-icon-size: 16px; color: var(--primary-color);"></ha-icon> ${title}
-              <span style="font-size: 0.8em; opacity: 0.6; margin-left: auto;">${stats.count} kroków (48h)</span>
+              <span style="font-size: 0.8em; opacity: 0.6; margin-left: auto;">${stats.count} ${this._t('steps_48h')}</span>
             </div>
             <div style="display: flex; justify-content: space-around; text-align: center; font-size: 0.85em;">
               <div>
-                <div style="font-size: 0.75em; opacity: 0.6;">MIN</div>
+                <div style="font-size: 0.75em; opacity: 0.6;">${this._t('stat_min')}</div>
                 <div style="font-weight: bold;">${stats.min} ${unit}</div>
               </div>
               <div>
-                <div style="font-size: 0.75em; opacity: 0.6;">ŚREDNIA</div>
+                <div style="font-size: 0.75em; opacity: 0.6;">${this._t('stat_avg')}</div>
                 <div style="font-weight: bold; color: var(--primary-color);">${stats.avg} ${unit}</div>
               </div>
               <div>
-                <div style="font-size: 0.75em; opacity: 0.6;">MAX</div>
+                <div style="font-size: 0.75em; opacity: 0.6;">${this._t('stat_max')}</div>
                 <div style="font-weight: bold;">${stats.max} ${unit}</div>
               </div>
             </div>
@@ -255,43 +455,43 @@ class SmartStorageDiagnosticCard extends HTMLElement {
 
       const errBlock = emhassError ? `
         <div style="padding: 10px; background: rgba(229, 57, 53, 0.1); border-left: 4px solid var(--error-color, #e53935); border-radius: 4px; margin-bottom: 12px; font-size: 0.85em;">
-          <div style="font-weight: bold; color: var(--error-color, #e53935); margin-bottom: 4px;">⚠️ Ostatni Błąd Komunikacji z EMHASS:</div>
-          <div style="opacity: 0.9;"><strong>Status:</strong> ${emhassError.status || 'Błąd połączenia'} (${emhassError.action || 'MPC'})</div>
+          <div style="font-weight: bold; color: var(--error-color, #e53935); margin-bottom: 4px;">${this._t('emhass_err_title')}</div>
+          <div style="opacity: 0.9;"><strong>${this._t('err_status')}</strong> ${emhassError.status || this._t('conn_err')} (${emhassError.action || 'MPC'})</div>
           <div style="font-family: monospace; font-size: 0.8em; margin-top: 4px; word-break: break-all; opacity: 0.85;">${emhassError.error || emhassError.message || ''}</div>
-          <div style="font-size: 0.75em; opacity: 0.6; margin-top: 4px;">Czas: ${emhassError.timestamp}</div>
+          <div style="font-size: 0.75em; opacity: 0.6; margin-top: 4px;">${this._t('err_time')} ${emhassError.timestamp}</div>
         </div>
       ` : `
         <div style="padding: 8px 12px; background: rgba(67, 160, 71, 0.08); border-left: 4px solid var(--success-color, #43a047); border-radius: 4px; margin-bottom: 12px; font-size: 0.85em; color: var(--success-color, #43a047); font-weight: 500;">
-          ✓ Komunikacja z EMHASS bez zakłóceń. Brak zarejestrowanych błędów HTTP.
+          ${this._t('emhass_ok')}
         </div>
       `;
 
       tabContentHtml = `
         ${errBlock}
-        <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px;">Krzywe Wejściowe Wysłane do Solvera (Horyzont 48h):</div>
+        <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px;">${this._t('vectors_heading')}</div>
         <div style="display: flex; flex-direction: column; gap: 8px;">
-          ${renderVectorCard('Prognoza Zużycia Domu', emhassSummary.load_forecast_stats, 'W', 'mdi:home-lightning-bolt')}
-          ${renderVectorCard('Ceny Zakupu Energii (Taryfa)', emhassSummary.buy_price_stats, 'PLN', 'mdi:cash-fast')}
-          ${renderVectorCard('Prognoza Produkcji PV', emhassSummary.pv_forecast_stats, 'W', 'mdi:solar-power-variant')}
-          ${renderVectorCard('Wycena Sprzedaży (PSE RCE)', emhassSummary.sell_price_stats, 'PLN', 'mdi:transmission-tower')}
+          ${renderVectorCard(this._t('vec_load'), emhassSummary.load_forecast_stats, 'W', 'mdi:home-lightning-bolt')}
+          ${renderVectorCard(this._t('vec_buy'), emhassSummary.buy_price_stats, currency, 'mdi:cash-fast')}
+          ${renderVectorCard(this._t('vec_pv'), emhassSummary.pv_forecast_stats, 'W', 'mdi:solar-power-variant')}
+          ${renderVectorCard(this._t('vec_sell'), emhassSummary.sell_price_stats, currency, 'mdi:transmission-tower')}
         </div>
       `;
     }
 
-    // Tab 3 Content: Decisions & Terminal Logs
+    // Tab 3 Content: Logs & Decisions
     else if (this._activeTab === 'logs') {
       let decisionsHtml = '';
       if (recentDecisions.length === 0) {
-        decisionsHtml = '<div style="font-size: 0.85em; opacity: 0.6;">Brak zarejestrowanych decyzji po starcie.</div>';
+        decisionsHtml = `<div style="font-size: 0.85em; opacity: 0.6;">${this._t('no_decisions')}</div>`;
       } else {
         recentDecisions.slice(-6).reverse().forEach(d => {
           decisionsHtml += `
             <div style="padding: 6px 8px; border-left: 3px solid var(--primary-color); background: rgba(127,127,127,0.04); border-radius: 0 4px 4px 0; font-size: 0.85em; margin-bottom: 6px;">
               <div style="display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 2px;">
-                <span>${d.trigger} → ${d.action}</span>
+                <span>${this._translateBackendText(d.trigger)} → ${this._translateBackendText(d.action)}</span>
                 <span style="font-size: 0.8em; opacity: 0.6;">${d.timestamp ? d.timestamp.split(' ')[1] : ''}</span>
               </div>
-              <div style="font-size: 0.8em; opacity: 0.85;">${d.reason}</div>
+              <div style="font-size: 0.8em; opacity: 0.85;">${this._translateBackendText(d.reason)}</div>
             </div>
           `;
         });
@@ -299,7 +499,7 @@ class SmartStorageDiagnosticCard extends HTMLElement {
 
       let logsHtml = '';
       if (recentLogs.length === 0) {
-        logsHtml = '<div style="color: #888;">Brak komunikatów diagnostycznych w buforze RAM.</div>';
+        logsHtml = `<div style="color: #888;">${this._t('no_logs')}</div>`;
       } else {
         recentLogs.forEach(l => {
           let lvlColor = '#81c784'; // INFO
@@ -319,14 +519,14 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       tabContentHtml = `
         <div style="margin-bottom: 16px;">
           <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <ha-icon icon="mdi:history" style="--mdc-icon-size: 18px;"></ha-icon> Ostatnie Decyzje Sterujące EMS
+            <ha-icon icon="mdi:history" style="--mdc-icon-size: 18px;"></ha-icon> ${this._t('sec_decisions')}
           </div>
           <div>${decisionsHtml}</div>
         </div>
 
         <div>
           <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <ha-icon icon="mdi:console" style="--mdc-icon-size: 18px;"></ha-icon> Konsola Logów na Żywo (Bufor RAM)
+            <ha-icon icon="mdi:console" style="--mdc-icon-size: 18px;"></ha-icon> ${this._t('sec_logs')}
           </div>
           <div style="background: #181818; color: #eee; padding: 10px; border-radius: 6px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.78em; max-height: 240px; overflow-y: auto; line-height: 1.4; border: 1px solid rgba(255,255,255,0.1);">
             ${logsHtml}
@@ -355,10 +555,13 @@ class SmartStorageDiagnosticCard extends HTMLElement {
     const btnOpt = this.content.querySelector('#btn-opt');
     if (btnOpt) {
       btnOpt.onclick = () => {
-        btnOpt.textContent = 'Przeliczam...';
-        const optBtnId = this._resolveEntity('optimize_now', ['button.smart_storage_ems_przelicz_mpc_teraz']);
+        btnOpt.textContent = this._t('btn_recalc_running');
+        const optBtnId = this._resolveEntity('optimize_now', [
+          'button.smart_storage_ems_przelicz_mpc_teraz',
+          'button.smart_storage_ems_optimize_now'
+        ]);
         this._hass.callService('button', 'press', { entity_id: optBtnId });
-        setTimeout(() => { btnOpt.innerHTML = '<ha-icon icon="mdi:calculator-variant" style="--mdc-icon-size: 16px;"></ha-icon> Przelicz MPC'; }, 2500);
+        setTimeout(() => { btnOpt.innerHTML = `<ha-icon icon="mdi:calculator-variant" style="--mdc-icon-size: 16px;"></ha-icon> ${this._t('btn_recalc')}`; }, 2500);
       };
     }
 
@@ -382,6 +585,6 @@ customElements.define('smart-storage-diagnostic-card', SmartStorageDiagnosticCar
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'smart-storage-diagnostic-card',
-  name: 'Smart Storage EMS: Autodiagnostyka',
-  description: 'Interaktywny pulpit autodiagnostyczny sprawdzający sensory, jednostki, falownik, solver EMHASS oraz logi.'
+  name: 'Smart Storage EMS: Autodiagnostics',
+  description: 'Interactive autodiagnostic dashboard inspecting sensors, units, inverter readback, EMHASS solver vectors, and live logs.'
 });
