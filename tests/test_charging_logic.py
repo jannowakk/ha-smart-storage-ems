@@ -32,6 +32,7 @@ def _create_test_coordinator(now_dt: datetime) -> SmartStorageCoordinator:
     coord.inverter.async_export_to_grid = AsyncMock()
     coord.inverter.async_ensure_export_limit = AsyncMock()
     coord.operation_mode = OPERATION_MODE_AUTO
+    coord.check_critical_contracts = lambda: True
     return coord
 
 
@@ -150,3 +151,70 @@ def test_g13s_price_guard_solar_window_and_peak_blocking() -> None:
     dt_night = datetime(2026, 6, 17, 2, 0, 0)
     coord_night = SmartStorageCoordinator(hass_mock, config)
     assert coord_night._is_cheap_buy_price(dt_night) is True
+
+
+def test_cheap_valley_zero_batt_holds_battery_standby() -> None:
+    """When in cheap valley and EMHASS plans 0W (-20 <= p_batt <= 20), hold battery in Standby."""
+    from homeassistant.util import dt as dt_util
+
+    # Friday at 21:05 (T3 cheap valley 0.62 PLN)
+    dt = datetime(2026, 11, 20, 21, 5, 0)
+    original_now = dt_util.now
+    dt_util.now = lambda: dt
+
+    try:
+        coord = _create_test_coordinator(dt)
+        coord._dynamic_min_soc = 0.40
+
+        def get_state(entity_id: str, default: float = 0.0) -> float:
+            if entity_id == "sensor.p_batt_forecast":
+                return 0.0
+            if entity_id == "sensor.p_grid_forecast":
+                return 1564.0
+            return 58.0
+
+        coord._get_float_state = get_state  # type: ignore
+
+        import asyncio
+        asyncio.run(coord.async_enforce_plan())
+
+        assert coord.inverter.async_hold_battery.called
+        assert not coord.inverter.async_self_consumption.called
+        assert coord._reserve_hold_active is True
+        assert "Oszczędzanie Baterii (Standby)" in coord._last_ems_action
+    finally:
+        dt_util.now = original_now
+
+
+def test_peak_zone_zero_batt_uses_self_consumption() -> None:
+    """When in peak zone (T1/T2) and SoC > min_soc, keep inverter in Auto even if p_batt is 0W."""
+    from homeassistant.util import dt as dt_util
+
+    # Friday at 18:00 (T2 peak 1.49 PLN)
+    dt = datetime(2026, 11, 20, 18, 0, 0)
+    original_now = dt_util.now
+    dt_util.now = lambda: dt
+
+    try:
+        coord = _create_test_coordinator(dt)
+        coord._dynamic_min_soc = 0.40
+
+        def get_state(entity_id: str, default: float = 0.0) -> float:
+            if entity_id == "sensor.p_batt_forecast":
+                return 0.0
+            if entity_id == "sensor.p_grid_forecast":
+                return 500.0
+            return 58.0
+
+        coord._get_float_state = get_state  # type: ignore
+
+        import asyncio
+        asyncio.run(coord.async_enforce_plan())
+
+        assert coord.inverter.async_self_consumption.called
+        assert not coord.inverter.async_hold_battery.called
+        assert coord._reserve_hold_active is False
+        assert "Autokonsumpcja (Auto)" in coord._last_ems_action
+    finally:
+        dt_util.now = original_now
+

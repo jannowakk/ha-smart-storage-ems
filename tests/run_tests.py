@@ -75,6 +75,8 @@ from tests.test_charging_logic import (
     test_peak_zone_blocks_grid_charging_safety_guard,
     test_cheap_valley_allows_grid_charging,
     test_g13s_price_guard_solar_window_and_peak_blocking,
+    test_cheap_valley_zero_batt_holds_battery_standby,
+    test_peak_zone_zero_batt_uses_self_consumption,
 )
 from tests.test_pse_rce import (
     test_aggregate_15m_to_30m,
@@ -149,9 +151,26 @@ if __name__ == "__main__":
     test_g13s_price_guard_solar_window_and_peak_blocking()
     print("✓ test_g13s_price_guard_solar_window_and_peak_blocking passed")
 
+    test_cheap_valley_zero_batt_holds_battery_standby()
+    print("✓ test_cheap_valley_zero_batt_holds_battery_standby passed")
+
+    test_peak_zone_zero_batt_uses_self_consumption()
+    print("✓ test_peak_zone_zero_batt_uses_self_consumption passed")
+
     import asyncio
     asyncio.run(TestDiagnostics().test_async_get_config_entry_diagnostics())
     print("✓ test_async_get_config_entry_diagnostics passed")
+
+    from tests.test_contracts import TestContracts
+    tc = TestContracts()
+    tc.test_price_sensor_in_load_forecast_detected_as_critical()
+    tc.test_unrealistic_low_power_vector_flagged_as_critical()
+    tc.test_power_sensor_in_price_field_flagged_as_critical()
+    tc.test_kw_unit_in_power_field_flagged_as_warning()
+    tc.test_valid_entities_pass_with_status_ok()
+    tc.test_load_forecast_active_failsafe_rejects_price_vector()
+    tc.test_critical_entity_error_engages_safety_halt()
+    print("✓ TestContracts (all 7 contract, active fail-safe & safety halt tests) passed")
 
     print("\nAll unit tests passed successfully!")
 

@@ -95,6 +95,7 @@ from .const import (
     TARIFF_MODE_G13,
     TARIFF_MODE_G13S,
 )
+from .contracts import get_critical_configuration_errors, validate_all_entities
 from .emhass_client import EmhassClient
 from .guards.import_guard import ImportGuard
 from .inverters import get_inverter_driver
@@ -173,6 +174,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.storm_reserve_enabled = True
         self._last_ems_action = "Inicjalizacja"
         self._target_power = 0.0
+        self._config_error: str | None = None
+        self._config_error_details: dict[str, Any] | None = None
         self._dynamic_min_soc = config.get(CONF_BASE_MIN_SOC, DEFAULT_BASE_MIN_SOC)
         self._reserve_hold_active: bool = False
         self._is_grid_charging: bool = False
@@ -226,6 +229,34 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return
         self._decision_history.appendleft(entry)
 
+    def check_critical_contracts(self) -> bool:
+        """Audit critical/required entities. Engages Safety Halt on critical errors."""
+        errors = get_critical_configuration_errors(self.hass, self.config)
+        if errors:
+            first = errors[0]
+            err_title = f"Błąd konfiguracji: {first['label']}"
+            if self._config_error != err_title:
+                _LOGGER.error(
+                    "KRYTYCZNA BLOKADA BEZPIECZEŃSTWA (Safety Halt): %s (%s) - %s. Wstrzymano sterowanie falownikiem.",
+                    first["label"],
+                    first["entity_id"],
+                    first["issue"],
+                )
+            self._config_error = err_title
+            self._config_error_details = first
+            self._last_ems_action = err_title
+            self._target_power = 0.0
+            self._notify_coordinator_update()
+            return False
+
+        if self._config_error is not None:
+            _LOGGER.info("Błędy krytyczne konfiguracji zostały rozwiązane. Wznowiono normalną pracę.")
+            self._config_error = None
+            self._config_error_details = None
+            self._last_ems_action = "Autokonsumpcja (Auto)"
+            self._notify_coordinator_update()
+        return True
+
     async def async_setup(self) -> None:
         """Set up event listeners for grid import and off-grid monitoring."""
         import_sensor = self.config.get(CONF_SENSOR_GRID_IMPORT)
@@ -249,6 +280,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.hass, self._async_scheduled_mpc_tick, minute=[0, 30], second=15
             )
         )
+
+        # Check critical configuration contracts
+        self.check_critical_contracts()
 
         # Immediate tariff & sell prices calculation and plan enforcement
         self.get_buy_prices()
@@ -545,6 +579,10 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_run_mpc(self) -> bool:
         """Execute full MPC optimization cycle with transient error retry."""
+        if not self.check_critical_contracts():
+            _LOGGER.warning("Pominięto cykl MPC: aktywna blokada bezpieczeństwa (błąd konfiguracji).")
+            return False
+
         if self._mpc_in_progress:
             _LOGGER.debug("MPC run already in progress, skipping duplicate call")
             return False
@@ -696,6 +734,10 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_enforce_plan(self) -> None:
         """Translate MPC forecast sensors into concrete inverter actions."""
+        if not self.check_critical_contracts():
+            _LOGGER.debug("Pominięto sterowanie falownikiem: aktywna blokada bezpieczeństwa z powodu błędu konfiguracji.")
+            return
+
         self.get_buy_prices()
 
         # 1. Off-Grid Safety Check
@@ -744,12 +786,12 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
         self._target_power = p_batt
         now_dt = dt_util.now()
+        is_cheap = self._is_cheap_buy_price(now_dt)
 
         # Scenario A: Charging requested by EMHASS (< -20W)
         if p_batt < -20:
             self._reserve_hold_active = False
             charge_power = int(abs(p_batt))
-            is_cheap = self._is_cheap_buy_price(now_dt)
 
             # Forced grid charging ONLY when EMHASS actually planned grid import AND price is in cheap valley
             if p_grid > 50 and is_cheap:
@@ -815,6 +857,19 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 {"soc": round(soc * 100, 1), "min_soc": round(self._dynamic_min_soc * 100, 1)},
             )
 
+        # Scenario C2: Cheap Valley Battery Preservation (Hold when EMHASS plans 0W in cheap tariff zone)
+        elif is_cheap and (-20 <= p_batt <= 20):
+            self._is_grid_charging = False
+            self._reserve_hold_active = True
+            await self.inverter.async_hold_battery()
+            self._last_ems_action = "Oszczędzanie Baterii (Standby)"
+            self._record_decision(
+                "EMHASS MPC",
+                "Standby (Zamrożenie)",
+                "Tania strefa cenowa i plan EMHASS 0W – zachowanie energii w baterii na szczyt cenowy.",
+                {"soc": round(soc * 100, 1), "p_batt": p_batt, "p_grid": p_grid},
+            )
+
         # Scenario D: Normal Self Consumption (Balance house load from battery/solar)
         else:
             self._is_grid_charging = False
@@ -853,6 +908,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _async_on_import_change(self, event: Any) -> None:
         """Rapid event callback for Strażnik Importu."""
+        if self._config_error is not None:
+            return
+
         new_state = event.data.get("new_state")
         if not new_state:
             return
@@ -899,89 +957,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 safe_config[k] = v
 
-        # 1. Entities Health & Units Check
-        entity_checks = [
-            (CONF_SENSOR_SOC, "SoC Baterii", "%"),
-            (CONF_SENSOR_PV_POWER, "Moc PV", "W"),
-            (CONF_SENSOR_LOAD_POWER, "Moc Domu", "W"),
-            (CONF_SENSOR_GRID_IMPORT, "Import z Sieci", "W"),
-            (CONF_SENSOR_BATTERY_POWER, "Moc Baterii", "W"),
-            (CONF_OUTSIDE_TEMP_ENTITY, "Temperatura Zewnętrzna", "°C"),
-            (CONF_BINARY_SENSOR_OFFGRID, "Sensor Off-Grid", None),
-            (CONF_PV_FORECAST_ENTITY, "Prognoza PV (wektor)", None),
-            (CONF_LOAD_FORECAST_ENTITY, "Prognoza Zużycia (wektor)", None),
-            (CONF_BUY_PRICE_ENTITY, "Ceny Zakupu", None),
-            (CONF_SELL_PRICE_ENTITY, "Ceny Sprzedaży", None),
-            (CONF_PV_ENERGY_TODAY_ENTITY, "Energia PV Dziś", "kWh"),
-            (CONF_PV_ENERGY_TOMORROW_ENTITY, "Energia PV Jutro", "kWh"),
-        ]
-
-        entities_health: dict[str, Any] = {}
-        attr_key_map = {
-            CONF_LOAD_FORECAST_ENTITY: CONF_LOAD_FORECAST_ATTR,
-            CONF_PV_FORECAST_ENTITY: CONF_PV_FORECAST_ATTR,
-            CONF_BUY_PRICE_ENTITY: CONF_BUY_PRICE_ATTR,
-            CONF_SELL_PRICE_ENTITY: CONF_SELL_PRICE_ATTR,
-        }
-        for conf_key, label, expected_unit in entity_checks:
-            ent_id = self.config.get(conf_key)
-            if not ent_id:
-                continue
-            st = self.hass.states.get(ent_id)
-            if st is None:
-                entities_health[ent_id] = {
-                    "label": label,
-                    "status": "NOT_FOUND",
-                    "state": None,
-                    "unit": None,
-                    "issue": f"Encja {ent_id} nie istnieje w Home Assistant!",
-                }
-            else:
-                unit = st.attributes.get("unit_of_measurement")
-                val = st.state
-                issue = None
-                if val in ("unavailable", "unknown"):
-                    issue = f"Encja w stanie niedostępnym ({val})"
-                elif expected_unit == "W" and unit and unit.lower() in ("kw", "kwh"):
-                    issue = f"Wykryto niezgodność jednostki! Oczekiwano 'W', encja raportuje '{unit}' (skala 1000x)"
-
-                raw_attr_details = None
-                attr_conf = attr_key_map.get(conf_key)
-                if attr_conf:
-                    attr_name = self.config.get(attr_conf)
-                    if attr_name:
-                        attr_val = st.attributes.get(attr_name)
-                        if attr_val is None:
-                            issue = f"Encja istnieje, ale brakuje atrybutu '{attr_name}'!"
-                        elif isinstance(attr_val, list):
-                            num_vals = [float(x) for x in attr_val if isinstance(x, (int, float))]
-                            raw_attr_details = {
-                                "attribute": attr_name,
-                                "type": "list",
-                                "count": len(attr_val),
-                                "sample_first_4": attr_val[:4],
-                                "sample_last_4": attr_val[-4:],
-                                "min": round(min(num_vals), 2) if num_vals else None,
-                                "max": round(max(num_vals), 2) if num_vals else None,
-                            }
-                            if len(attr_val) < 24:
-                                issue = f"Atrybut '{attr_name}' ma tylko {len(attr_val)} próbek (oczekiwano min. 24/48)!"
-                        else:
-                            raw_attr_details = {
-                                "attribute": attr_name,
-                                "type": type(attr_val).__name__,
-                                "value": str(attr_val)[:100],
-                            }
-
-                entities_health[ent_id] = {
-                    "label": label,
-                    "status": "OK" if not issue else "WARNING",
-                    "state": val,
-                    "unit": unit,
-                    "issue": issue,
-                    "raw_attribute": raw_attr_details,
-                    "last_updated": st.last_updated.isoformat() if st.last_updated else None,
-                }
+        # 1. Semantic Entity Contracts & Deep Domain Validation
+        entities_health = validate_all_entities(self.hass, self.config)
 
         # 2. Inverter Readback State (Control Entities in HA)
         inverter_ctrl_keys = [
@@ -1044,9 +1021,11 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         recent_logs = list(self._log_handler.buffer) if hasattr(self, "_log_handler") else []
 
         return {
-            "version": "1.3.2",
+            "version": "1.4.0",
             "timestamp": datetime.now().isoformat(),
             "operation_mode": self.operation_mode,
+            "config_error": self._config_error,
+            "config_error_details": self._config_error_details,
             "last_action": self._last_ems_action,
             "target_power_w": self._target_power,
             "current_season": self.current_season,

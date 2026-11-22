@@ -66,27 +66,48 @@ def build_rolling_load_forecast(
     if custom_entity and hass:
         st = hass.states.get(custom_entity)
         if st is not None:
-            cand = st.attributes.get(custom_attr or "list") or st.attributes.get("forecasts")
-            if not isinstance(cand, list):
-                # Try JSON state
-                try:
-                    cand = json.loads(st.state)
-                except (ValueError, TypeError, json.JSONDecodeError):
-                    cand = None
+            unit = str(st.attributes.get("unit_of_measurement") or "").lower()
+            device_class = str(st.attributes.get("device_class") or "").lower()
 
-            if isinstance(cand, list) and len(cand) >= 24:
-                try:
-                    parsed = [float(x) for x in cand if x is not None]
-                    if parsed:
-                        norm = list(parsed[:horizon_steps])
-                        if len(norm) < horizon_steps:
-                            norm.extend([norm[-1] if norm else default_base_power] * (horizon_steps - len(norm)))
-                        # Anchor slot 0 to live load
-                        if current_load_w is not None and current_load_w > 0:
-                            norm[0] = round(current_load_w, 1)
-                        return [round(float(x), 1) for x in norm], f"Własny sensor ({custom_entity})"
-                except (ValueError, TypeError):
-                    _LOGGER.warning("Failed to parse custom load forecast list from %s", custom_entity)
+            # Active Domain Guard: reject monetary or price sensors in load forecast
+            if device_class == "monetary" or any(c in unit for c in ("pln", "zł", "zl", "eur", "usd", "/kwh", "/mwh")):
+                _LOGGER.warning(
+                    "Odrzucono sensor zużycia %s: wykryto dane cenowe/walutowe (unit='%s', device_class='%s'). "
+                    "Aktywowano wbudowany Smart Auto-Profile.",
+                    custom_entity,
+                    unit,
+                    device_class,
+                )
+            else:
+                cand = st.attributes.get(custom_attr or "list") or st.attributes.get("forecasts")
+                if not isinstance(cand, list):
+                    # Try JSON state
+                    try:
+                        cand = json.loads(st.state)
+                    except (ValueError, TypeError, json.JSONDecodeError):
+                        cand = None
+
+                if isinstance(cand, list) and len(cand) >= 24:
+                    try:
+                        parsed = [float(x) for x in cand if x is not None]
+                        # Physical Sanity Guard: max power in vector must be >= 15 W (not prices like 0.35 zł)
+                        if parsed and max(parsed) < 15.0:
+                            _LOGGER.warning(
+                                "Odrzucono wektor zużycia z %s: max wartość %.2f W jest nierealistyczna dla mocy domu "
+                                "(wygląda na ceny energii lub brak przeliczenia z kW na W). Aktywowano Smart Auto-Profile.",
+                                custom_entity,
+                                max(parsed),
+                            )
+                        elif parsed:
+                            norm = list(parsed[:horizon_steps])
+                            if len(norm) < horizon_steps:
+                                norm.extend([norm[-1] if norm else default_base_power] * (horizon_steps - len(norm)))
+                            # Anchor slot 0 to live load
+                            if current_load_w is not None and current_load_w > 0:
+                                norm[0] = round(current_load_w, 1)
+                            return [round(float(x), 1) for x in norm], f"Własny sensor ({custom_entity})"
+                    except (ValueError, TypeError):
+                        _LOGGER.warning("Failed to parse custom load forecast list from %s", custom_entity)
 
     # 2. Option B: Check static comma-separated string if provided
     base_power = default_base_power

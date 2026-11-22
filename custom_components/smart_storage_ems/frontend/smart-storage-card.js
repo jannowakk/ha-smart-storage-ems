@@ -97,6 +97,7 @@ class SmartStorageCard extends HTMLElement {
       'Ręczne Wymuszone Ładowanie': 'Manual Forced Charge',
       'Czysta Autokonsumpcja': 'Pure Self-Consumption',
       'Ochrona Rezerwy (Standby)': 'Reserve Protection (Standby)',
+      'Oszczędzanie Baterii (Standby)': 'Battery Preservation (Standby)',
       'Autokonsumpcja (Auto)': 'Self-Consumption (Auto)',
       'Strażnik Importu (Wymuszono Auto)': 'Import Guard (Forced Auto)'
     };
@@ -229,6 +230,34 @@ class SmartStorageCard extends HTMLElement {
     } else if (battPower > 50) {
       battPowerFormatted = `+${Math.round(battPower)} W (${t.discharging})`;
       battPowerColor = '#1976d2';
+    }
+
+    const configError = statusState?.attributes?.config_error;
+    const configDetails = statusState?.attributes?.config_error_details;
+    const hasConfigError = !!configError || statusVal.toLowerCase().includes('błąd konfiguracji') || statusVal.toLowerCase().includes('configuration error');
+
+    let configErrorHtml = '';
+    if (hasConfigError) {
+      const errTitle = this._lang === 'pl' ? 'BLOKADA BEZPIECZEŃSTWA: BŁĄD KONFIGURACJI' : 'SAFETY HALT: CONFIGURATION ERROR';
+      const errSub = this._lang === 'pl'
+        ? 'Sterowanie falownikiem wstrzymane dla ochrony magazynu. Popraw encję w opcjach integracji.'
+        : 'Inverter control halted to protect battery and hardware. Fix entity in integration options.';
+      const issueText = configDetails?.issue || statusVal;
+      const entityText = configDetails?.entity_id ? `<code>${escapeHtml(configDetails.entity_id)}</code>` : '';
+      const labelText = configDetails?.label ? `<strong>${escapeHtml(configDetails.label)}:</strong> ` : '';
+      configErrorHtml = `
+        <div style="background: rgba(229, 57, 53, 0.12); border: 2px solid var(--error-color, #e53935); border-radius: 10px; padding: 12px; margin-bottom: 2px;">
+          <div style="display: flex; align-items: center; gap: 8px; color: var(--error-color, #e53935); font-weight: 700; font-size: 0.95rem;">
+            <ha-icon icon="mdi:shield-alert" style="--mdc-icon-size: 24px;"></ha-icon>
+            <span>${escapeHtml(errTitle)}</span>
+          </div>
+          <div style="margin-top: 6px; font-size: 0.85rem; color: var(--primary-text-color, inherit);">
+            ${labelText}${entityText}
+            <div style="margin-top: 4px; color: var(--error-color, #e53935); font-weight: 600;">⚠️ ${escapeHtml(issueText)}</div>
+          </div>
+          <div style="margin-top: 6px; font-size: 0.75rem; opacity: 0.85;">${escapeHtml(errSub)}</div>
+        </div>
+      `;
     }
 
     this.content.innerHTML = `
@@ -369,9 +398,11 @@ class SmartStorageCard extends HTMLElement {
       <div class="ems-container">
         <!-- Header -->
         <div class="ems-header-row">
-          <span class="ems-status-badge">${escapeHtml(statusVal)}</span>
+          <span class="ems-status-badge" style="background-color: ${hasConfigError ? 'var(--error-color, #e53935)' : 'var(--primary-color, #03a9f4)'};">${escapeHtml(statusVal)}</span>
           <span class="ems-power-badge">${escapeHtml(powerLabel)}</span>
         </div>
+
+        ${configErrorHtml}
 
         <!-- Metrics Grid -->
         <div class="ems-metrics-grid">

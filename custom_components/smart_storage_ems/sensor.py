@@ -53,6 +53,8 @@ class SmartStorageStatusSensor(CoordinatorEntity[SmartStorageCoordinator], Senso
         prices = self.coordinator._buy_prices
         sell_prices = getattr(self.coordinator, "_sell_prices", [])
         return {
+            "config_error": getattr(self.coordinator, "_config_error", None),
+            "config_error_details": getattr(self.coordinator, "_config_error_details", None),
             "tariff_mode": self.coordinator._tariff_mode,
             "current_buy_price": prices[0] if prices else None,
             "buy_prices": prices,

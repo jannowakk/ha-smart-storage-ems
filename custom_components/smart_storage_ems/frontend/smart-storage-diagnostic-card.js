@@ -48,6 +48,8 @@ const DIAG_I18N = {
     no_logs: 'Brak komunikatów diagnostycznych w buforze RAM.',
     sec_decisions: 'Ostatnie Decyzje Sterujące EMS',
     sec_logs: 'Konsola Logów na Żywo (Bufor RAM)',
+    sort_newest: 'Najnowsze u góry',
+    sort_oldest: 'Najstarsze u góry',
     issues_detected: (n) => `Wykryto ${n} uwag`
   },
   en: {
@@ -94,6 +96,8 @@ const DIAG_I18N = {
     no_logs: 'No diagnostic log entries in RAM buffer.',
     sec_decisions: 'Recent EMS Control Decisions',
     sec_logs: 'Live Log Console (RAM Buffer)',
+    sort_newest: 'Newest first',
+    sort_oldest: 'Oldest first',
     issues_detected: (n) => `${n} ${n === 1 ? 'issue' : 'issues'} detected`
   }
 };
@@ -176,6 +180,7 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       'Ręczne Wymuszone Ładowanie': 'Manual Forced Charge',
       'Czysta Autokonsumpcja': 'Pure Self-Consumption',
       'Ochrona Rezerwy (Standby)': 'Reserve Protection (Standby)',
+      'Oszczędzanie Baterii (Standby)': 'Battery Preservation (Standby)',
       'Autokonsumpcja (Auto)': 'Self-Consumption (Auto)',
       'Strażnik Importu (Wymuszono Auto)': 'Import Guard (Forced Auto)',
       'Tryb Ręczny': 'Manual Mode',
@@ -196,6 +201,7 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       'EMHASS żądał importu w drogiej strefie taryfowej. Zablokowano ładowanie z sieci.': 'EMHASS requested grid import during peak tariff zone. Grid charging blocked.',
       'Ładowanie darmową energią ze słońca (p_grid <= 50W)': 'Charging with free solar energy (p_grid <= 50W)',
       'Planowana sprzedaż energii w szczycie cenowym RCE': 'Planned energy export during peak feed-in price',
+      'Tania strefa cenowa i plan EMHASS 0W – zachowanie energii w baterii na szczyt cenowy.': 'Cheap tariff zone and EMHASS 0W plan – preserving battery energy for peak zone.',
       'Normalne pokrywanie potrzeb domu ze słońca i baterii': 'Normal home load balancing from solar and battery'
     };
     if (exact[text]) return exact[text];
@@ -263,6 +269,9 @@ class SmartStorageDiagnosticCard extends HTMLElement {
 
   updateCard() {
     if (!this._hass || !this.content) return;
+
+    const logConsole = this.content.querySelector('#log-console');
+    const prevScrollTop = logConsole ? logConsole.scrollTop : (this._savedLogScrollTop || 0);
 
     const lang = this._lang();
     const currency = this._currency();
@@ -507,11 +516,14 @@ class SmartStorageDiagnosticCard extends HTMLElement {
         });
       }
 
+      const isNewestFirst = this._logSortNewest !== false;
+      const displayLogs = isNewestFirst ? [...recentLogs].reverse() : [...recentLogs];
+
       let logsHtml = '';
-      if (recentLogs.length === 0) {
+      if (displayLogs.length === 0) {
         logsHtml = `<div style="color: #888;">${escapeHtml(this._t('no_logs'))}</div>`;
       } else {
-        recentLogs.forEach(l => {
+        displayLogs.forEach(l => {
           let lvlColor = '#81c784'; // INFO
           if (l.level === 'WARNING') lvlColor = '#ffb74d';
           if (l.level === 'ERROR') lvlColor = '#e57373';
@@ -526,6 +538,9 @@ class SmartStorageDiagnosticCard extends HTMLElement {
         });
       }
 
+      const sortBtnLabel = isNewestFirst ? this._t('sort_newest') : this._t('sort_oldest');
+      const sortIcon = isNewestFirst ? 'mdi:sort-clock-descending-outline' : 'mdi:sort-clock-ascending-outline';
+
       tabContentHtml = `
         <div style="margin-bottom: 16px;">
           <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
@@ -535,10 +550,16 @@ class SmartStorageDiagnosticCard extends HTMLElement {
         </div>
 
         <div>
-          <div style="font-weight: bold; font-size: 0.95em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <ha-icon icon="mdi:console" style="--mdc-icon-size: 18px;"></ha-icon> ${this._t('sec_logs')}
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-weight: bold; font-size: 0.95em; display: flex; align-items: center; gap: 6px;">
+              <ha-icon icon="mdi:console" style="--mdc-icon-size: 18px;"></ha-icon> ${this._t('sec_logs')}
+            </div>
+            <button id="btn-toggle-sort" style="background: rgba(127,127,127,0.15); border: 1px solid rgba(127,127,127,0.25); border-radius: 4px; padding: 3px 8px; font-size: 0.78em; cursor: pointer; color: inherit; display: flex; align-items: center; gap: 4px;">
+              <ha-icon icon="${sortIcon}" style="--mdc-icon-size: 14px;"></ha-icon>
+              <span>${escapeHtml(sortBtnLabel)}</span>
+            </button>
           </div>
-          <div style="background: #181818; color: #eee; padding: 10px; border-radius: 6px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.78em; max-height: 240px; overflow-y: auto; line-height: 1.4; border: 1px solid rgba(255,255,255,0.1);">
+          <div id="log-console" style="background: #181818; color: #eee; padding: 10px; border-radius: 6px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.78em; max-height: 240px; overflow-y: auto; line-height: 1.4; border: 1px solid rgba(255,255,255,0.1);">
             ${logsHtml}
           </div>
         </div>
@@ -551,6 +572,24 @@ class SmartStorageDiagnosticCard extends HTMLElement {
       ${tabsHtml}
       ${tabContentHtml}
     `;
+
+    // Restore and track scroll position for log console
+    const newLogConsole = this.content.querySelector('#log-console');
+    if (newLogConsole) {
+      newLogConsole.scrollTop = prevScrollTop;
+      newLogConsole.onscroll = () => {
+        this._savedLogScrollTop = newLogConsole.scrollTop;
+      };
+    }
+
+    const btnToggleSort = this.content.querySelector('#btn-toggle-sort');
+    if (btnToggleSort) {
+      btnToggleSort.onclick = () => {
+        this._logSortNewest = !(this._logSortNewest !== false);
+        this._savedLogScrollTop = 0;
+        this.updateCard();
+      };
+    }
 
     // Bind Tab Click Handlers
     const tabHealth = this.content.querySelector('#tab-health');
