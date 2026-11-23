@@ -11,6 +11,7 @@
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jannowakk&repository=ha-smart-storage-ems&category=integration)
 [![marketplace_badge](https://img.shields.io/badge/Marketplace-Official-brightgreen.svg)](https://github.com/hacs/default)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jannowakk)
 
 **Smart Storage EMS** is an intelligent, modular Energy Management System wrapper for **EMHASS** in Home Assistant that translates mathematical battery optimization plans into safe, real-world control of hybrid solar inverters.
 
@@ -306,6 +307,14 @@ In addition to the Lovelace card, the integration implements Home Assistant's na
 - [ ] Polish PGE G12e flexible tariff support.
 - [ ] Intuitive `-1 / 0 / +1` EMHASS tuning sliders (Charge/Discharge bias, arbitrage vs cell protection, SoC buffer stiffness).
 - [ ] Additional inverter HAL drivers: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
+
+---
+
+## ☕ Support the Project
+
+If **Smart Storage EMS** has helped optimize your home battery, reduced your electricity bills, or protected your inverter from wear, consider supporting ongoing development:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jannowakk)
 
 ---
 

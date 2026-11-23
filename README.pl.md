@@ -11,6 +11,8 @@
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jannowakk&repository=ha-smart-storage-ems&category=integration)
 [![marketplace_badge](https://img.shields.io/badge/Marketplace-Official-brightgreen.svg)](https://github.com/hacs/default)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![Postaw kawę na buycoffee.to](https://img.shields.io/badge/Postaw_kawę-buycoffee.to-00C48C?style=flat&logo=coffeescript&logoColor=white)](https://buycoffee.to/jannowakk)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jannowakk)
 
 **Smart Storage EMS** to inteligentna, modułowa nakładka (Energy Management System) na **EMHASS** dla Home Assistant, która przekształca matematyczne plany optymalizacji baterii w bezpieczne, fizyczne sterowanie falownikiem hybrydowym.
 
@@ -392,6 +394,15 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
 - [x] Wbudowana karta autodiagnostyki Lovelace (`custom:smart-storage-diagnostic-card`) oraz natywna diagnostyka HA (`Pobierz diagnostykę`).
 - [ ] Intuicyjne suwaki strojenia trendu pracy EMHASS w zakresie `-1 / 0 / +1` (chętniej ładuj / balans / chętniej rozładowuj, agresywność arbitrażu vs ochrona ogniw, sztywność bufora SoC).
 - [ ] Kolejne drivery falowników: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
+
+---
+
+## ☕ Wesprzyj projekt
+
+Podoba Ci się Smart Storage EMS? Jeśli integracja pomogła Ci zoptymalizować pracę magazynu energii, obniżyła rachunki za prąd lub po prostu zaoszczędziła czas na pisaniu YAML-a, możesz postawić wirtualną kawę i wesprzeć dalszy rozwój projektu:
+
+[![Postaw kawę na buycoffee.to](https://img.shields.io/badge/Postaw_kawę-buycoffee.to-00C48C?style=for-the-badge&logo=coffeescript&logoColor=white)](https://buycoffee.to/jannowakk)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jannowakk)
 
 ---
 
