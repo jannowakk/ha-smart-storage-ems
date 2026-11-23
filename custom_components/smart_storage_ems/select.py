@@ -42,5 +42,6 @@ class SmartStorageModeSelect(CoordinatorEntity[SmartStorageCoordinator], SelectE
             self.coordinator.operation_mode = option
             if option == OPERATION_MODE_AUTO and prev_mode != OPERATION_MODE_AUTO:
                 self.hass.async_create_task(self.coordinator.async_run_mpc())
-            await self.coordinator.async_enforce_plan()
+            else:
+                await self.coordinator.async_enforce_plan()
             self.async_write_ha_state()

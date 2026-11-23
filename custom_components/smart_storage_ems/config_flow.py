@@ -15,6 +15,7 @@ from .const import (
     CONF_COST_FUNCTION,
     CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
+    CONF_ENABLE_EEPROM_COUNTER,
     CONF_ENABLE_IMPORT_GUARD,
     CONF_G11_PRICE,
     CONF_G12_PRICE_OFFPEAK,
@@ -32,6 +33,7 @@ from .const import (
     CONF_LOAD_FORECAST_ATTR,
     CONF_LOAD_FORECAST_ENTITY,
     CONF_LOAD_PROFILE_STATIC,
+    CONF_MIN_EXPORT_LIMIT,
     CONF_NUMBER_EMS_POWER_LIMIT,
     CONF_NUMBER_EXPORT_LIMIT,
     CONF_OPENMETEO_D3,
@@ -64,6 +66,7 @@ from .const import (
     CONF_WINTER_MIN_SOC,
     DEFAULT_BASE_MIN_SOC,
     DEFAULT_COST_FUNCTION,
+    DEFAULT_ENABLE_EEPROM_COUNTER,
     DEFAULT_EMHASS_URL,
     DEFAULT_HORIZON_STEPS,
     DEFAULT_IMPORT_GUARD_DURATION,
@@ -138,9 +141,22 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_NUMBER_EXPORT_LIMIT): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="number")
                 ),
+                vol.Optional(CONF_MIN_EXPORT_LIMIT): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0,
+                        max=50000,
+                        step=100,
+                        unit_of_measurement="W",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
                 vol.Optional(CONF_BINARY_SENSOR_OFFGRID): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="binary_sensor")
                 ),
+                vol.Optional(
+                    CONF_ENABLE_EEPROM_COUNTER,
+                    default=DEFAULT_ENABLE_EEPROM_COUNTER,
+                ): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
@@ -306,7 +322,9 @@ INVERTER_STEP_FIELDS = [
     CONF_SELECT_INVERTER_MODE,
     CONF_NUMBER_EMS_POWER_LIMIT,
     CONF_NUMBER_EXPORT_LIMIT,
+    CONF_MIN_EXPORT_LIMIT,
     CONF_BINARY_SENSOR_OFFGRID,
+    CONF_ENABLE_EEPROM_COUNTER,
 ]
 
 EMHASS_STEP_FIELDS = [
@@ -436,9 +454,25 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     description={"suggested_value": data.get(CONF_NUMBER_EXPORT_LIMIT) or None},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
                 vol.Optional(
+                    CONF_MIN_EXPORT_LIMIT,
+                    description={"suggested_value": data.get(CONF_MIN_EXPORT_LIMIT)},
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=0,
+                        max=50000,
+                        step=100,
+                        unit_of_measurement="W",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
+                vol.Optional(
                     CONF_BINARY_SENSOR_OFFGRID,
                     description={"suggested_value": data.get(CONF_BINARY_SENSOR_OFFGRID) or None},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
+                vol.Optional(
+                    CONF_ENABLE_EEPROM_COUNTER,
+                    default=data.get(CONF_ENABLE_EEPROM_COUNTER, DEFAULT_ENABLE_EEPROM_COUNTER),
+                ): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="inverter", data_schema=schema)

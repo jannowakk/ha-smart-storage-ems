@@ -20,7 +20,10 @@ CONF_SELECT_EMS_MODE = "select_ems_mode"
 CONF_SELECT_INVERTER_MODE = "select_inverter_mode"
 CONF_NUMBER_EMS_POWER_LIMIT = "number_ems_power_limit"
 CONF_NUMBER_EXPORT_LIMIT = "number_export_limit"
+CONF_MIN_EXPORT_LIMIT = "min_export_limit"
 CONF_BINARY_SENSOR_OFFGRID = "binary_sensor_offgrid"
+CONF_ENABLE_EEPROM_COUNTER = "enable_eeprom_counter"
+DEFAULT_ENABLE_EEPROM_COUNTER = False
 
 # Configuration Keys - Forecasts & Tariffs
 CONF_TARIFF_MODE = "tariff_mode"

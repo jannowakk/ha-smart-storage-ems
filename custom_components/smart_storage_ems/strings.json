@@ -15,7 +15,9 @@
           "select_inverter_mode": "Inverter Mode Select Entity",
           "number_ems_power_limit": "EMS Power Limit Entity",
           "number_export_limit": "Grid Export Limit Entity",
-          "binary_sensor_offgrid": "Off-Grid / Backup Binary Sensor"
+          "min_export_limit": "Minimum Target Export Limit (W, optional)",
+          "binary_sensor_offgrid": "Off-Grid / Backup Binary Sensor",
+          "enable_eeprom_counter": "Enable Inverter Write Counter Diagnostic Sensor"
         }
       },
       "emhass": {
@@ -100,7 +102,9 @@
           "select_inverter_mode": "Inverter Mode Select Entity",
           "number_ems_power_limit": "EMS Power Limit Entity",
           "number_export_limit": "Grid Export Limit Entity",
-          "binary_sensor_offgrid": "Off-Grid Sensor"
+          "min_export_limit": "Minimum Target Export Limit (W, optional)",
+          "binary_sensor_offgrid": "Off-Grid Sensor",
+          "enable_eeprom_counter": "Enable Inverter Write Counter Diagnostic Sensor"
         }
       },
       "emhass": {

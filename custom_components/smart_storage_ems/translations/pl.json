@@ -15,7 +15,9 @@
           "select_inverter_mode": "Encja wyboru trybu falownika (select)",
           "number_ems_power_limit": "Encja limitu mocy EMS (number)",
           "number_export_limit": "Encja limitu eksportu do sieci (number)",
-          "binary_sensor_offgrid": "Sensor trybu Off-Grid / Zasilania awaryjnego"
+          "min_export_limit": "Minimalny docelowy limit eksportu (W, opcjonalnie)",
+          "binary_sensor_offgrid": "Sensor trybu Off-Grid / Zasilania awaryjnego",
+          "enable_eeprom_counter": "Włącz encję licznika zapisów falownika (diagnostyka)"
         }
       },
       "emhass": {
@@ -100,7 +102,9 @@
           "select_inverter_mode": "Encja trybu falownika (select)",
           "number_ems_power_limit": "Encja limitu mocy EMS (number)",
           "number_export_limit": "Encja limitu eksportu do sieci (number)",
-          "binary_sensor_offgrid": "Sensor trybu Off-Grid"
+          "min_export_limit": "Minimalny docelowy limit eksportu (W, opcjonalnie)",
+          "binary_sensor_offgrid": "Sensor trybu Off-Grid",
+          "enable_eeprom_counter": "Włącz encję licznika zapisów falownika (diagnostyka)"
         }
       },
       "emhass": {

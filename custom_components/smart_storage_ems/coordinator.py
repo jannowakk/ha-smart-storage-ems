@@ -25,6 +25,7 @@ from .const import (
     CONF_COST_FUNCTION,
     CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
+    CONF_ENABLE_EEPROM_COUNTER,
     CONF_ENABLE_IMPORT_GUARD,
     CONF_G11_PRICE,
     CONF_G12_PRICE_OFFPEAK,
@@ -41,6 +42,7 @@ from .const import (
     CONF_LOAD_FORECAST_ATTR,
     CONF_LOAD_FORECAST_ENTITY,
     CONF_LOAD_PROFILE_STATIC,
+    CONF_MIN_EXPORT_LIMIT,
     CONF_NUMBER_EMS_POWER_LIMIT,
     CONF_NUMBER_EXPORT_LIMIT,
     CONF_OPENMETEO_D3,
@@ -73,6 +75,7 @@ from .const import (
     CONF_WINTER_MIN_SOC,
     DEFAULT_BASE_MIN_SOC,
     DEFAULT_COST_FUNCTION,
+    DEFAULT_ENABLE_EEPROM_COUNTER,
     DEFAULT_EMHASS_URL,
     DEFAULT_HORIZON_STEPS,
     DEFAULT_PSE_RCE_MULTIPLIER,
@@ -148,7 +151,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=DOMAIN,
             update_interval=None,
         )
-        self.config = config
+        self.config = dict(config)
+        self.config.setdefault(CONF_ENABLE_EEPROM_COUNTER, DEFAULT_ENABLE_EEPROM_COUNTER)
         session = async_get_clientsession(hass)
         emhass_url = config.get(CONF_EMHASS_URL, DEFAULT_EMHASS_URL)
         emhass_token = config.get(CONF_EMHASS_TOKEN)
@@ -693,6 +697,13 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         finally:
             self._mpc_in_progress = False
 
+    @property
+    def inverter_write_count(self) -> int:
+        """Return total physical inverter register/EEPROM write count this session."""
+        if hasattr(self, "inverter") and self.inverter:
+            return getattr(self.inverter, "write_count", 0)
+        return 0
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Coordinator initial data load / manual refresh."""
         if self._last_mpc_success is not None:
@@ -711,10 +722,11 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "load_forecast": self._load_forecast,
             "load_forecast_source": self._load_forecast_source,
             "active_cost_function": self._active_cost_function,
+            "inverter_write_count": self.inverter_write_count,
         }
 
     async def _async_enforce_plan_tick(self, _now: Any) -> None:
-        """Periodic plan enforcement tick (runs every 60s) with MPC watchdog."""
+        """Periodic watchdog tick (runs every 60s). Only enforces plan on state transitions."""
         now_dt = datetime.now()
         # Watchdog: ensure MPC has run successfully
         if not self._mpc_in_progress:
@@ -730,7 +742,17 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 self.hass.async_create_task(self.async_run_mpc())
 
-        await self.async_enforce_plan()
+        # Check if battery reserve protection state transitioned between 30m MPC cycles
+        soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
+        reserve_triggered = soc <= self._dynamic_min_soc
+        reserve_released = self._reserve_hold_active and (soc >= (self._dynamic_min_soc + 0.02))
+
+        if (reserve_triggered and not self._reserve_hold_active) or reserve_released:
+            _LOGGER.debug(
+                "Reserve hold transition detected during watchdog tick (soc=%.1f%%). Enforcing plan.",
+                soc * 100,
+            )
+            await self.async_enforce_plan()
 
     async def async_enforce_plan(self) -> None:
         """Translate MPC forecast sensors into concrete inverter actions."""
@@ -751,8 +773,15 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._notify_coordinator_update()
                 return
 
-        # 2. Export Limit Check
-        await self.inverter.async_ensure_export_limit()
+        # 2. Export Limit Check (only when explicitly configured with a positive limit)
+        min_export_limit = self.config.get(CONF_MIN_EXPORT_LIMIT)
+        if min_export_limit is not None:
+            try:
+                min_limit_val = int(float(min_export_limit))
+                if min_limit_val > 0:
+                    await self.inverter.async_ensure_export_limit(min_limit_val)
+            except (ValueError, TypeError):
+                pass
 
         # 3. Manual Overrides
         if self.operation_mode != OPERATION_MODE_AUTO:
@@ -791,7 +820,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Scenario A: Charging requested by EMHASS (< -20W)
         if p_batt < -20:
             self._reserve_hold_active = False
-            charge_power = int(abs(p_batt))
+            charge_power = int(round(abs(p_batt) / 100.0) * 100)
 
             # Forced grid charging ONLY when EMHASS actually planned grid import AND price is in cheap valley
             if p_grid > 50 and is_cheap:
@@ -834,7 +863,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._is_grid_charging = False
             self._reserve_hold_active = False
             load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 0.0)
-            export_power = int(abs(p_grid) + load_now)
+            export_power = int(round((abs(p_grid) + load_now) / 100.0) * 100)
             await self.inverter.async_export_to_grid(export_power)
             self._last_ems_action = f"Eksport na sieć ({export_power}W)"
             self._record_decision(
@@ -1021,7 +1050,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         recent_logs = list(self._log_handler.buffer) if hasattr(self, "_log_handler") else []
 
         return {
-            "version": "1.4.0",
+            "version": "1.4.1",
             "timestamp": datetime.now().isoformat(),
             "operation_mode": self.operation_mode,
             "config_error": self._config_error,
@@ -1072,6 +1101,14 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "import_guard_enabled": self.import_guard.enabled,
                 "import_guard_threshold_w": self.import_guard.threshold,
                 "import_guard_trigger_count": getattr(self.import_guard, "_trigger_count", 0),
+            },
+            "eeprom_writes": {
+                "total_count": self.inverter_write_count,
+                "last_write_entity": getattr(self.inverter, "last_write_entity", None),
+                "last_write_value": getattr(self.inverter, "last_write_value", None),
+                "last_write_time": getattr(self.inverter, "last_write_time", None),
+                "writes_by_entity": getattr(self.inverter, "writes_by_entity", {}),
+                "recent_writes": getattr(self.inverter, "writes_log", []),
             },
             "recent_decisions": list(self._decision_history),
             "recent_logs": recent_logs,

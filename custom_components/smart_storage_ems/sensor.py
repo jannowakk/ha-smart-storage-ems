@@ -1,14 +1,14 @@
 """Sensors for Smart Storage EMS."""
 
 from typing import Any
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import CONF_ENABLE_EEPROM_COUNTER, DEFAULT_ENABLE_EEPROM_COUNTER, DOMAIN
 from .coordinator import SmartStorageCoordinator
 
 
@@ -20,17 +20,31 @@ async def async_setup_entry(
     """Set up Smart Storage EMS sensors."""
     coordinator: SmartStorageCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    async_add_entities(
-        [
-            SmartStorageStatusSensor(coordinator, entry),
-            SmartStorageTargetPowerSensor(coordinator, entry),
-            SmartStorageDynamicMinSocSensor(coordinator, entry),
-            SmartStorageSeasonModeSensor(coordinator, entry),
-            SmartStoragePvForecastSensor(coordinator, entry),
-            SmartStorageLoadForecastSensor(coordinator, entry),
-            SmartStorageDiagnosticSensor(coordinator, entry),
-        ]
-    )
+    sensors: list[SensorEntity] = [
+        SmartStorageStatusSensor(coordinator, entry),
+        SmartStorageTargetPowerSensor(coordinator, entry),
+        SmartStorageDynamicMinSocSensor(coordinator, entry),
+        SmartStorageSeasonModeSensor(coordinator, entry),
+        SmartStoragePvForecastSensor(coordinator, entry),
+        SmartStorageLoadForecastSensor(coordinator, entry),
+        SmartStorageDiagnosticSensor(coordinator, entry),
+    ]
+
+    config = {**entry.data, **entry.options}
+    if config.get(CONF_ENABLE_EEPROM_COUNTER, DEFAULT_ENABLE_EEPROM_COUNTER):
+        sensors.append(SmartStorageEepromWritesSensor(coordinator, entry))
+    else:
+        try:
+            from homeassistant.helpers import entity_registry as er
+            ent_reg = er.async_get(hass)
+            unique_id = f"{entry.entry_id}_inverter_writes"
+            entity_id = ent_reg.async_get_entity_id("sensor", DOMAIN, unique_id)
+            if entity_id:
+                ent_reg.async_remove(entity_id)
+        except Exception:
+            pass
+
+    async_add_entities(sensors)
 
 
 class SmartStorageStatusSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
@@ -230,6 +244,38 @@ class SmartStorageDiagnosticSensor(CoordinatorEntity[SmartStorageCoordinator], S
             "emhass_summary": diag.get("emhass", {}).get("last_payload_summary", {}),
             "guards": diag.get("guards", {}),
             "live_sensors": diag.get("live_sensors", {}),
+            "eeprom_writes": diag.get("eeprom_writes", {}),
         }
+
+
+class SmartStorageEepromWritesSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
+    """Diagnostic sensor tracking actual physical EEPROM/register writes to the inverter."""
+
+    def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_inverter_writes"
+        self._attr_name = "Smart Storage EMS: Licznik Zapisów Falownika"
+        self._attr_icon = "mdi:chip"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_native_unit_of_measurement = "zapisów"
+
+    @property
+    def native_value(self) -> int:
+        """Return current total write count."""
+        return self.coordinator.inverter_write_count
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose detailed breakdown of inverter writes."""
+        inverter = getattr(self.coordinator, "inverter", None)
+        return {
+            "ostatni_zapis_encja": getattr(inverter, "last_write_entity", None),
+            "ostatnia_wartosc": getattr(inverter, "last_write_value", None),
+            "czas_ostatniego_zapisu": getattr(inverter, "last_write_time", None),
+            "zapisy_wedlug_encji": getattr(inverter, "writes_by_entity", {}),
+            "historia_zapisow": getattr(inverter, "writes_log", []),
+        }
+
 
 

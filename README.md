@@ -9,7 +9,7 @@
 </p>
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jannowakk&repository=ha-smart-storage-ems&category=integration)
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/default)
+[![marketplace_badge](https://img.shields.io/badge/Marketplace-Official-brightgreen.svg)](https://github.com/hacs/default)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 **Smart Storage EMS** is an intelligent, modular Energy Management System wrapper for **EMHASS** in Home Assistant that translates mathematical battery optimization plans into safe, real-world control of hybrid solar inverters.
@@ -93,16 +93,16 @@ Click the badge below to open your Home Assistant instance and add this reposito
 
 ---
 
-### Method 2: HACS Custom Repository (HACS 2.0+ / Classic)
-1. Open **HACS** in the sidebar $\rightarrow$ **Integrations**.
-2. Click the three dots (`⋮`) in the top-right corner $\rightarrow$ **Custom repositories**.
-3. Paste `https://github.com/jannowakk/ha-smart-storage-ems` and select **Integration** as the category.
-4. Click **Add**, download **Smart Storage EMS**, and **restart Home Assistant**.
-5. Configure via **Settings -> Devices & Services -> Add Integration**.
+### Method 2: HACS / Marketplace (Official Store)
+Since **Smart Storage EMS** is included in the official HACS default repository (`hacs/default`):
+1. Open **HACS** (or **Marketplace**) from the Home Assistant sidebar.
+2. Search for **Smart Storage EMS**.
+3. Click **Download**, then **Restart Home Assistant**.
+4. Go to **Settings -> Devices & Services -> Add Integration** and search for **Smart Storage EMS**.
 
 ---
 
-### Method 3: Manual Installation
+### Method 3: Manual Installation (Without HACS)
 1. Download the latest release ZIP from the [Releases](https://github.com/jannowakk/ha-smart-storage-ems/releases) page.
 2. Copy `custom_components/smart_storage_ems` into your Home Assistant `/config/custom_components/` directory.
 3. **Restart Home Assistant** and add the integration via **Settings -> Devices & Services**.

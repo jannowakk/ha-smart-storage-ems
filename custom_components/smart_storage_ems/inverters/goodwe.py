@@ -26,17 +26,18 @@ class GoodWeInverter(BaseInverter):
         self._select_inverter_mode = config.get(CONF_SELECT_INVERTER_MODE)
         self._number_ems_power_limit = config.get(CONF_NUMBER_EMS_POWER_LIMIT)
         self._number_export_limit = config.get(CONF_NUMBER_EXPORT_LIMIT)
+        self._export_limit_verified: bool = False
 
-    async def _async_set_select(self, entity_id: str | None, option: str) -> None:
-        """Helper to call select.select_option safely."""
+    async def _async_set_select(self, entity_id: str | None, option: str) -> bool:
+        """Helper to call select.select_option safely. Returns True if a write occurred."""
         if not entity_id or not self.hass.states.get(entity_id):
             _LOGGER.warning("GoodWe: Entity %s not found in Home Assistant", entity_id)
-            return
+            return False
 
         current_state = self.hass.states.get(entity_id)
         if current_state and current_state.state == option:
             _LOGGER.debug("GoodWe: Entity %s already in option %s", entity_id, option)
-            return
+            return False
 
         _LOGGER.info("GoodWe: Setting %s -> %s", entity_id, option)
         await self.hass.services.async_call(
@@ -45,19 +46,28 @@ class GoodWeInverter(BaseInverter):
             {"entity_id": entity_id, "option": option},
             blocking=True,
         )
+        self._record_write(entity_id, option)
+        return True
 
     async def _async_set_number(
-        self, entity_id: str | None, value: float, force: bool = False
-    ) -> None:
-        """Helper to call number.set_value safely."""
+        self, entity_id: str | None, value: float, force: bool = False, deadband: float = 100.0
+    ) -> bool:
+        """Helper to call number.set_value safely. Returns True if a write occurred."""
         if not entity_id or not self.hass.states.get(entity_id):
-            return
+            return False
 
         if not force:
             current_state = self.hass.states.get(entity_id)
             try:
-                if current_state and abs(float(current_state.state) - float(value)) < 1.0:
-                    return
+                if current_state and abs(float(current_state.state) - float(value)) < deadband:
+                    _LOGGER.debug(
+                        "GoodWe: Entity %s current value %s within deadband (%.1fW) of %s. Skipping write.",
+                        entity_id,
+                        current_state.state,
+                        deadband,
+                        value,
+                    )
+                    return False
             except (ValueError, TypeError):
                 pass
 
@@ -68,6 +78,8 @@ class GoodWeInverter(BaseInverter):
             {"entity_id": entity_id, "value": value},
             blocking=True,
         )
+        self._record_write(entity_id, value)
+        return True
 
     async def async_hold_battery(self) -> None:
         """Put battery into standby (mode: general, ems: battery_standby)."""
@@ -83,26 +95,41 @@ class GoodWeInverter(BaseInverter):
 
     async def async_charge_battery(self, power_w: int) -> None:
         """Force charge battery from grid/PV with power limit."""
-        clamped_power = min(DEFAULT_MAX_POWER_LIMIT, max(100, int(power_w)))
+        clamped_power = min(DEFAULT_MAX_POWER_LIMIT, max(100, int(round(power_w / 100.0) * 100)))
         _LOGGER.info("GoodWe: Executing FORCE CHARGE (%dW)", clamped_power)
-        await self._async_set_select(self._select_inverter_mode, "general")
-        await self._async_set_select(self._select_ems_mode, "charge_battery")
-        # GoodWe Modbus resets or ignores power limit if written in the same tick as mode change
-        await asyncio.sleep(1.0)
-        await self._async_set_number(self._number_ems_power_limit, clamped_power, force=True)
+        mode_changed = False
+        if await self._async_set_select(self._select_inverter_mode, "general"):
+            mode_changed = True
+        if await self._async_set_select(self._select_ems_mode, "charge_battery"):
+            mode_changed = True
+
+        # Only force write power limit if the mode actually changed.
+        # If mode was already charge_battery, only write if power changed beyond deadband (100W).
+        if mode_changed:
+            await asyncio.sleep(1.0)
+            await self._async_set_number(self._number_ems_power_limit, clamped_power, force=True)
+        else:
+            await self._async_set_number(self._number_ems_power_limit, clamped_power, force=False, deadband=100.0)
 
     async def async_export_to_grid(self, power_w: int) -> None:
         """Force discharge battery to grid with power limit."""
-        clamped_power = min(DEFAULT_MAX_POWER_LIMIT, max(100, int(power_w)))
+        clamped_power = min(DEFAULT_MAX_POWER_LIMIT, max(100, int(round(power_w / 100.0) * 100)))
         _LOGGER.info("GoodWe: Executing EXPORT TO GRID (%dW)", clamped_power)
-        await self._async_set_select(self._select_inverter_mode, "general")
-        await self._async_set_select(self._select_ems_mode, "export_ac")
-        await asyncio.sleep(1.0)
-        await self._async_set_number(self._number_ems_power_limit, clamped_power, force=True)
+        mode_changed = False
+        if await self._async_set_select(self._select_inverter_mode, "general"):
+            mode_changed = True
+        if await self._async_set_select(self._select_ems_mode, "export_ac"):
+            mode_changed = True
+
+        if mode_changed:
+            await asyncio.sleep(1.0)
+            await self._async_set_number(self._number_ems_power_limit, clamped_power, force=True)
+        else:
+            await self._async_set_number(self._number_ems_power_limit, clamped_power, force=False, deadband=100.0)
 
     async def async_ensure_export_limit(self, min_limit: int = 10000) -> None:
-        """Ensure grid export limit is set high enough."""
-        if not self._number_export_limit:
+        """Ensure grid export limit is set high enough (verified once per session)."""
+        if self._export_limit_verified or not self._number_export_limit:
             return
         state = self.hass.states.get(self._number_export_limit)
         if state:
@@ -114,6 +141,7 @@ class GoodWeInverter(BaseInverter):
                         current_val,
                         min_limit,
                     )
-                    await self._async_set_number(self._number_export_limit, min_limit)
+                    await self._async_set_number(self._number_export_limit, min_limit, deadband=10.0)
+                self._export_limit_verified = True
             except (ValueError, TypeError):
                 pass

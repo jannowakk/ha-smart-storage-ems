@@ -30,6 +30,9 @@ const DIAG_I18N = {
     col_value: 'Wartość',
     col_status: 'Status',
     sec_inverter: 'Odczyt Zwrotny Falownika (Home Assistant)',
+    sec_eeprom: 'Pamięć Falownika (Ochrona EEPROM)',
+    writes_unit: 'zapisów',
+    lbl_last_write: 'Ostatni fizyczny zapis:',
     steps_48h: 'kroków (48h)',
     stat_min: 'MIN',
     stat_avg: 'ŚREDNIA',
@@ -78,6 +81,9 @@ const DIAG_I18N = {
     col_value: 'Value',
     col_status: 'Status',
     sec_inverter: 'Inverter Readback (Home Assistant)',
+    sec_eeprom: 'Inverter Memory (EEPROM Protection)',
+    writes_unit: 'writes',
+    lbl_last_write: 'Last physical write:',
     steps_48h: 'steps (48h)',
     stat_min: 'MIN',
     stat_avg: 'AVG',
@@ -241,6 +247,22 @@ class SmartStorageDiagnosticCard extends HTMLElement {
     return 6;
   }
 
+  getGridOptions() {
+    return {
+      columns: 12,
+      rows: 'auto',
+      min_columns: 6,
+      min_rows: 3,
+    };
+  }
+
+  getLayoutOptions() {
+    return {
+      grid_columns: 12,
+      grid_rows: 'auto',
+    };
+  }
+
   _resolveEntity(configKey, candidates) {
     if (this.config && this.config[configKey]) {
       return this.config[configKey];
@@ -269,6 +291,20 @@ class SmartStorageDiagnosticCard extends HTMLElement {
 
   updateCard() {
     if (!this._hass || !this.content) return;
+
+    try {
+      this._renderCard();
+    } catch (err) {
+      console.error('SmartStorageDiagnosticCard error in updateCard:', err);
+      this.content.innerHTML = `
+        <div style="padding: 16px; color: var(--error-color, #e53935);">
+          <b>Smart Storage Diagnostic Card Error:</b> ${escapeHtml(err.message || String(err))}
+        </div>
+      `;
+    }
+  }
+
+  _renderCard() {
 
     const logConsole = this.content.querySelector('#log-console');
     const prevScrollTop = logConsole ? logConsole.scrollTop : (this._savedLogScrollTop || 0);
@@ -440,6 +476,43 @@ class SmartStorageDiagnosticCard extends HTMLElement {
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">
             ${inverterHtml}
           </div>
+          ${(() => {
+            const writesSensor = this._hass.states['sensor.smart_storage_ems_licznik_zapisow_falownika'];
+            const isEnabled = attrs.configuration
+              ? (attrs.configuration.enable_eeprom_counter === true)
+              : (writesSensor && writesSensor.state !== 'unavailable' && writesSensor.state !== 'unknown');
+            if (!isEnabled) {
+              return '';
+            }
+            const eeprom = (writesSensor && writesSensor.attributes) || attrs.eeprom_writes || {};
+            const total = (writesSensor && writesSensor.state && !isNaN(parseInt(writesSensor.state)))
+              ? parseInt(writesSensor.state)
+              : (eeprom.total_count || 0);
+            const rawEnt = eeprom.last_write_entity || eeprom.ostatni_zapis_encja;
+            const rawVal = eeprom.last_write_value !== undefined ? eeprom.last_write_value : eeprom.ostatnia_wartosc;
+            const lastEnt = rawEnt ? `${rawEnt.split('.').pop()} (${rawVal !== undefined ? rawVal : '-'})` : this._t('none');
+            const rawTime = eeprom.last_write_time || eeprom.czas_ostatniego_zapisu;
+            const lastTime = rawTime ? new Date(rawTime).toLocaleTimeString() : '-';
+            const byEnt = eeprom.writes_by_entity || eeprom.zapisy_wedlug_encji || {};
+            const breakdown = Object.entries(byEnt).map(([k, v]) => `<span>${escapeHtml(k.split('.').pop())}: <b>${escapeHtml(v)}</b></span>`).join(' &bull; ');
+            return `
+              <div style="margin-top: 12px; padding: 10px; background: rgba(127,127,127,0.06); border-radius: 6px; border: 1px solid rgba(127,127,127,0.15);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                  <div style="font-weight: bold; font-size: 0.9em; display: flex; align-items: center; gap: 6px;">
+                    <ha-icon icon="mdi:chip" style="--mdc-icon-size: 18px; color: ${total > 200 ? 'var(--warning-color, #ff9800)' : 'var(--success-color, #4caf50)'};"></ha-icon>
+                    ${this._t('sec_eeprom')}
+                  </div>
+                  <span style="font-size: 0.85em; font-weight: bold; padding: 2px 8px; border-radius: 10px; background: ${total > 200 ? 'rgba(255,152,0,0.15)' : 'rgba(76,175,80,0.15)'}; color: ${total > 200 ? '#ff9800' : '#4caf50'};">
+                    ${escapeHtml(total)} ${escapeHtml(this._t('writes_unit'))}
+                  </span>
+                </div>
+                <div style="font-size: 0.8em; opacity: 0.8; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px;">
+                  <div>${this._t('lbl_last_write')} <b>${escapeHtml(lastEnt)}</b> (${escapeHtml(lastTime)})</div>
+                  ${breakdown ? `<div>${breakdown}</div>` : ''}
+                </div>
+              </div>
+            `;
+          })()}
         </div>
       `;
     }

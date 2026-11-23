@@ -1,16 +1,22 @@
 """Unit tests for charging logic and price guard in Smart Storage EMS."""
 
+import asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 from custom_components.smart_storage_ems.const import (
     CONF_G13_PRICE_T1,
     CONF_G13_PRICE_T2,
     CONF_G13_PRICE_T3,
+    CONF_MIN_EXPORT_LIMIT,
+    CONF_NUMBER_EMS_POWER_LIMIT,
+    CONF_SELECT_EMS_MODE,
+    CONF_SELECT_INVERTER_MODE,
     CONF_TARIFF_MODE,
     OPERATION_MODE_AUTO,
     TARIFF_MODE_G13,
 )
 from custom_components.smart_storage_ems.coordinator import SmartStorageCoordinator
+from custom_components.smart_storage_ems.inverters.goodwe import GoodWeInverter
 
 
 def _create_test_coordinator(now_dt: datetime) -> SmartStorageCoordinator:
@@ -217,4 +223,155 @@ def test_peak_zone_zero_batt_uses_self_consumption() -> None:
         assert "Autokonsumpcja (Auto)" in coord._last_ems_action
     finally:
         dt_util.now = original_now
+
+
+def test_watchdog_does_not_call_enforce_plan_when_steady() -> None:
+    """Watchdog tick runs every 60s but must NOT enforce plan if reserve state is steady."""
+    import asyncio
+    coord = _create_test_coordinator(datetime.now())
+    coord.async_enforce_plan = AsyncMock()
+    coord._dynamic_min_soc = 0.40
+    coord._reserve_hold_active = False
+
+    # SoC = 60% (well above 40%, steady)
+    coord._get_float_state = lambda eid, default=0.0: 60.0  # type: ignore
+
+    asyncio.run(coord._async_enforce_plan_tick(None))
+    assert not coord.async_enforce_plan.called
+
+    # Now simulate SoC dropping below min_soc (e.g. 38%) -> must trigger enforce!
+    coord._get_float_state = lambda eid, default=0.0: 38.0  # type: ignore
+    asyncio.run(coord._async_enforce_plan_tick(None))
+    assert coord.async_enforce_plan.called
+
+
+def test_goodwe_deadband_and_export_limit_verified_once() -> None:
+    """GoodWe driver must skip redundant writes within 100W deadband and verify export limit only once."""
+    import asyncio
+    from custom_components.smart_storage_ems.inverters.goodwe import GoodWeInverter
+    from custom_components.smart_storage_ems.const import (
+        CONF_SELECT_EMS_MODE,
+        CONF_SELECT_INVERTER_MODE,
+        CONF_NUMBER_EMS_POWER_LIMIT,
+        CONF_NUMBER_EXPORT_LIMIT,
+    )
+
+    hass_mock = MagicMock()
+    # Mock state objects
+    states_dict = {
+        "select.goodwe_tryb": MagicMock(state="general"),
+        "select.goodwe_ems": MagicMock(state="charge_battery"),
+        "number.goodwe_power": MagicMock(state="3000.0"),
+        "number.goodwe_export": MagicMock(state="10000.0"),
+    }
+    hass_mock.states.get = lambda eid: states_dict.get(eid)
+    hass_mock.services.async_call = AsyncMock()
+
+    config = {
+        CONF_SELECT_INVERTER_MODE: "select.goodwe_tryb",
+        CONF_SELECT_EMS_MODE: "select.goodwe_ems",
+        CONF_NUMBER_EMS_POWER_LIMIT: "number.goodwe_power",
+        CONF_NUMBER_EXPORT_LIMIT: "number.goodwe_export",
+    }
+    drv = GoodWeInverter(hass_mock, config)
+
+    # 1. Calling charge_battery with 3045W (within 100W deadband of 3000W and mode already charge_battery)
+    asyncio.run(drv.async_charge_battery(3045))
+    # Must NOT call async_call because mode didn't change and delta 45W < 100W deadband!
+    assert not hass_mock.services.async_call.called
+
+    # 2. Calling ensure_export_limit -> first time verifies, second time must return immediately
+    assert drv._export_limit_verified is False
+    asyncio.run(drv.async_ensure_export_limit(10000))
+    assert drv._export_limit_verified is True
+    # Reset mock and call again:
+    hass_mock.services.async_call.reset_mock()
+    asyncio.run(drv.async_ensure_export_limit(10000))
+    assert not hass_mock.services.async_call.called
+
+
+def test_ensure_export_limit_parameterization() -> None:
+    """Verify that export limit is only ensured when CONF_MIN_EXPORT_LIMIT is configured and > 0."""
+    now_dt = datetime(2026, 11, 22, 12, 0)
+    coord = _create_test_coordinator(now_dt)
+    coord._get_float_state = lambda entity_id, default=0.0: 0.0
+
+    # 1. When CONF_MIN_EXPORT_LIMIT is None / omitted:
+    asyncio.run(coord.async_enforce_plan())
+    assert not coord.inverter.async_ensure_export_limit.called
+
+    # 2. When CONF_MIN_EXPORT_LIMIT is configured with 7500 W:
+    coord.config[CONF_MIN_EXPORT_LIMIT] = 7500
+    coord.inverter.async_ensure_export_limit.reset_mock()
+    asyncio.run(coord.async_enforce_plan())
+    coord.inverter.async_ensure_export_limit.assert_called_once_with(7500)
+
+
+def test_inverter_write_counter_and_sensor() -> None:
+    """Verify that physical writes increment write_count and are tracked in sensor."""
+    hass_mock = MagicMock()
+    # Mock current state for GoodWe entities:
+    states_dict = {
+        "select.goodwe_tryb": MagicMock(state="backup"),
+        "select.goodwe_ems": MagicMock(state="auto"),
+        "number.goodwe_power": MagicMock(state="1000.0"),
+    }
+    hass_mock.states.get = lambda ent_id: states_dict.get(ent_id)
+    hass_mock.services.async_call = AsyncMock()
+
+    config = {
+        CONF_SELECT_INVERTER_MODE: "select.goodwe_tryb",
+        CONF_SELECT_EMS_MODE: "select.goodwe_ems",
+        CONF_NUMBER_EMS_POWER_LIMIT: "number.goodwe_power",
+    }
+    drv = GoodWeInverter(hass_mock, config)
+    assert drv.write_count == 0
+
+    # Execute charge battery (mode changed from backup->general and auto->charge_battery, plus power changed):
+    asyncio.run(drv.async_charge_battery(3000))
+    # Mode changed: select_inverter_mode (1), select_ems_mode (1), number_ems_power_limit (1) = 3 writes
+    assert drv.write_count == 3
+    assert drv.last_write_entity == "number.goodwe_power"
+    assert drv.last_write_value == 3000
+    assert drv.writes_by_entity["number.goodwe_power"] == 1
+    assert drv.writes_by_entity["select.goodwe_tryb"] == 1
+    assert drv.writes_by_entity["select.goodwe_ems"] == 1
+
+    # Now call again with same state and power:
+    states_dict["select.goodwe_tryb"].state = "general"
+    states_dict["select.goodwe_ems"].state = "charge_battery"
+    states_dict["number.goodwe_power"].state = "3000.0"
+
+    # Call with 3050W (within 100W deadband, same mode):
+    asyncio.run(drv.async_charge_battery(3050))
+    # Write count must NOT increment!
+    assert drv.write_count == 3
+
+
+def test_eeprom_writes_sensor_optional() -> None:
+    """Verify that SmartStorageEepromWritesSensor is only instantiated when enabled in config."""
+    from custom_components.smart_storage_ems.const import CONF_ENABLE_EEPROM_COUNTER, DOMAIN
+    from custom_components.smart_storage_ems.sensor import async_setup_entry, SmartStorageEepromWritesSensor
+
+    hass_mock = MagicMock()
+    entry_mock = MagicMock()
+    entry_mock.entry_id = "test_entry"
+    coordinator_mock = MagicMock()
+    hass_mock.data = {DOMAIN: {"test_entry": coordinator_mock}}
+
+    # 1. Default (disabled):
+    entry_mock.data = {}
+    entry_mock.options = {}
+    added_entities_1 = []
+    asyncio.run(async_setup_entry(hass_mock, entry_mock, lambda ents: added_entities_1.extend(ents)))
+    assert not any(isinstance(e, SmartStorageEepromWritesSensor) for e in added_entities_1)
+
+    # 2. Explicitly enabled:
+    entry_mock.options = {CONF_ENABLE_EEPROM_COUNTER: True}
+    added_entities_2 = []
+    asyncio.run(async_setup_entry(hass_mock, entry_mock, lambda ents: added_entities_2.extend(ents)))
+    assert any(isinstance(e, SmartStorageEepromWritesSensor) for e in added_entities_2)
+
+
+
 

@@ -35,6 +35,16 @@ class FakeCoordinator:
     def async_update_listeners(self):
         pass
 
+class FakeCoordinatorEntity:
+    def __init__(self, *args, **kwargs):
+        pass
+    def __class_getitem__(cls, item):
+        return cls
+
+class FakeSensorEntity:
+    def __init__(self, *args, **kwargs):
+        pass
+
 from datetime import datetime
 dt_mock = MagicMock()
 dt_mock.now = datetime.now
@@ -42,6 +52,8 @@ dt_mock.as_local = lambda dt: dt
 ha_mock.dt = dt_mock
 
 sys.modules["homeassistant.helpers.update_coordinator"].DataUpdateCoordinator = FakeCoordinator
+sys.modules["homeassistant.helpers.update_coordinator"].CoordinatorEntity = FakeCoordinatorEntity
+sys.modules["homeassistant.components.sensor"].SensorEntity = FakeSensorEntity
 sys.modules["homeassistant.helpers.entity_platform"] = ha_mock
 sys.modules["homeassistant.util"] = ha_mock
 sys.modules["homeassistant.util.dt"] = dt_mock
@@ -77,6 +89,11 @@ from tests.test_charging_logic import (
     test_g13s_price_guard_solar_window_and_peak_blocking,
     test_cheap_valley_zero_batt_holds_battery_standby,
     test_peak_zone_zero_batt_uses_self_consumption,
+    test_watchdog_does_not_call_enforce_plan_when_steady,
+    test_goodwe_deadband_and_export_limit_verified_once,
+    test_ensure_export_limit_parameterization,
+    test_inverter_write_counter_and_sensor,
+    test_eeprom_writes_sensor_optional,
 )
 from tests.test_pse_rce import (
     test_aggregate_15m_to_30m,
@@ -156,6 +173,21 @@ if __name__ == "__main__":
 
     test_peak_zone_zero_batt_uses_self_consumption()
     print("✓ test_peak_zone_zero_batt_uses_self_consumption passed")
+
+    test_watchdog_does_not_call_enforce_plan_when_steady()
+    print("✓ test_watchdog_does_not_call_enforce_plan_when_steady passed")
+
+    test_goodwe_deadband_and_export_limit_verified_once()
+    print("✓ test_goodwe_deadband_and_export_limit_verified_once passed")
+
+    test_ensure_export_limit_parameterization()
+    print("✓ test_ensure_export_limit_parameterization passed")
+
+    test_inverter_write_counter_and_sensor()
+    print("✓ test_inverter_write_counter_and_sensor passed")
+
+    test_eeprom_writes_sensor_optional()
+    print("✓ test_eeprom_writes_sensor_optional passed")
 
     import asyncio
     asyncio.run(TestDiagnostics().test_async_get_config_entry_diagnostics())
