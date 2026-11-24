@@ -106,6 +106,8 @@ CONF_IMPORT_GUARD_DURATION = "import_guard_duration"
 CONF_BASE_MIN_SOC = "base_min_soc"
 CONF_WINTER_MIN_SOC = "winter_min_soc"
 CONF_WEATHER_ALERT_ENTITY = "weather_alert_entity"
+CONF_ENABLE_PRICE_GUARD = "enable_price_guard"
+DEFAULT_ENABLE_PRICE_GUARD = True
 
 # Defaults
 DEFAULT_EMHASS_URL = "http://localhost:5000"

@@ -17,6 +17,8 @@ from .const import (
     CONF_EMHASS_URL,
     CONF_ENABLE_EEPROM_COUNTER,
     CONF_ENABLE_IMPORT_GUARD,
+    CONF_ENABLE_PRICE_GUARD,
+    DEFAULT_ENABLE_PRICE_GUARD,
     CONF_G11_PRICE,
     CONF_G12_PRICE_OFFPEAK,
     CONF_G12_PRICE_PEAK,
@@ -292,6 +294,7 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # --- Grupa 5: Strażnik Importu i Rezerwy ---
                 vol.Optional(CONF_ENABLE_IMPORT_GUARD, default=True): bool,
+                vol.Optional(CONF_ENABLE_PRICE_GUARD, default=DEFAULT_ENABLE_PRICE_GUARD): bool,
                 vol.Optional(CONF_IMPORT_GUARD_THRESHOLD, default=DEFAULT_IMPORT_GUARD_THRESHOLD): float,
                 vol.Optional(CONF_BASE_MIN_SOC, default=DEFAULT_BASE_MIN_SOC): float,
                 vol.Optional(CONF_WINTER_MIN_SOC, default=DEFAULT_WINTER_MIN_SOC): float,
@@ -371,6 +374,7 @@ TARIFFS_STEP_FIELDS = [
 
 GUARDS_STEP_FIELDS = [
     CONF_ENABLE_IMPORT_GUARD,
+    CONF_ENABLE_PRICE_GUARD,
     CONF_IMPORT_GUARD_THRESHOLD,
     CONF_BASE_MIN_SOC,
     CONF_WINTER_MIN_SOC,
@@ -698,6 +702,10 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_ENABLE_IMPORT_GUARD,
                     default=bool(data.get(CONF_ENABLE_IMPORT_GUARD, True)),
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_PRICE_GUARD,
+                    default=bool(data.get(CONF_ENABLE_PRICE_GUARD, DEFAULT_ENABLE_PRICE_GUARD)),
                 ): bool,
                 vol.Optional(
                     CONF_IMPORT_GUARD_THRESHOLD,

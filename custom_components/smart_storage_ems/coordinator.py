@@ -27,6 +27,8 @@ from .const import (
     CONF_EMHASS_URL,
     CONF_ENABLE_EEPROM_COUNTER,
     CONF_ENABLE_IMPORT_GUARD,
+    CONF_ENABLE_PRICE_GUARD,
+    DEFAULT_ENABLE_PRICE_GUARD,
     CONF_G11_PRICE,
     CONF_G12_PRICE_OFFPEAK,
     CONF_G12_PRICE_PEAK,
@@ -815,22 +817,24 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
         self._target_power = p_batt
         now_dt = dt_util.now()
-        is_cheap = self._is_cheap_buy_price(now_dt)
+        enable_price_guard = self.config.get(CONF_ENABLE_PRICE_GUARD, DEFAULT_ENABLE_PRICE_GUARD)
+        is_cheap = self._is_cheap_buy_price(now_dt) if enable_price_guard else True
 
         # Scenario A: Charging requested by EMHASS (< -20W)
         if p_batt < -20:
             self._reserve_hold_active = False
             charge_power = int(round(abs(p_batt) / 100.0) * 100)
 
-            # Forced grid charging ONLY when EMHASS actually planned grid import AND price is in cheap valley
+            # Forced grid charging when EMHASS planned grid import AND price is in allowed price zone
             if p_grid > 50 and is_cheap:
                 self._is_grid_charging = True
                 await self.inverter.async_charge_battery(charge_power)
                 self._last_ems_action = f"Ładowanie z sieci ({charge_power}W)"
+                decision_reason = "Plan EMHASS w taniej dolinie cenowej" if enable_price_guard else "Plan EMHASS (pełna autonomia solvera)"
                 self._record_decision(
                     "EMHASS MPC",
                     f"Ładowanie z sieci ({charge_power}W)",
-                    "Plan EMHASS w taniej dolinie cenowej",
+                    decision_reason,
                     {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1)},
                 )
             else:
