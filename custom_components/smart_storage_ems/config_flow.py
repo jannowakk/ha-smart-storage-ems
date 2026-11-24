@@ -13,6 +13,14 @@ from .const import (
     CONF_BUY_PRICE_ENTITY,
     CONF_BUY_PRICE_STATIC,
     CONF_COST_FUNCTION,
+    CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
+    CONF_DEYE_NUMBER_CHARGE_CURRENT,
+    CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+    CONF_DEYE_SELECT_WORK_MODE,
+    CONF_DEYE_SENSOR_BATTERY_VOLTAGE,
+    CONF_DEYE_SWITCH_GRID_CHARGE,
+    CONF_DEYE_SWITCH_SELL_SOLAR,
+    DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE,
     CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
     CONF_ENABLE_EEPROM_COUNTER,
@@ -76,6 +84,8 @@ from .const import (
     DEFAULT_PV_POWER_THRESHOLD,
     DEFAULT_WINTER_MIN_SOC,
     DOMAIN,
+    INVERTER_TYPE_DEYE,
+    INVERTER_TYPE_GOODWE,
     SELL_PRICE_MODE_PSE_RCE,
     SELL_PRICE_MODE_SENSOR,
     SELL_PRICE_MODE_STATIC,
@@ -106,59 +116,85 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._data.update(user_input)
             return await self.async_step_emhass()
 
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_INVERTER_TYPE, default="goodwe"): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=["goodwe"],
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    )
-                ),
-                vol.Required(CONF_SENSOR_SOC): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_SENSOR_BATTERY_POWER): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_SENSOR_PV_POWER): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_SENSOR_LOAD_POWER): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_SENSOR_GRID_IMPORT): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_SELECT_EMS_MODE): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="select")
-                ),
-                vol.Required(CONF_SELECT_INVERTER_MODE): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="select")
-                ),
-                vol.Optional(CONF_NUMBER_EMS_POWER_LIMIT): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="number")
-                ),
-                vol.Optional(CONF_NUMBER_EXPORT_LIMIT): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="number")
-                ),
-                vol.Optional(CONF_MIN_EXPORT_LIMIT): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0,
-                        max=50000,
-                        step=100,
-                        unit_of_measurement="W",
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Optional(CONF_BINARY_SENSOR_OFFGRID): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="binary_sensor")
-                ),
-                vol.Optional(
-                    CONF_ENABLE_EEPROM_COUNTER,
-                    default=DEFAULT_ENABLE_EEPROM_COUNTER,
-                ): selector.BooleanSelector(),
-            }
-        )
+        schema_dict: dict[Any, Any] = {
+            vol.Required(CONF_INVERTER_TYPE, default="goodwe"): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[
+                        {"value": "goodwe", "label": "GoodWe (ET / ES / EH / Lynx)"},
+                        {"value": "deye", "label": "Deye / SunSynk / Sol-Ark [BETA]"},
+                    ],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            ),
+            vol.Required(CONF_SENSOR_SOC): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(CONF_SENSOR_BATTERY_POWER): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Required(CONF_SENSOR_PV_POWER): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Required(CONF_SENSOR_LOAD_POWER): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(CONF_SENSOR_GRID_IMPORT): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(CONF_BINARY_SENSOR_OFFGRID): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="binary_sensor")
+            ),
+            # --- Pola dla GoodWe ---
+            vol.Optional(CONF_SELECT_EMS_MODE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="select")
+            ),
+            vol.Optional(CONF_SELECT_INVERTER_MODE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="select")
+            ),
+            vol.Optional(CONF_NUMBER_EMS_POWER_LIMIT): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(CONF_NUMBER_EXPORT_LIMIT): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(CONF_MIN_EXPORT_LIMIT): selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    min=0,
+                    max=50000,
+                    step=100,
+                    unit_of_measurement="W",
+                    mode=selector.NumberSelectorMode.BOX,
+                )
+            ),
+            vol.Optional(
+                CONF_ENABLE_EEPROM_COUNTER,
+                default=DEFAULT_ENABLE_EEPROM_COUNTER,
+            ): selector.BooleanSelector(),
+            # --- Pola dla Deye / SunSynk ---
+            vol.Optional(CONF_DEYE_SELECT_WORK_MODE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="select")
+            ),
+            vol.Optional(CONF_DEYE_SWITCH_GRID_CHARGE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="switch")
+            ),
+            vol.Optional(CONF_DEYE_SWITCH_SELL_SOLAR): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="switch")
+            ),
+            vol.Optional(CONF_DEYE_NUMBER_CHARGE_CURRENT): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(CONF_DEYE_NUMBER_DISCHARGE_CURRENT): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(CONF_DEYE_SENSOR_BATTERY_VOLTAGE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="sensor")
+            ),
+            vol.Optional(
+                CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
+                default=DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE,
+            ): float,
+        }
+        schema = vol.Schema(schema_dict)
         return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_emhass(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
@@ -313,6 +349,7 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 INVERTER_STEP_FIELDS = [
+    CONF_INVERTER_TYPE,
     CONF_SENSOR_SOC,
     CONF_SENSOR_BATTERY_POWER,
     CONF_SENSOR_PV_POWER,
@@ -325,6 +362,13 @@ INVERTER_STEP_FIELDS = [
     CONF_MIN_EXPORT_LIMIT,
     CONF_BINARY_SENSOR_OFFGRID,
     CONF_ENABLE_EEPROM_COUNTER,
+    CONF_DEYE_SELECT_WORK_MODE,
+    CONF_DEYE_SWITCH_GRID_CHARGE,
+    CONF_DEYE_SWITCH_SELL_SOLAR,
+    CONF_DEYE_NUMBER_CHARGE_CURRENT,
+    CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+    CONF_DEYE_SENSOR_BATTERY_VOLTAGE,
+    CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
 ]
 
 EMHASS_STEP_FIELDS = [
@@ -418,6 +462,18 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
         schema = vol.Schema(
             {
                 vol.Required(
+                    CONF_INVERTER_TYPE,
+                    default=data.get(CONF_INVERTER_TYPE, "goodwe"),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {"value": "goodwe", "label": "GoodWe (ET / ES / EH / Lynx)"},
+                            {"value": "deye", "label": "Deye / SunSynk / Sol-Ark [BETA]"},
+                        ],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required(
                     CONF_SENSOR_SOC,
                     default=data.get(CONF_SENSOR_SOC),
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
@@ -437,13 +493,13 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     CONF_SENSOR_GRID_IMPORT,
                     description={"suggested_value": data.get(CONF_SENSOR_GRID_IMPORT) or None},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Required(
+                vol.Optional(
                     CONF_SELECT_EMS_MODE,
-                    default=data.get(CONF_SELECT_EMS_MODE),
+                    description={"suggested_value": data.get(CONF_SELECT_EMS_MODE) or None},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
-                vol.Required(
+                vol.Optional(
                     CONF_SELECT_INVERTER_MODE,
-                    default=data.get(CONF_SELECT_INVERTER_MODE),
+                    description={"suggested_value": data.get(CONF_SELECT_INVERTER_MODE) or None},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
                 vol.Optional(
                     CONF_NUMBER_EMS_POWER_LIMIT,
@@ -473,6 +529,35 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     CONF_ENABLE_EEPROM_COUNTER,
                     default=data.get(CONF_ENABLE_EEPROM_COUNTER, DEFAULT_ENABLE_EEPROM_COUNTER),
                 ): selector.BooleanSelector(),
+                # --- Pola dla Deye / SunSynk ---
+                vol.Optional(
+                    CONF_DEYE_SELECT_WORK_MODE,
+                    description={"suggested_value": data.get(CONF_DEYE_SELECT_WORK_MODE) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                vol.Optional(
+                    CONF_DEYE_SWITCH_GRID_CHARGE,
+                    description={"suggested_value": data.get(CONF_DEYE_SWITCH_GRID_CHARGE) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="switch")),
+                vol.Optional(
+                    CONF_DEYE_SWITCH_SELL_SOLAR,
+                    description={"suggested_value": data.get(CONF_DEYE_SWITCH_SELL_SOLAR) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="switch")),
+                vol.Optional(
+                    CONF_DEYE_NUMBER_CHARGE_CURRENT,
+                    description={"suggested_value": data.get(CONF_DEYE_NUMBER_CHARGE_CURRENT) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+                    description={"suggested_value": data.get(CONF_DEYE_NUMBER_DISCHARGE_CURRENT) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_DEYE_SENSOR_BATTERY_VOLTAGE,
+                    description={"suggested_value": data.get(CONF_DEYE_SENSOR_BATTERY_VOLTAGE) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                vol.Optional(
+                    CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
+                    default=float(data.get(CONF_DEYE_BATTERY_NOMINAL_VOLTAGE, DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE)),
+                ): float,
             }
         )
         return self.async_show_form(step_id="inverter", data_schema=schema)

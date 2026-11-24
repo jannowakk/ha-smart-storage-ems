@@ -9,21 +9,38 @@ CONF_HORIZON_STEPS = "horizon_steps"
 CONF_STEP_MINUTES = "step_minutes"
 CONF_COST_FUNCTION = "cost_function"
 
-# Configuration Keys - Inverter / GoodWe
+# Configuration Keys - Inverter Hardware / Common
 CONF_INVERTER_TYPE = "inverter_type"
+INVERTER_TYPE_GOODWE = "goodwe"
+INVERTER_TYPE_DEYE = "deye"
+INVERTER_TYPES = [INVERTER_TYPE_GOODWE, INVERTER_TYPE_DEYE]
+
 CONF_SENSOR_SOC = "sensor_soc"
 CONF_SENSOR_BATTERY_POWER = "sensor_battery_power"
 CONF_SENSOR_PV_POWER = "sensor_pv_power"
 CONF_SENSOR_LOAD_POWER = "sensor_load_power"
 CONF_SENSOR_GRID_IMPORT = "sensor_grid_import"
+CONF_BINARY_SENSOR_OFFGRID = "binary_sensor_offgrid"
+CONF_ENABLE_EEPROM_COUNTER = "enable_eeprom_counter"
+DEFAULT_ENABLE_EEPROM_COUNTER = False
+
+# Configuration Keys - GoodWe Inverter HAL
 CONF_SELECT_EMS_MODE = "select_ems_mode"
 CONF_SELECT_INVERTER_MODE = "select_inverter_mode"
 CONF_NUMBER_EMS_POWER_LIMIT = "number_ems_power_limit"
 CONF_NUMBER_EXPORT_LIMIT = "number_export_limit"
 CONF_MIN_EXPORT_LIMIT = "min_export_limit"
-CONF_BINARY_SENSOR_OFFGRID = "binary_sensor_offgrid"
-CONF_ENABLE_EEPROM_COUNTER = "enable_eeprom_counter"
-DEFAULT_ENABLE_EEPROM_COUNTER = False
+
+# Configuration Keys - Deye / SunSynk Inverter HAL
+CONF_DEYE_SELECT_WORK_MODE = "deye_select_work_mode"
+CONF_DEYE_SWITCH_GRID_CHARGE = "deye_switch_grid_charge"
+CONF_DEYE_SWITCH_SELL_SOLAR = "deye_switch_sell_solar"
+CONF_DEYE_NUMBER_CHARGE_CURRENT = "deye_number_charge_current"
+CONF_DEYE_NUMBER_DISCHARGE_CURRENT = "deye_number_discharge_current"
+CONF_DEYE_SENSOR_BATTERY_VOLTAGE = "deye_sensor_battery_voltage"
+CONF_DEYE_BATTERY_NOMINAL_VOLTAGE = "deye_battery_nominal_voltage"
+DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE = 51.2  # Volts (standard 48V / 16S LiFePO4)
+DEFAULT_DEYE_MAX_CURRENT = 100.0  # Amperes
 
 # Configuration Keys - Forecasts & Tariffs
 CONF_TARIFF_MODE = "tariff_mode"

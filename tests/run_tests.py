@@ -193,6 +193,18 @@ if __name__ == "__main__":
     asyncio.run(TestDiagnostics().test_async_get_config_entry_diagnostics())
     print("✓ test_async_get_config_entry_diagnostics passed")
 
+    from tests.test_deye_driver import (
+        test_deye_power_to_amperes_conversion,
+        test_deye_hold_battery,
+        test_deye_self_consumption,
+        test_deye_force_charge,
+    )
+    test_deye_power_to_amperes_conversion()
+    test_deye_hold_battery()
+    test_deye_self_consumption()
+    test_deye_force_charge()
+    print("✓ TestDeyeDriver (power/amp conversion, hold, self-use, force charge) passed")
+
     from tests.test_contracts import TestContracts
     tc = TestContracts()
     tc.test_price_sensor_in_load_forecast_detected_as_critical()
