@@ -69,6 +69,7 @@
           "sell_price_attr": "Sell Price List Attribute",
           "sell_price_static": "Default Static Sell Price",
           "enable_import_guard": "Enable Zero Import Guard",
+          "enable_price_guard": "Block Grid Charging in Peak Price Zones (uncheck for full solver autonomy in mid-zones)",
           "import_guard_threshold": "Import Guard Trigger Threshold (W)",
           "base_min_soc": "Base Minimum SoC (summer, e.g. 0.15 = 15%)",
           "winter_min_soc": "Winter Minimum SoC (October-March, e.g. 0.50 = 50%)",
@@ -159,6 +160,7 @@
         "description": "Adjust Zero Import Guard thresholds and battery reserves.",
         "data": {
           "enable_import_guard": "Enable Zero Import Guard",
+          "enable_price_guard": "Block Grid Charging in Peak Price Zones (uncheck for full solver autonomy in mid-zones)",
           "import_guard_threshold": "Import Guard Threshold (W)",
           "base_min_soc": "Base Minimum SoC (summer)",
           "winter_min_soc": "Winter Minimum SoC (winter)",

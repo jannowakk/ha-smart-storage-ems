@@ -69,6 +69,7 @@
           "sell_price_attr": "Atrybut listy cen sprzedaży",
           "sell_price_static": "Domyślna cena sprzedaży (zł/kWh)",
           "enable_import_guard": "Aktywuj Strażnika Importu (Zero Import Guard)",
+          "enable_price_guard": "Blokada ładowania w szczycie cenowym (odznacz dla pełnej autonomii solvera w średnich strefach)",
           "import_guard_threshold": "Próg zadziałania Strażnika Importu (W)",
           "base_min_soc": "Bazowy minimalny SoC (lato, np. 0.15 = 15%)",
           "winter_min_soc": "Zimowy minimalny SoC (październik-marzec, np. 0.50 = 50%)",
@@ -159,6 +160,7 @@
         "description": "Dostosuj progi zadziałania Strażnika Importu oraz minimalne poziomy naładowania.",
         "data": {
           "enable_import_guard": "Aktywuj Strażnika Importu",
+          "enable_price_guard": "Blokada ładowania w szczycie cenowym (odznacz dla pełnej autonomii solvera w średnich strefach)",
           "import_guard_threshold": "Próg zadziałania Strażnika Importu (W)",
           "base_min_soc": "Bazowy minimalny SoC (lato)",
           "winter_min_soc": "Zimowy minimalny SoC (zima)",
