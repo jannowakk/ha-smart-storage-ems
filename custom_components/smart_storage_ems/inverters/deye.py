@@ -36,6 +36,7 @@ class DeyeInverter(BaseInverter):
             config.get(CONF_DEYE_BATTERY_NOMINAL_VOLTAGE) or DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE
         )
         self._last_discharge_current_cap: float = DEFAULT_DEYE_MAX_CURRENT
+        self._last_self_consumption_mode: str | None = None
 
     def _get_battery_voltage(self) -> float:
         """Get live battery voltage from sensor or fallback to configured nominal voltage."""
@@ -214,18 +215,38 @@ class DeyeInverter(BaseInverter):
         await self._async_set_switch(self._switch_grid_charge, False)
 
     async def async_self_consumption(self) -> None:
-        """Put inverter into normal self-consumption (Zero Export to CT / Load First)."""
-        _LOGGER.debug("Deye: Executing SELF CONSUMPTION (Zero Export To CT)")
+        """Put inverter into normal self-consumption (preserve user's Zero Export mode)."""
+        _LOGGER.debug("Deye: Executing SELF CONSUMPTION")
         # 1. Restore normal discharge current cap
         restore_current = self._last_discharge_current_cap or DEFAULT_DEYE_MAX_CURRENT
         await self._async_set_number(self._number_discharge_current, restore_current, deadband=2.0)
         # 2. Ensure grid charging switch is off during standard self-consumption
         await self._async_set_switch(self._switch_grid_charge, False)
-        # 3. Set work mode to Zero Export To CT / Zero Export
-        await self._async_set_select(
-            self._select_work_mode,
-            ["Zero Export To CT", "Zero Export to CT", "Zero Export", "Load First", "Selling"],
-        )
+        # 3. Preserve user's Zero Export mode (Zero Export To Load vs Zero Export To CT)
+        if self._select_work_mode:
+            current_state = self.hass.states.get(self._select_work_mode)
+            curr_val = current_state.state if current_state else ""
+            self_modes = {
+                "Zero Export To Load",
+                "Zero Export to Load",
+                "Zero Export To CT",
+                "Zero Export to CT",
+                "Zero Export",
+                "Load First",
+            }
+            if curr_val in self_modes:
+                # Inverter is already in a valid self-consumption mode - keep it intact!
+                self._last_self_consumption_mode = curr_val
+                _LOGGER.debug("Deye: Work mode already in self-consumption (%s). Preserving.", curr_val)
+            else:
+                # We were exporting; restore previous self-consumption mode or fallback to safe options
+                target_opts: list[str] = []
+                if self._last_self_consumption_mode:
+                    target_opts.append(self._last_self_consumption_mode)
+                target_opts.extend(
+                    ["Zero Export To Load", "Zero Export To CT", "Zero Export to CT", "Zero Export", "Load First"]
+                )
+                await self._async_set_select(self._select_work_mode, target_opts)
 
     async def async_charge_battery(self, power_w: int) -> None:
         """Force charge battery from grid/PV at calculated target current in Amperes."""
@@ -242,10 +263,10 @@ class DeyeInverter(BaseInverter):
         target_amperes = self._power_to_amperes(power_w)
         _LOGGER.info("Deye: Executing EXPORT TO GRID (%d W -> %.1f A)", power_w, target_amperes)
 
-        # 1. Allow Export mode in work mode
+        # 1. Allow Export mode in work mode (Export First for Deye/Solarman)
         await self._async_set_select(
             self._select_work_mode,
-            ["Allow Export", "Export First", "Selling", "Solar Sell"],
+            ["Export First", "Selling", "Solar Sell", "Allow Export"],
         )
         # 2. Ensure Sell Solar switch is enabled if present
         await self._async_set_switch(self._switch_sell_solar, True)

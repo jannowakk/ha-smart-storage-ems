@@ -373,5 +373,134 @@ def test_eeprom_writes_sensor_optional() -> None:
     assert any(isinstance(e, SmartStorageEepromWritesSensor) for e in added_entities_2)
 
 
+def test_peak_zone_blocks_grid_charging_when_reserve_holds_standby() -> None:
+    """When SoC is at or below Min SoC and Price Guard blocks grid charging, system MUST stay in Standby hold."""
+    from datetime import datetime
+    import asyncio
+
+    # Thursday at 11:30 (T1 peak 0.90 PLN)
+    dt = datetime(2026, 11, 19, 11, 30, 0)
+    coord = _create_test_coordinator(dt)
+    coord._buy_prices = [0.90]
+    coord._dynamic_min_soc = 0.15  # 15% Min SoC
+
+    def get_state(entity_id: str, default: float = 0.0) -> float:
+        if entity_id == "sensor.p_batt_forecast":
+            return -2000.0
+        if entity_id == "sensor.p_grid_forecast":
+            return 2500.0
+        return 10.0  # SoC = 10% (below 15% Min SoC!)
+
+    coord._get_float_state = get_state  # type: ignore
+
+    asyncio.run(coord.async_enforce_plan())
+
+    # MUST call hold_battery to freeze discharge and prevent house blackout!
+    assert coord.inverter.async_hold_battery.called
+    assert not coord.inverter.async_self_consumption.called
+    assert not coord.inverter.async_charge_battery.called
+    assert coord._is_grid_charging is False
+    assert coord._reserve_hold_active is True
+    assert "Blokada Szczytu Cenowego (Standby" in coord._last_ems_action
+
+
+def test_contracts_skip_goodwe_entities_for_deye_inverter() -> None:
+    """Verify contracts validation skips GoodWe entities when inverter_type is deye."""
+    from custom_components.smart_storage_ems.const import (
+        CONF_INVERTER_TYPE,
+        INVERTER_TYPE_DEYE,
+        CONF_SENSOR_SOC,
+        CONF_SENSOR_PV_POWER,
+        CONF_SENSOR_LOAD_POWER,
+        CONF_SENSOR_GRID_IMPORT,
+        CONF_SENSOR_BATTERY_POWER,
+        CONF_DEYE_NUMBER_CHARGE_CURRENT,
+        CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+        CONF_DEYE_SWITCH_GRID_CHARGE,
+    )
+    from custom_components.smart_storage_ems.contracts import get_critical_configuration_errors
+
+    hass_mock = MagicMock()
+    def mock_get(entity_id):
+        m = MagicMock()
+        m.state = "50"
+        m.attributes = {}
+        return m
+    hass_mock.states.get = mock_get
+
+    config = {
+        CONF_INVERTER_TYPE: INVERTER_TYPE_DEYE,
+        CONF_SENSOR_SOC: "sensor.soc",
+        CONF_SENSOR_PV_POWER: "sensor.pv",
+        CONF_SENSOR_LOAD_POWER: "sensor.load",
+        CONF_SENSOR_GRID_IMPORT: "sensor.grid",
+        CONF_SENSOR_BATTERY_POWER: "sensor.batt",
+        CONF_DEYE_NUMBER_CHARGE_CURRENT: "number.charge_curr",
+        CONF_DEYE_NUMBER_DISCHARGE_CURRENT: "number.discharge_curr",
+        CONF_DEYE_SWITCH_GRID_CHARGE: "switch.grid_charge",
+        # GoodWe entities (select_ems_mode, select_inverter_mode) are intentionally OMITTED!
+    }
+
+    errors = get_critical_configuration_errors(hass_mock, config)
+    assert len(errors) == 0
+
+
+def test_deye_preserves_zero_export_to_load() -> None:
+    """Verify Deye inverter does NOT override Zero Export To Load with Zero Export To CT."""
+    from custom_components.smart_storage_ems.inverters.deye import DeyeInverter
+    from custom_components.smart_storage_ems.const import (
+        CONF_DEYE_SELECT_WORK_MODE,
+        CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+        CONF_DEYE_SWITCH_GRID_CHARGE,
+    )
+    import asyncio
+
+    hass_mock = MagicMock()
+    called_services = []
+
+    async def mock_call(domain, service, service_data, blocking=True):
+        called_services.append((domain, service, service_data))
+
+    hass_mock.services.async_call = mock_call
+
+    # Mock work mode state as already 'Zero Export To Load'
+    work_mode_state = MagicMock()
+    work_mode_state.state = "Zero Export To Load"
+    work_mode_state.attributes = {
+        "options": ["Zero Export To Load", "Zero Export To CT", "Export First"]
+    }
+
+    discharge_state = MagicMock()
+    discharge_state.state = "0.0"
+
+    switch_state = MagicMock()
+    switch_state.state = "on"
+
+    def get_state(eid):
+        if eid == "select.work_mode":
+            return work_mode_state
+        if eid == "number.discharge":
+            return discharge_state
+        if eid == "switch.grid_charge":
+            return switch_state
+        return None
+
+    hass_mock.states.get = get_state
+
+    config = {
+        CONF_DEYE_SELECT_WORK_MODE: "select.work_mode",
+        CONF_DEYE_NUMBER_DISCHARGE_CURRENT: "number.discharge",
+        CONF_DEYE_SWITCH_GRID_CHARGE: "switch.grid_charge",
+    }
+
+    drv = DeyeInverter(hass_mock, config)
+    asyncio.run(drv.async_self_consumption())
+
+    # Must NOT call select_option to change work mode since it is already Zero Export To Load
+    select_calls = [c for c in called_services if c[0] == "select" and c[1] == "select_option"]
+    assert len(select_calls) == 0
+
+
+
 
 

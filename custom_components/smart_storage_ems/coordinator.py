@@ -820,101 +820,137 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         enable_price_guard = self.config.get(CONF_ENABLE_PRICE_GUARD, DEFAULT_ENABLE_PRICE_GUARD)
         is_cheap = self._is_cheap_buy_price(now_dt) if enable_price_guard else True
 
-        # Scenario A: Charging requested by EMHASS (< -20W)
-        if p_batt < -20:
-            self._reserve_hold_active = False
-            charge_power = int(round(abs(p_batt) / 100.0) * 100)
+        # Check Reserve Protection state (hysteresis: enter at <= min_soc, exit at min_soc + 2%)
+        is_reserve = soc <= self._dynamic_min_soc or (self._reserve_hold_active and soc < (self._dynamic_min_soc + 0.02))
 
-            # Forced grid charging when EMHASS planned grid import AND price is in allowed price zone
-            if p_grid > 50 and is_cheap:
+        # Scenario 1: Battery is in Reserve Protection (SoC <= min_soc)
+        if is_reserve:
+            # If EMHASS planned grid charging in an allowed/cheap price zone, charge from grid
+            if p_batt < -20 and p_grid > 50 and is_cheap:
+                charge_power = int(round(abs(p_batt) / 100.0) * 100)
                 self._is_grid_charging = True
+                self._reserve_hold_active = True
                 await self.inverter.async_charge_battery(charge_power)
                 self._last_ems_action = f"Ładowanie z sieci ({charge_power}W)"
-                decision_reason = "Plan EMHASS w taniej dolinie cenowej" if enable_price_guard else "Plan EMHASS (pełna autonomia solvera)"
+                decision_reason = "Plan EMHASS w taniej dolinie cenowej (doładowanie rezerwy)" if enable_price_guard else "Plan EMHASS (pełna autonomia solvera, doładowanie rezerwy)"
                 self._record_decision(
                     "EMHASS MPC",
                     f"Ładowanie z sieci ({charge_power}W)",
                     decision_reason,
-                    {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1)},
+                    {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1), "min_soc": round(self._dynamic_min_soc * 100, 1)},
                 )
             else:
+                # In all other cases while in reserve: STRICT STANDBY HOLD (never self_consumption or export!)
                 self._is_grid_charging = False
-                await self.inverter.async_self_consumption()
-                if p_grid > 50 and not is_cheap:
+                self._reserve_hold_active = True
+                await self.inverter.async_hold_battery()
+
+                if p_batt < -20 and p_grid > 50 and not is_cheap:
+                    charge_power = int(round(abs(p_batt) / 100.0) * 100)
                     _LOGGER.warning(
-                        "EMS: EMHASS requested grid charge (%dW, p_grid=%.0fW), but blocked by price guard in peak zone! Staying in Auto",
+                        "EMS: EMHASS requested grid charge (%dW, p_grid=%.0fW), but blocked by price guard in peak zone! Battery at reserve (%.1f%% <= %.1f%%) -> Standby",
                         charge_power,
                         p_grid,
+                        soc * 100,
+                        self._dynamic_min_soc * 100,
                     )
-                    self._last_ems_action = f"Blokada Szczytu Cenowego (Auto {charge_power}W)"
+                    self._last_ems_action = f"Blokada Szczytu Cenowego (Standby {charge_power}W)"
                     self._record_decision(
                         "Safety Price Guard",
-                        f"Blokada Szczytu Cenowego (Auto {charge_power}W)",
-                        "EMHASS żądał importu w drogiej strefie taryfowej. Zablokowano ładowanie z sieci.",
+                        f"Blokada Szczytu Cenowego (Standby {charge_power}W)",
+                        f"EMHASS żądał importu w drogiej strefie taryfowej. Zablokowano ładowanie z sieci. SoC ({soc*100:.1f}%) <= Min SoC ({self._dynamic_min_soc*100:.1f}%): utrzymano Standby.",
                         {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1)},
                     )
                 else:
-                    self._last_ems_action = f"Ładowanie z PV (Auto {charge_power}W)"
+                    self._last_ems_action = "Ochrona Rezerwy (Standby)"
                     self._record_decision(
-                        "Autokonsumpcja PV",
-                        f"Ładowanie z PV (Auto {charge_power}W)",
-                        "Ładowanie darmową energią ze słońca (p_grid <= 50W)",
-                        {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1)},
+                        "Ochrona Rezerwy",
+                        "Standby (Zamrożenie)",
+                        f"SoC ({soc*100:.1f}%) <= Min SoC ({self._dynamic_min_soc*100:.1f}%). Zabezpieczenie rezerwy.",
+                        {"soc": round(soc * 100, 1), "min_soc": round(self._dynamic_min_soc * 100, 1)},
                     )
 
-        # Scenario B: Arbitrage Export to Grid
-        elif p_grid < -50 and p_batt > 50:
-            self._is_grid_charging = False
-            self._reserve_hold_active = False
-            load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 0.0)
-            export_power = int(round((abs(p_grid) + load_now) / 100.0) * 100)
-            await self.inverter.async_export_to_grid(export_power)
-            self._last_ems_action = f"Eksport na sieć ({export_power}W)"
-            self._record_decision(
-                "Arbitraż RCE",
-                f"Eksport na sieć ({export_power}W)",
-                "Planowana sprzedaż energii w szczycie cenowym RCE",
-                {"p_batt": p_batt, "p_grid": p_grid, "export_power": export_power},
-            )
-
-        # Scenario C: Reserve Protection (Hold in Standby when SoC <= min_soc, return at min_soc + 2%)
-        elif soc <= self._dynamic_min_soc or (self._reserve_hold_active and soc < (self._dynamic_min_soc + 0.02)):
-            self._is_grid_charging = False
-            self._reserve_hold_active = True
-            await self.inverter.async_hold_battery()
-            self._last_ems_action = "Ochrona Rezerwy (Standby)"
-            self._record_decision(
-                "Ochrona Rezerwy",
-                "Standby (Zamrożenie)",
-                f"SoC ({soc*100:.1f}%) <= Min SoC ({self._dynamic_min_soc*100:.1f}%). Zabezpieczenie rezerwy.",
-                {"soc": round(soc * 100, 1), "min_soc": round(self._dynamic_min_soc * 100, 1)},
-            )
-
-        # Scenario C2: Cheap Valley Battery Preservation (Hold when EMHASS plans 0W in cheap tariff zone)
-        elif is_cheap and (-20 <= p_batt <= 20):
-            self._is_grid_charging = False
-            self._reserve_hold_active = True
-            await self.inverter.async_hold_battery()
-            self._last_ems_action = "Oszczędzanie Baterii (Standby)"
-            self._record_decision(
-                "EMHASS MPC",
-                "Standby (Zamrożenie)",
-                "Tania strefa cenowa i plan EMHASS 0W – zachowanie energii w baterii na szczyt cenowy.",
-                {"soc": round(soc * 100, 1), "p_batt": p_batt, "p_grid": p_grid},
-            )
-
-        # Scenario D: Normal Self Consumption (Balance house load from battery/solar)
+        # Scenario 2: Normal Battery Operation (SoC > min_soc)
         else:
-            self._is_grid_charging = False
             self._reserve_hold_active = False
-            await self.inverter.async_self_consumption()
-            self._last_ems_action = "Autokonsumpcja (Auto)"
-            self._record_decision(
-                "Autokonsumpcja",
-                "Auto",
-                "Normalne pokrywanie potrzeb domu ze słońca i baterii",
-                {"soc": round(soc * 100, 1), "p_batt": p_batt},
-            )
+
+            # Sub-scenario A: Charging requested by EMHASS (< -20W)
+            if p_batt < -20:
+                charge_power = int(round(abs(p_batt) / 100.0) * 100)
+                if p_grid > 50 and is_cheap:
+                    self._is_grid_charging = True
+                    await self.inverter.async_charge_battery(charge_power)
+                    self._last_ems_action = f"Ładowanie z sieci ({charge_power}W)"
+                    decision_reason = "Plan EMHASS w taniej dolinie cenowej" if enable_price_guard else "Plan EMHASS (pełna autonomia solvera)"
+                    self._record_decision(
+                        "EMHASS MPC",
+                        f"Ładowanie z sieci ({charge_power}W)",
+                        decision_reason,
+                        {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1)},
+                    )
+                else:
+                    self._is_grid_charging = False
+                    await self.inverter.async_self_consumption()
+                    if p_grid > 50 and not is_cheap:
+                        _LOGGER.warning(
+                            "EMS: EMHASS requested grid charge (%dW, p_grid=%.0fW), but blocked by price guard in peak zone! Staying in Auto",
+                            charge_power,
+                            p_grid,
+                        )
+                        self._last_ems_action = f"Blokada Szczytu Cenowego (Auto {charge_power}W)"
+                        self._record_decision(
+                            "Safety Price Guard",
+                            f"Blokada Szczytu Cenowego (Auto {charge_power}W)",
+                            "EMHASS żądał importu w drogiej strefie taryfowej. Zablokowano ładowanie z sieci.",
+                            {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1)},
+                        )
+                    else:
+                        self._last_ems_action = f"Ładowanie z PV (Auto {charge_power}W)"
+                        self._record_decision(
+                            "Autokonsumpcja PV",
+                            f"Ładowanie z PV (Auto {charge_power}W)",
+                            "Ładowanie darmową energią ze słońca (p_grid <= 50W)",
+                            {"p_batt": p_batt, "p_grid": p_grid, "soc": round(soc * 100, 1)},
+                        )
+
+            # Sub-scenario B: Arbitrage Export to Grid
+            elif p_grid < -50 and p_batt > 50:
+                self._is_grid_charging = False
+                load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 0.0)
+                export_power = int(round((abs(p_grid) + load_now) / 100.0) * 100)
+                await self.inverter.async_export_to_grid(export_power)
+                self._last_ems_action = f"Eksport na sieć ({export_power}W)"
+                self._record_decision(
+                    "Arbitraż RCE",
+                    f"Eksport na sieć ({export_power}W)",
+                    "Planowana sprzedaż energii w szczycie cenowym RCE",
+                    {"p_batt": p_batt, "p_grid": p_grid, "export_power": export_power},
+                )
+
+            # Sub-scenario C: Cheap Valley Battery Preservation (Hold when EMHASS plans 0W in cheap tariff zone)
+            elif is_cheap and (-20 <= p_batt <= 20):
+                self._is_grid_charging = False
+                self._reserve_hold_active = True
+                await self.inverter.async_hold_battery()
+                self._last_ems_action = "Oszczędzanie Baterii (Standby)"
+                self._record_decision(
+                    "EMHASS MPC",
+                    "Standby (Zamrożenie)",
+                    "Tania strefa cenowa i plan EMHASS 0W – zachowanie energii w baterii na szczyt cenowy.",
+                    {"soc": round(soc * 100, 1), "p_batt": p_batt, "p_grid": p_grid},
+                )
+
+            # Sub-scenario D: Normal Self Consumption (Balance house load from battery/solar)
+            else:
+                self._is_grid_charging = False
+                await self.inverter.async_self_consumption()
+                self._last_ems_action = "Autokonsumpcja (Auto)"
+                self._record_decision(
+                    "Autokonsumpcja",
+                    "Auto",
+                    "Normalne pokrywanie potrzeb domu ze słońca i baterii",
+                    {"soc": round(soc * 100, 1), "p_batt": p_batt},
+                )
 
         self._notify_coordinator_update()
 
@@ -1054,7 +1090,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         recent_logs = list(self._log_handler.buffer) if hasattr(self, "_log_handler") else []
 
         return {
-            "version": "1.5.0b1",
+            "version": "1.5.0b2",
             "timestamp": datetime.now().isoformat(),
             "operation_mode": self.operation_mode,
             "config_error": self._config_error,

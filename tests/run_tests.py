@@ -94,6 +94,9 @@ from tests.test_charging_logic import (
     test_ensure_export_limit_parameterization,
     test_inverter_write_counter_and_sensor,
     test_eeprom_writes_sensor_optional,
+    test_peak_zone_blocks_grid_charging_when_reserve_holds_standby,
+    test_contracts_skip_goodwe_entities_for_deye_inverter,
+    test_deye_preserves_zero_export_to_load,
 )
 from tests.test_pse_rce import (
     test_aggregate_15m_to_30m,
@@ -188,6 +191,15 @@ if __name__ == "__main__":
 
     test_eeprom_writes_sensor_optional()
     print("✓ test_eeprom_writes_sensor_optional passed")
+
+    test_peak_zone_blocks_grid_charging_when_reserve_holds_standby()
+    print("✓ test_peak_zone_blocks_grid_charging_when_reserve_holds_standby passed")
+
+    test_contracts_skip_goodwe_entities_for_deye_inverter()
+    print("✓ test_contracts_skip_goodwe_entities_for_deye_inverter passed")
+
+    test_deye_preserves_zero_export_to_load()
+    print("✓ test_deye_preserves_zero_export_to_load passed")
 
     import asyncio
     asyncio.run(TestDiagnostics().test_async_get_config_entry_diagnostics())

@@ -19,6 +19,15 @@ from .const import (
     CONF_BINARY_SENSOR_OFFGRID,
     CONF_BUY_PRICE_ATTR,
     CONF_BUY_PRICE_ENTITY,
+    CONF_DEYE_NUMBER_CHARGE_CURRENT,
+    CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+    CONF_DEYE_SELECT_WORK_MODE,
+    CONF_DEYE_SWITCH_GRID_CHARGE,
+    CONF_DEYE_SWITCH_SELL_SOLAR,
+    CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER,
+    CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER,
+    CONF_HOYMILES_SELECT_EMS_MODE,
+    CONF_INVERTER_TYPE,
     CONF_LOAD_FORECAST_ATTR,
     CONF_LOAD_FORECAST_ENTITY,
     CONF_NUMBER_EMS_POWER_LIMIT,
@@ -37,6 +46,14 @@ from .const import (
     CONF_SENSOR_LOAD_POWER,
     CONF_SENSOR_PV_POWER,
     CONF_SENSOR_SOC,
+    CONF_SOFAR_NUMBER_CHARGE_POWER,
+    CONF_SOFAR_NUMBER_DISCHARGE_POWER,
+    CONF_SOFAR_SELECT_WORK_MODE,
+    DEFAULT_INVERTER_TYPE,
+    INVERTER_TYPE_DEYE,
+    INVERTER_TYPE_GOODWE,
+    INVERTER_TYPE_HOYMILES,
+    INVERTER_TYPE_SOFAR,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,6 +104,7 @@ class EntityContract:
     collision_keywords: list[str] = field(default_factory=list)
     is_vector: bool = False
     is_critical: bool = False
+    applicable_inverters: list[str] | None = None  # None = applicable to all inverters
     min_vector_len: int = 0
     plausible_scalar_range: tuple[float, float] = (-float("inf"), float("inf"))
     plausible_vector_max_min: float = 0.0  # Vector max must be at least this value
@@ -467,31 +485,126 @@ CONTRACT_REGISTRY: list[EntityContract] = [
         allowed_units=["kWh", "Wh", "MWh"],
         plausible_scalar_range=(0.0, 200.0),
     ),
-    # 14-17. Encje Sterujące Falownikiem (Krytyczne dla sterowania)
+    # 14-17. Encje Sterujące Falownikiem GoodWe
     EntityContract(
         conf_key=CONF_SELECT_EMS_MODE,
-        label="Tryb EMS",
+        label="Tryb EMS (GoodWe)",
         domain_type=DomainType.ACTUATOR_SELECT,
         is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_GOODWE],
         expected_ha_domains=["select"],
     ),
     EntityContract(
         conf_key=CONF_SELECT_INVERTER_MODE,
-        label="Tryb Inwertera",
+        label="Tryb Inwertera (GoodWe)",
         domain_type=DomainType.ACTUATOR_SELECT,
         is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_GOODWE],
         expected_ha_domains=["select"],
     ),
     EntityContract(
         conf_key=CONF_NUMBER_EMS_POWER_LIMIT,
         label="Limit Mocy EMS",
         domain_type=DomainType.ACTUATOR_NUMBER,
+        applicable_inverters=[INVERTER_TYPE_GOODWE],
         expected_ha_domains=["number"],
     ),
     EntityContract(
         conf_key=CONF_NUMBER_EXPORT_LIMIT,
         label="Limit Eksportu",
         domain_type=DomainType.ACTUATOR_NUMBER,
+        applicable_inverters=[INVERTER_TYPE_GOODWE],
+        expected_ha_domains=["number"],
+    ),
+    # 18-21. Encje Sterujące Falownikiem Deye
+    EntityContract(
+        conf_key=CONF_DEYE_NUMBER_CHARGE_CURRENT,
+        label="Prąd Ładowania Baterii (Deye)",
+        domain_type=DomainType.ACTUATOR_NUMBER,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_DEYE],
+        expected_ha_domains=["number"],
+    ),
+    EntityContract(
+        conf_key=CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+        label="Prąd Rozładowania Baterii (Deye)",
+        domain_type=DomainType.ACTUATOR_NUMBER,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_DEYE],
+        expected_ha_domains=["number"],
+    ),
+    EntityContract(
+        conf_key=CONF_DEYE_SWITCH_GRID_CHARGE,
+        label="Ładowanie z Sieci (Deye)",
+        domain_type=DomainType.BINARY,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_DEYE],
+        expected_ha_domains=["switch"],
+    ),
+    EntityContract(
+        conf_key=CONF_DEYE_SELECT_WORK_MODE,
+        label="Tryb Pracy (Deye)",
+        domain_type=DomainType.ACTUATOR_SELECT,
+        is_critical=False,
+        applicable_inverters=[INVERTER_TYPE_DEYE],
+        expected_ha_domains=["select"],
+    ),
+    EntityContract(
+        conf_key=CONF_DEYE_SWITCH_SELL_SOLAR,
+        label="Eksport PV / Baterii (Deye)",
+        domain_type=DomainType.BINARY,
+        is_critical=False,
+        applicable_inverters=[INVERTER_TYPE_DEYE],
+        expected_ha_domains=["switch"],
+    ),
+    # 22-24. Encje Sterujące Falownikiem Hoymiles
+    EntityContract(
+        conf_key=CONF_HOYMILES_SELECT_EMS_MODE,
+        label="Tryb EMS (Hoymiles)",
+        domain_type=DomainType.ACTUATOR_SELECT,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_HOYMILES],
+        expected_ha_domains=["select"],
+    ),
+    EntityContract(
+        conf_key=CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER,
+        label="Maks. Moc Ładowania (Hoymiles)",
+        domain_type=DomainType.ACTUATOR_NUMBER,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_HOYMILES],
+        expected_ha_domains=["number"],
+    ),
+    EntityContract(
+        conf_key=CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER,
+        label="Maks. Moc Rozładowania (Hoymiles)",
+        domain_type=DomainType.ACTUATOR_NUMBER,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_HOYMILES],
+        expected_ha_domains=["number"],
+    ),
+    # 25-27. Encje Sterujące Falownikiem Sofar Solar HYD
+    EntityContract(
+        conf_key=CONF_SOFAR_SELECT_WORK_MODE,
+        label="Tryb Pracy (Sofar)",
+        domain_type=DomainType.ACTUATOR_SELECT,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_SOFAR],
+        expected_ha_domains=["select"],
+    ),
+    EntityContract(
+        conf_key=CONF_SOFAR_NUMBER_CHARGE_POWER,
+        label="Moc Ładowania (Sofar)",
+        domain_type=DomainType.ACTUATOR_NUMBER,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_SOFAR],
+        expected_ha_domains=["number"],
+    ),
+    EntityContract(
+        conf_key=CONF_SOFAR_NUMBER_DISCHARGE_POWER,
+        label="Moc Rozładowania (Sofar)",
+        domain_type=DomainType.ACTUATOR_NUMBER,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_SOFAR],
         expected_ha_domains=["number"],
     ),
 ]
@@ -500,7 +613,10 @@ CONTRACT_REGISTRY: list[EntityContract] = [
 def validate_all_entities(hass: HomeAssistant, config: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Execute contract validation for all configured entities in Smart Storage EMS."""
     results: dict[str, dict[str, Any]] = {}
+    current_inv = config.get(CONF_INVERTER_TYPE, DEFAULT_INVERTER_TYPE)
     for contract in CONTRACT_REGISTRY:
+        if contract.applicable_inverters and current_inv not in contract.applicable_inverters:
+            continue
         ent_id = config.get(contract.conf_key)
         if not ent_id:
             continue
@@ -526,8 +642,11 @@ def get_critical_configuration_errors(hass: HomeAssistant, config: dict[str, Any
     display a clear blocking error to the user.
     """
     errors: list[dict[str, Any]] = []
+    current_inv = config.get(CONF_INVERTER_TYPE, DEFAULT_INVERTER_TYPE)
     for contract in CONTRACT_REGISTRY:
         if not contract.is_critical:
+            continue
+        if contract.applicable_inverters and current_inv not in contract.applicable_inverters:
             continue
         ent_id = config.get(contract.conf_key)
         if not ent_id:
