@@ -3,10 +3,11 @@
 from typing import Any
 from homeassistant.core import HomeAssistant
 
-from ..const import INVERTER_TYPE_DEYE, INVERTER_TYPE_GOODWE
+from ..const import INVERTER_TYPE_DEYE, INVERTER_TYPE_GOODWE, INVERTER_TYPE_HOYMILES
 from .base import BaseInverter
 from .deye import DeyeInverter
 from .goodwe import GoodWeInverter
+from .hoymiles import HoymilesInverter
 
 
 def get_inverter_driver(hass: HomeAssistant, config: dict[str, Any]) -> BaseInverter:
@@ -16,4 +17,6 @@ def get_inverter_driver(hass: HomeAssistant, config: dict[str, Any]) -> BaseInve
         return GoodWeInverter(hass, config)
     if inverter_type == INVERTER_TYPE_DEYE:
         return DeyeInverter(hass, config)
+    if inverter_type == INVERTER_TYPE_HOYMILES:
+        return HoymilesInverter(hass, config)
     raise ValueError(f"Unsupported inverter type: {inverter_type}")

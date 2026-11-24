@@ -205,6 +205,18 @@ if __name__ == "__main__":
     test_deye_force_charge()
     print("✓ TestDeyeDriver (power/amp conversion, hold, self-use, force charge) passed")
 
+    from tests.test_hoymiles_driver import (
+        test_hoymiles_power_to_percent,
+        test_hoymiles_hold_battery,
+        test_hoymiles_self_consumption,
+        test_hoymiles_force_charge,
+    )
+    test_hoymiles_power_to_percent()
+    test_hoymiles_hold_battery()
+    test_hoymiles_self_consumption()
+    test_hoymiles_force_charge()
+    print("✓ TestHoymilesDriver (power/percent conversion, hold, self-use, force charge) passed")
+
     from tests.test_contracts import TestContracts
     tc = TestContracts()
     tc.test_price_sensor_in_load_forecast_detected_as_critical()

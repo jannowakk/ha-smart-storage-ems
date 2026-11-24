@@ -21,6 +21,13 @@ from .const import (
     CONF_DEYE_SWITCH_GRID_CHARGE,
     CONF_DEYE_SWITCH_SELL_SOLAR,
     DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE,
+    CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC,
+    CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC,
+    CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER,
+    CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER,
+    CONF_HOYMILES_RATED_POWER,
+    CONF_HOYMILES_SELECT_EMS_MODE,
+    DEFAULT_HOYMILES_RATED_POWER,
     CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
     CONF_ENABLE_EEPROM_COUNTER,
@@ -86,6 +93,7 @@ from .const import (
     DOMAIN,
     INVERTER_TYPE_DEYE,
     INVERTER_TYPE_GOODWE,
+    INVERTER_TYPE_HOYMILES,
     SELL_PRICE_MODE_PSE_RCE,
     SELL_PRICE_MODE_SENSOR,
     SELL_PRICE_MODE_STATIC,
@@ -122,6 +130,7 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     options=[
                         {"value": "goodwe", "label": "GoodWe (ET / ES / EH / Lynx)"},
                         {"value": "deye", "label": "Deye / SunSynk / Sol-Ark [BETA]"},
+                        {"value": "hoymiles", "label": "Hoymiles HIT-(5–20)L-G3 [BETA]"},
                     ],
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
@@ -192,6 +201,26 @@ class SmartStorageConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
                 default=DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE,
+            ): float,
+            # --- Pola dla Hoymiles HIT-G3 ---
+            vol.Optional(CONF_HOYMILES_SELECT_EMS_MODE): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="select")
+            ),
+            vol.Optional(CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="number")
+            ),
+            vol.Optional(
+                CONF_HOYMILES_RATED_POWER,
+                default=DEFAULT_HOYMILES_RATED_POWER,
             ): float,
         }
         schema = vol.Schema(schema_dict)
@@ -369,6 +398,12 @@ INVERTER_STEP_FIELDS = [
     CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
     CONF_DEYE_SENSOR_BATTERY_VOLTAGE,
     CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
+    CONF_HOYMILES_SELECT_EMS_MODE,
+    CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER,
+    CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER,
+    CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC,
+    CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC,
+    CONF_HOYMILES_RATED_POWER,
 ]
 
 EMHASS_STEP_FIELDS = [
@@ -469,6 +504,7 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                         options=[
                             {"value": "goodwe", "label": "GoodWe (ET / ES / EH / Lynx)"},
                             {"value": "deye", "label": "Deye / SunSynk / Sol-Ark [BETA]"},
+                            {"value": "hoymiles", "label": "Hoymiles HIT-(5–20)L-G3 [BETA]"},
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
@@ -557,6 +593,31 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
                     default=float(data.get(CONF_DEYE_BATTERY_NOMINAL_VOLTAGE, DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE)),
+                ): float,
+                # --- Pola dla Hoymiles HIT-G3 ---
+                vol.Optional(
+                    CONF_HOYMILES_SELECT_EMS_MODE,
+                    description={"suggested_value": data.get(CONF_HOYMILES_SELECT_EMS_MODE) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                vol.Optional(
+                    CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER,
+                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER,
+                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC,
+                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC,
+                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC) or None},
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                vol.Optional(
+                    CONF_HOYMILES_RATED_POWER,
+                    default=float(data.get(CONF_HOYMILES_RATED_POWER, DEFAULT_HOYMILES_RATED_POWER)),
                 ): float,
             }
         )

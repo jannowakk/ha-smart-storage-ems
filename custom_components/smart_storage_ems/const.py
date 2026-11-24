@@ -13,7 +13,8 @@ CONF_COST_FUNCTION = "cost_function"
 CONF_INVERTER_TYPE = "inverter_type"
 INVERTER_TYPE_GOODWE = "goodwe"
 INVERTER_TYPE_DEYE = "deye"
-INVERTER_TYPES = [INVERTER_TYPE_GOODWE, INVERTER_TYPE_DEYE]
+INVERTER_TYPE_HOYMILES = "hoymiles"
+INVERTER_TYPES = [INVERTER_TYPE_GOODWE, INVERTER_TYPE_DEYE, INVERTER_TYPE_HOYMILES]
 
 CONF_SENSOR_SOC = "sensor_soc"
 CONF_SENSOR_BATTERY_POWER = "sensor_battery_power"
@@ -41,6 +42,15 @@ CONF_DEYE_SENSOR_BATTERY_VOLTAGE = "deye_sensor_battery_voltage"
 CONF_DEYE_BATTERY_NOMINAL_VOLTAGE = "deye_battery_nominal_voltage"
 DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE = 51.2  # Volts (standard 48V / 16S LiFePO4)
 DEFAULT_DEYE_MAX_CURRENT = 100.0  # Amperes
+
+# Configuration Keys - Hoymiles HIT Inverter HAL
+CONF_HOYMILES_SELECT_EMS_MODE = "hoymiles_select_ems_mode"
+CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER = "hoymiles_number_max_charge_power"
+CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER = "hoymiles_number_max_discharge_power"
+CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC = "hoymiles_number_force_charge_soc"
+CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC = "hoymiles_number_force_discharge_soc"
+CONF_HOYMILES_RATED_POWER = "hoymiles_rated_power"
+DEFAULT_HOYMILES_RATED_POWER = 10000  # Watts (standard HIT-10L-G3)
 
 # Configuration Keys - Forecasts & Tariffs
 CONF_TARIFF_MODE = "tariff_mode"
