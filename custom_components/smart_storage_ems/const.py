@@ -14,7 +14,13 @@ CONF_INVERTER_TYPE = "inverter_type"
 INVERTER_TYPE_GOODWE = "goodwe"
 INVERTER_TYPE_DEYE = "deye"
 INVERTER_TYPE_HOYMILES = "hoymiles"
-INVERTER_TYPES = [INVERTER_TYPE_GOODWE, INVERTER_TYPE_DEYE, INVERTER_TYPE_HOYMILES]
+INVERTER_TYPE_SOFAR = "sofar"
+INVERTER_TYPES = [
+    INVERTER_TYPE_GOODWE,
+    INVERTER_TYPE_DEYE,
+    INVERTER_TYPE_HOYMILES,
+    INVERTER_TYPE_SOFAR,
+]
 
 CONF_SENSOR_SOC = "sensor_soc"
 CONF_SENSOR_BATTERY_POWER = "sensor_battery_power"
@@ -51,6 +57,12 @@ CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC = "hoymiles_number_force_charge_soc"
 CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC = "hoymiles_number_force_discharge_soc"
 CONF_HOYMILES_RATED_POWER = "hoymiles_rated_power"
 DEFAULT_HOYMILES_RATED_POWER = 10000  # Watts (standard HIT-10L-G3)
+
+# Configuration Keys - Sofar Solar HYD Inverter HAL
+CONF_SOFAR_SELECT_WORK_MODE = "sofar_select_work_mode"
+CONF_SOFAR_NUMBER_CHARGE_POWER = "sofar_number_charge_power"
+CONF_SOFAR_NUMBER_DISCHARGE_POWER = "sofar_number_discharge_power"
+DEFAULT_SOFAR_MAX_POWER = 3680  # Watts (standard HYD 3600-ES / 3K-6K-EP)
 
 # Configuration Keys - Forecasts & Tariffs
 CONF_TARIFF_MODE = "tariff_mode"
