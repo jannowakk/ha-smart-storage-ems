@@ -285,7 +285,7 @@ In addition to the Lovelace card, the integration implements Home Assistant's na
 2. **Why does the system sometimes block battery discharging during off-peak hours?**
    Because of Round-Trip Efficiency ($\sim 81\%$) and cell stress cost. Discharging energy stored at `0.62 PLN/kWh` actually costs `~0.815 PLN/kWh`—burning battery charge when grid import costs `0.62 PLN/kWh` loses money and wastes valuable evening peak capacity. See the full mathematical breakdown in **[docs/CASE_STUDY_SOLVER_DECISIONS_EN.md](docs/CASE_STUDY_SOLVER_DECISIONS_EN.md)**.
 3. **How is mode flapping prevented around Min SoC?**
-   Winter Min SoC adapts dynamically to temperature, PV forecast, and weather warnings, protected by hysteresis: `auto` disables only when `SoC <= min_soc + 5%` (held for ≥ 30 s) and re-enables only after recharging to `SoC >= min_soc + 7%`.
+   Winter Min SoC adapts dynamically to temperature, PV forecast, and weather warnings, protected by hysteresis: `auto` disables only when `SoC <= min_soc + 5%` (held for ≥ 30 s) and re-enables only after recharging to `SoC >= min_soc + 7%`. See the winter heat pump case study in **[docs/CASE_STUDY_MIN_SOC_HEAT_PUMP_EN.md](docs/CASE_STUDY_MIN_SOC_HEAT_PUMP_EN.md)**.
 4. **How are Winter (`zima`) and Summer (`lato`) regimes switched?**
    Using solar thresholds (default `14 kWh` / `1000 W` PV): during heating season (Oct–Mar), nights stay in winter protection mode and switch to daytime self-consumption only once real PV exceeds `1000 W` (with cloud-bounce filtering).
 5. **How is Off-Grid / EPS backup protected?**

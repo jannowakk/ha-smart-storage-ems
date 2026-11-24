@@ -357,6 +357,7 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
 * **Rozwiązanie w integracji:**
   * **Dynamiczny Min SoC:** Bazowe 15% jest zimą automatycznie podnoszone (od 40% do nawet 65% wraz ze spadkiem temperatury zewnętrznej i wzrostem zapotrzebowania pompy ciepła), a także podbijane przy prognozie PV < 14 kWh oraz alertach burzowych/gradowych IMGW (min. 35% zimą, 30% latem).
   * **Histereza przełączeń:** Tryb `auto` jest wyłączany dopiero po spadku `SoC <= min_soc + 5%` (utrzymanym przez min. 30 s), a przywracany dopiero po wyraźnym doładowaniu do `SoC >= min_soc + 7%`.
+  * **Studium przypadku z pracy w zimowym szczycie z pompą ciepła:** Zobacz szczegółowy przebieg zdarzeń sekunda po sekundzie w **[docs/CASE_STUDY_MIN_SOC_HEAT_PUMP.md](docs/CASE_STUDY_MIN_SOC_HEAT_PUMP.md)** (jak system bezpiecznie zamroził magazyn na progu 40% przy poborze 3,8 kW przed nadejściem taniej doliny).
 
 ---
 
