@@ -23,6 +23,24 @@ Zaprojektowana tak, aby całkowicie wyeliminować konieczność pisania setek li
 
 ---
 
+## 📑 Spis Treści
+
+* [💡 Filozofia Projektu: Zrównoważony EMS zamiast Ślepego Arbitrażu](#-filozofia-projektu-zrównoważony-ems-zamiast-ślepego-arbitrażu)
+* [🌟 Kluczowe Funkcje (Features)](#-kluczowe-funkcje-features)
+* [🏗️ Architektura](#️-architektura)
+* [📦 Instalacja](#-instalacja)
+* [🚀 Szybki Start (Krok po kroku)](#-szybki-start-krok-po-kroku)
+* [⚙️ Wystawiane Encje](#️-wystawiane-encje)
+* [📊 Karty Dashboardu Lovelace](#-karty-dashboardu-lovelace)
+* [🔧 Zaawansowane Opcje i Dostrajanie](#-zaawansowane-opcje-i-dostrajanie)
+* [❓ FAQ (Najczęściej Zadawane Pytania)](#-faq-najczęściej-zadawane-pytania)
+* [🗺️ Roadmapa Rozwoju](#️-roadmapa-rozwoju)
+* [📚 Studia Przypadków (Real-World Case Studies)](#-studia-przypadków-real-world-case-studies)
+* [☕ Wesprzyj projekt](#-wesprzyj-projekt)
+* [📄 Licencja i Zastrzeżenie (Disclaimer)](#-licencja-i-zastrzeżenie-disclaimer)
+
+---
+
 ## 💡 Filozofia Projektu: Zrównoważony EMS zamiast Ślepego Arbitrażu
 
 Tworząc tę integrację, moim głównym celem było znalezienie **złotego środka pomiędzy trzema filarami**:
@@ -395,6 +413,17 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
 - [x] Wbudowana karta autodiagnostyki Lovelace (`custom:smart-storage-diagnostic-card`) oraz natywna diagnostyka HA (`Pobierz diagnostykę`).
 - [ ] Intuicyjne suwaki strojenia trendu pracy EMHASS w zakresie `-1 / 0 / +1` (chętniej ładuj / balans / chętniej rozładowuj, agresywność arbitrażu vs ochrona ogniw, sztywność bufora SoC).
 - [ ] Kolejne drivery falowników: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
+
+---
+
+## 📚 Studia Przypadków (Real-World Case Studies)
+
+Szczegółowe analizy inżynieryjne i ekonomiczne oparte na rzeczywistej telemetrii sekunda po sekundzie z działającej instalacji:
+
+* **[Studium Przypadku: Dlaczego optymalizator nie rozładował baterii w taniej strefie?](docs/CASE_STUDY_SOLVER_DECISIONS.md)**  
+  Matematyczny dowód uwzględniający sprawność cyklu 81%, koszty degradacji ogniw oraz horyzont 48h – dlaczego rozładowanie magazynu w taniej dolinie przynosi realną stratę finansową.
+* **[Studium Przypadku: Ochrona Min SoC w Zimowym Szczycie Poboru](docs/CASE_STUDY_MIN_SOC_HEAT_PUMP.md)**  
+  Zimowy drenaż dużą mocą (~3,8 kW przez pompę ciepła), odcięcie rozładowania dokładnie na progu 40% Min SoC i matematyka planowania EMHASS (dobór ładowania do 89% pod popołudniowy szczyt bez przeciążania sieci).
 
 ---
 

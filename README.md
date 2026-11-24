@@ -22,6 +22,24 @@ Designed from the ground up to completely eliminate the need to maintain hundred
 
 ---
 
+## 📑 Table of Contents
+
+* [💡 Design Philosophy](#-design-philosophy-balanced-home-ems-over-blind-arbitrage)
+* [🌟 Key Features](#-key-features)
+* [🏗️ Architecture](#️-architecture)
+* [📦 Installation](#-installation)
+* [🚀 Quick Start](#-quick-start)
+* [⚙️ Exposed Entities](#️-exposed-entities)
+* [📊 Dashboard Lovelace Cards](#-dashboard-lovelace-cards)
+* [🔧 Advanced Options & Tuning](#-advanced-options--tuning)
+* [❓ FAQ: Control Logic & EMS Strategy](#-faq-control-logic--ems-strategy)
+* [🗺️ Roadmap](#️-roadmap)
+* [📚 Real-World Case Studies](#-real-world-case-studies)
+* [☕ Support the Project](#-support-the-project)
+* [📄 License & Disclaimer](#-license--disclaimer)
+
+---
+
 ## 💡 Design Philosophy: Balanced Home EMS Over Blind Arbitrage
 
 When building this integration, the goal was to strike the **sweet spot between three pillars**:
@@ -307,6 +325,17 @@ In addition to the Lovelace card, the integration implements Home Assistant's na
 - [ ] Polish PGE G12e flexible tariff support.
 - [ ] Intuitive `-1 / 0 / +1` EMHASS tuning sliders (Charge/Discharge bias, arbitrage vs cell protection, SoC buffer stiffness).
 - [ ] Additional inverter HAL drivers: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
+
+---
+
+## 📚 Real-World Case Studies
+
+In-depth technical and economic breakdowns documenting actual operational telemetry from live installations:
+
+* **[Case Study: Why Did the Optimizer Avoid Discharging in the Cheap Valley?](docs/CASE_STUDY_SOLVER_DECISIONS_EN.md)**  
+  Mathematical breakdown of 81% round-trip efficiency, cell stress costs, and why draining the battery during cheap off-peak rates generates a financial loss over a 48h horizon.
+* **[Case Study: Dynamic Min SoC Protection During Winter Heat Pump Peak](docs/CASE_STUDY_MIN_SOC_HEAT_PUMP_EN.md)**  
+  High-drain (~3.8 kW) cold weather behavior, how the inverter halts discharge at 40% Min SoC, and how EMHASS sizes afternoon charging to 89% to match evening peak demand without grid stress.
 
 ---
 
