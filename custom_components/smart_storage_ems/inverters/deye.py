@@ -82,18 +82,34 @@ class DeyeInverter(BaseInverter):
             _LOGGER.debug("Deye: Entity %s already in option %s", entity_id, target_option)
             return False
 
-        _LOGGER.info("Deye: Setting %s -> %s", entity_id, target_option)
-        await self.hass.services.async_call(
-            "select",
-            "select_option",
-            {"entity_id": entity_id, "option": target_option},
-            blocking=True,
-        )
-        self._record_write(entity_id, target_option)
+        # Send command with readback verification and retry (essential for lossy Wi-Fi dongles / Solarman)
+        for attempt in range(1, 3):
+            _LOGGER.info("Deye: Setting %s -> %s (attempt %d/2)", entity_id, target_option, attempt)
+            await self.hass.services.async_call(
+                "select",
+                "select_option",
+                {"entity_id": entity_id, "option": target_option},
+                blocking=True,
+            )
+            self._record_write(entity_id, target_option)
+
+            # Wait and verify readback from inverter
+            await asyncio.sleep(2.0)
+            verify_state = self.hass.states.get(entity_id)
+            if verify_state and verify_state.state == target_option:
+                _LOGGER.debug("Deye: %s confirmed -> %s", entity_id, target_option)
+                return True
+            _LOGGER.warning(
+                "Deye: Readback verification pending/mismatch for %s (got %s, expected %s). Retrying...",
+                entity_id,
+                verify_state.state if verify_state else "None",
+                target_option,
+            )
+
         return True
 
     async def _async_set_switch(self, entity_id: str | None, turn_on: bool) -> bool:
-        """Helper to safely turn a switch on or off."""
+        """Helper to safely turn a switch on or off with readback verification."""
         if not entity_id:
             return False
         state = self.hass.states.get(entity_id)
@@ -106,15 +122,29 @@ class DeyeInverter(BaseInverter):
             return False
 
         service = "turn_on" if turn_on else "turn_off"
-        _LOGGER.info("Deye: Calling switch.%s for %s", service, entity_id)
-        await self.hass.services.async_call("switch", service, {"entity_id": entity_id}, blocking=True)
-        self._record_write(entity_id, target_state)
+        for attempt in range(1, 3):
+            _LOGGER.info("Deye: Calling switch.%s for %s (attempt %d/2)", service, entity_id, attempt)
+            await self.hass.services.async_call("switch", service, {"entity_id": entity_id}, blocking=True)
+            self._record_write(entity_id, target_state)
+
+            await asyncio.sleep(2.0)
+            verify_state = self.hass.states.get(entity_id)
+            if verify_state and verify_state.state == target_state:
+                _LOGGER.debug("Deye: Switch %s confirmed -> %s", entity_id, target_state)
+                return True
+            _LOGGER.warning(
+                "Deye: Switch readback mismatch for %s (got %s, expected %s). Retrying...",
+                entity_id,
+                verify_state.state if verify_state else "None",
+                target_state,
+            )
+
         return True
 
     async def _async_set_number(
         self, entity_id: str | None, value: float, deadband: float = 2.0, force: bool = False
     ) -> bool:
-        """Helper to set a number entity with deadband in Amperes (default 2A deadband)."""
+        """Helper to set a number entity with deadband in Amperes and readback verification."""
         if not entity_id:
             return False
         state = self.hass.states.get(entity_id)
@@ -136,14 +166,33 @@ class DeyeInverter(BaseInverter):
             except (ValueError, TypeError):
                 pass
 
-        _LOGGER.info("Deye: Setting %s -> %.1f A", entity_id, value)
-        await self.hass.services.async_call(
-            "number",
-            "set_value",
-            {"entity_id": entity_id, "value": value},
-            blocking=True,
-        )
-        self._record_write(entity_id, value)
+        for attempt in range(1, 3):
+            _LOGGER.info("Deye: Setting %s -> %.1f A (attempt %d/2)", entity_id, value, attempt)
+            await self.hass.services.async_call(
+                "number",
+                "set_value",
+                {"entity_id": entity_id, "value": value},
+                blocking=True,
+            )
+            self._record_write(entity_id, value)
+
+            await asyncio.sleep(2.0)
+            verify_state = self.hass.states.get(entity_id)
+            if verify_state:
+                try:
+                    curr_val = float(verify_state.state)
+                    if abs(curr_val - value) <= max(1.0, deadband):
+                        _LOGGER.debug("Deye: Number %s confirmed -> %.1f A", entity_id, curr_val)
+                        return True
+                except (ValueError, TypeError):
+                    pass
+            _LOGGER.warning(
+                "Deye: Number readback mismatch for %s (got %s, expected %.1f A). Retrying...",
+                entity_id,
+                verify_state.state if verify_state else "None",
+                value,
+            )
+
         return True
 
     async def async_hold_battery(self) -> None:
