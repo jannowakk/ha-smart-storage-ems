@@ -13,11 +13,22 @@ class BaseInverter(ABC):
         self.hass = hass
         self.config = config
         self.write_count: int = 0
+        self.total_write_offset: int = 0
         self.last_write_entity: str | None = None
         self.last_write_value: Any = None
         self.last_write_time: str | None = None
         self.writes_by_entity: dict[str, int] = {}
         self.writes_log: list[dict[str, Any]] = []
+
+    @property
+    def session_write_count(self) -> int:
+        """Return number of writes during current HA session."""
+        return self.write_count
+
+    @property
+    def total_write_count(self) -> int:
+        """Return cumulative lifetime writes across HA restarts."""
+        return self.total_write_offset + self.write_count
 
     def _record_write(self, entity_id: str, value: Any) -> None:
         """Record an actual write operation to inverter registers."""

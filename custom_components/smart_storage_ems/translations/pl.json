@@ -102,13 +102,14 @@
         "menu_options": {
           "inverter": "Falownik i Bateria",
           "emhass": "Połączenie z EMHASS",
-          "tariffs": "Taryfy i Prognozy",
+          "prices": "Taryfy i Ceny Energii",
+          "forecasts": "Prognozy PV i Zużycia Domu",
           "guards": "Strażnik Importu i Rezerwy Bezpieczeństwa"
         }
       },
       "inverter": {
-        "title": "Ustawienia Falownika i Baterii",
-        "description": "Zmień typ inwertera oraz przypisane encje falownika i magazynu energii.",
+        "title": "Ustawienia Falownika i Baterii (Krok 1/2)",
+        "description": "Wybierz typ inwertera oraz podstawowe sensory instalacji (moc, bateria, sieć).",
         "data": {
           "inverter_type": "Typ falownika",
           "sensor_soc": "Sensor poziomu naładowania (SoC)",
@@ -117,7 +118,13 @@
           "sensor_load_power": "Sensor zużycia domu",
           "sensor_grid_import": "Sensor importu z sieci",
           "binary_sensor_offgrid": "Sensor trybu Off-Grid",
-          "enable_eeprom_counter": "Włącz encję licznika zapisów falownika (diagnostyka)",
+          "enable_eeprom_counter": "Włącz encję licznika zapisów falownika (diagnostyka)"
+        }
+      },
+      "inverter_actuators": {
+        "title": "Sterowanie Falownikiem i Regulatory (Krok 2/2)",
+        "description": "Skonfiguruj encje sterujące (tryby pracy, limity mocy) dedykowane dla Twojego modelu falownika.",
+        "data": {
           "select_ems_mode": "GoodWe: Encja trybu EMS (select)",
           "select_inverter_mode": "GoodWe: Encja trybu falownika (select)",
           "number_ems_power_limit": "GoodWe: Encja limitu mocy EMS (number)",
@@ -151,11 +158,18 @@
           "cost_function": "Funkcja celu (auto / cost / profit / self-consumption)"
         }
       },
-      "tariffs": {
-        "title": "Taryfy i Prognozy",
-        "description": "Dostosuj model taryfowy, ceny energii oraz źródła prognoz.",
+      "prices": {
+        "title": "Taryfy i Ceny Energii (Krok 1/2)",
+        "description": "Wybierz model taryfowy zakupu z sieci oraz model cen sprzedaży (eksportu).",
         "data": {
-          "tariff_mode": "Model taryfy energii",
+          "tariff_mode": "Model taryfy zakupu z sieci",
+          "sell_price_mode": "Model cen sprzedaży / eksportu energii"
+        }
+      },
+      "prices_details": {
+        "title": "Stawki Taryfowe i Parametry Sprzedaży (Krok 2/2)",
+        "description": "Skonfiguruj stawki cenowe dla wybranej taryfy zakupu oraz parametry eksportu.",
+        "data": {
           "g13s_price_peak": "G13s: Cena szczytowa dzienna (zł/kWh)",
           "g13s_price_day_offpeak": "G13s: Cena dzienna pozaszczytowa pod PV (zł/kWh)",
           "g13s_price_night": "G13s: Cena nocna (zł/kWh)",
@@ -165,6 +179,18 @@
           "g12_price_peak": "G12/G12w/G12r/G12n: Cena szczytowa (zł/kWh)",
           "g12_price_offpeak": "G12/G12w/G12r/G12n: Cena pozaszczytowa (zł/kWh)",
           "g11_price": "G11: Cena stała całodobowa (zł/kWh)",
+          "buy_price_entity": "Sensor cen zakupu",
+          "buy_price_attr": "Atrybut listy cen zakupu",
+          "pse_rce_multiplier": "Mnożnik cen PSE RCE (np. 1.23 dla Net-Billingu z VAT)",
+          "sell_price_entity": "Sensor cen sprzedaży",
+          "sell_price_attr": "Atrybut listy cen sprzedaży",
+          "sell_price_static": "Domyślna stała cena sprzedaży (zł/kWh)"
+        }
+      },
+      "forecasts": {
+        "title": "Prognozy PV i Zużycia Domu",
+        "description": "Skonfiguruj sensory Solcast, Open-Meteo oraz prognozowanie zużycia domu (House Load).",
+        "data": {
           "solcast_today": "Solcast: Prognoza na dzisiaj (sensor.solcast_pv_forecast_prognoza_na_dzisiaj)",
           "solcast_tomorrow": "Solcast: Prognoza na jutro (sensor.solcast_pv_forecast_prognoza_na_jutro)",
           "solcast_d3": "Solcast: Prognoza na dzień 3 (sensor.solcast_pv_forecast_prognoza_na_dzien_3)",
@@ -179,13 +205,7 @@
           "pv_power_threshold": "Próg mocy PV dla trybu letniego (W)",
           "load_forecast_entity": "Sensor prognozy zużycia domu 48h (opcjonalny, np. sensor.emhass_master_load_forecast)",
           "load_forecast_attr": "Atrybut prognozy zużycia (domyślnie: list)",
-          "load_profile_static": "Moc bazowa domu lub profil statyczny (W, puste = wbudowany autoprofil 400W)",
-          "buy_price_entity": "Sensor cen zakupu",
-          "sell_price_mode": "Model cen sprzedaży / eksportu energii",
-          "pse_rce_multiplier": "Mnożnik cen PSE RCE (np. 1.23 dla Net-Billingu z VAT)",
-          "sell_price_entity": "Sensor cen sprzedaży",
-          "sell_price_attr": "Atrybut listy cen sprzedaży",
-          "sell_price_static": "Domyślna stała cena sprzedaży (zł/kWh)"
+          "load_profile_static": "Moc bazowa domu lub profil statyczny (W, puste = wbudowany autoprofil 400W)"
         }
       },
       "guards": {

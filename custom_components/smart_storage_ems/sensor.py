@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_ENABLE_EEPROM_COUNTER, DEFAULT_ENABLE_EEPROM_COUNTER, DOMAIN
@@ -249,8 +250,8 @@ class SmartStorageDiagnosticSensor(CoordinatorEntity[SmartStorageCoordinator], S
         }
 
 
-class SmartStorageEepromWritesSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
-    """Diagnostic sensor tracking actual physical EEPROM/register writes to the inverter."""
+class SmartStorageEepromWritesSensor(CoordinatorEntity[SmartStorageCoordinator], RestoreEntity, SensorEntity):
+    """Diagnostic sensor tracking actual physical EEPROM/register writes to the inverter (persistent across HA restarts)."""
 
     def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
@@ -260,17 +261,39 @@ class SmartStorageEepromWritesSensor(CoordinatorEntity[SmartStorageCoordinator],
         self._attr_entity_category = EntityCategory.DIAGNOSTIC
         self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_native_unit_of_measurement = "zapisów"
+        self._restored_initial_count: int = 0
+
+    async def async_added_to_hass(self) -> None:
+        """Restore previous total writes count across HA restarts and seed the inverter driver."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in (None, "unknown", "unavailable"):
+            try:
+                restored_val = int(float(last_state.state))
+                if restored_val > 0:
+                    self._restored_initial_count = restored_val
+                    inverter = getattr(self.coordinator, "inverter", None)
+                    if inverter and getattr(inverter, "total_write_offset", 0) == 0:
+                        inverter.total_write_offset = restored_val
+            except (ValueError, TypeError):
+                pass
 
     @property
     def native_value(self) -> int:
-        """Return current total write count."""
-        return self.coordinator.inverter_write_count
+        """Return cumulative lifetime write count (restored offset + session writes)."""
+        inverter = getattr(self.coordinator, "inverter", None)
+        if inverter:
+            return getattr(inverter, "total_write_count", self.coordinator.inverter_write_count)
+        return self._restored_initial_count + self.coordinator.inverter_write_count
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Expose detailed breakdown of inverter writes."""
         inverter = getattr(self.coordinator, "inverter", None)
+        session_writes = getattr(inverter, "session_write_count", self.coordinator.inverter_write_count)
         return {
+            "zapisy_w_biezacej_sesji": session_writes,
+            "poprzedni_stan_przed_restartem": self._restored_initial_count,
             "ostatni_zapis_encja": getattr(inverter, "last_write_entity", None),
             "ostatnia_wartosc": getattr(inverter, "last_write_value", None),
             "czas_ostatniego_zapisu": getattr(inverter, "last_write_time", None),

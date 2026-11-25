@@ -26,6 +26,7 @@ sys.modules["homeassistant.helpers.selector"] = ha_mock
 sys.modules["homeassistant.helpers.aiohttp_client"] = ha_mock
 sys.modules["homeassistant.helpers.event"] = ha_mock
 sys.modules["homeassistant.helpers.update_coordinator"] = ha_mock
+sys.modules["homeassistant.helpers.restore_state"] = ha_mock
 class FakeCoordinator:
     def __init__(self, hass, logger=None, name=None, update_interval=None):
         self.hass = hass
@@ -44,6 +45,16 @@ class FakeCoordinatorEntity:
 class FakeSensorEntity:
     def __init__(self, *args, **kwargs):
         pass
+
+class FakeRestoreEntity:
+    def __init__(self, *args, **kwargs):
+        pass
+    async def async_get_last_state(self):
+        return None
+
+sys.modules["homeassistant.helpers.restore_state"].RestoreEntity = FakeRestoreEntity
+sys.modules["homeassistant.components.sensor"].SensorEntity = FakeSensorEntity
+sys.modules["homeassistant.helpers.update_coordinator"].CoordinatorEntity = FakeCoordinatorEntity
 
 from datetime import datetime
 dt_mock = MagicMock()

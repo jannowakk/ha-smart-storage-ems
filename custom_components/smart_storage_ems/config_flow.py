@@ -434,7 +434,7 @@ EMHASS_STEP_FIELDS = [
     CONF_COST_FUNCTION,
 ]
 
-TARIFFS_STEP_FIELDS = [
+PRICES_STEP_FIELDS = [
     CONF_TARIFF_MODE,
     CONF_G13S_PRICE_PEAK,
     CONF_G13S_PRICE_DAY_OFFPEAK,
@@ -452,6 +452,9 @@ TARIFFS_STEP_FIELDS = [
     CONF_SELL_PRICE_STATIC,
     CONF_SELL_PRICE_ENTITY,
     CONF_SELL_PRICE_ATTR,
+]
+
+FORECASTS_STEP_FIELDS = [
     CONF_SOLCAST_TODAY,
     CONF_SOLCAST_TOMORROW,
     CONF_SOLCAST_D3,
@@ -469,6 +472,8 @@ TARIFFS_STEP_FIELDS = [
     CONF_LOAD_PROFILE_STATIC,
 ]
 
+TARIFFS_STEP_FIELDS = PRICES_STEP_FIELDS + FORECASTS_STEP_FIELDS
+
 GUARDS_STEP_FIELDS = [
     CONF_ENABLE_IMPORT_GUARD,
     CONF_ENABLE_PRICE_GUARD,
@@ -485,6 +490,7 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry | None = None) -> None:
         self._entry = config_entry
+        self._inverter_data: dict[str, Any] = {}
 
     @property
     def entry(self) -> config_entries.ConfigEntry:
@@ -507,27 +513,28 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
         """Display the main options menu."""
         return self.async_show_menu(
             step_id="init",
-            menu_options=["inverter", "emhass", "tariffs", "guards"],
+            menu_options=["inverter", "emhass", "prices", "forecasts", "guards"],
         )
 
     async def async_step_inverter(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
-        """Configure Inverter & Battery entities."""
+        """Krok 1: Podstawowe sensory instalacji i wybór typu falownika."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=self._apply_step_updates(INVERTER_STEP_FIELDS, user_input))
+            self._inverter_data = dict(user_input)
+            return await self.async_step_inverter_actuators()
 
         data = {**self.entry.data, **self.entry.options}
         schema = vol.Schema(
             {
                 vol.Required(
                     CONF_INVERTER_TYPE,
-                    default=data.get(CONF_INVERTER_TYPE, "goodwe"),
+                    default=data.get(CONF_INVERTER_TYPE, INVERTER_TYPE_GOODWE),
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
-                            {"value": "goodwe", "label": "GoodWe (ET / ES / EH / Lynx)"},
-                            {"value": "deye", "label": "Deye / SunSynk / Sol-Ark [BETA]"},
-                            {"value": "hoymiles", "label": "Hoymiles HIT-(5–20)L-G3 [BETA]"},
-                            {"value": "sofar", "label": "Sofar Solar (HYD 3K-6K-ES / EP, HYD-3PH) [BETA]"},
+                            {"value": INVERTER_TYPE_GOODWE, "label": "GoodWe (ET / ES / EH / Lynx)"},
+                            {"value": INVERTER_TYPE_DEYE, "label": "Deye / SunSynk / Sol-Ark [BETA]"},
+                            {"value": INVERTER_TYPE_HOYMILES, "label": "Hoymiles HIT-(5–20)L-G3 [BETA]"},
+                            {"value": INVERTER_TYPE_SOFAR, "label": "Sofar Solar (HYD 3K-6K-ES / EP, HYD-3PH) [BETA]"},
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
@@ -553,34 +560,6 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     description={"suggested_value": data.get(CONF_SENSOR_GRID_IMPORT) or None},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
                 vol.Optional(
-                    CONF_SELECT_EMS_MODE,
-                    description={"suggested_value": data.get(CONF_SELECT_EMS_MODE) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
-                vol.Optional(
-                    CONF_SELECT_INVERTER_MODE,
-                    description={"suggested_value": data.get(CONF_SELECT_INVERTER_MODE) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
-                vol.Optional(
-                    CONF_NUMBER_EMS_POWER_LIMIT,
-                    description={"suggested_value": data.get(CONF_NUMBER_EMS_POWER_LIMIT) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_NUMBER_EXPORT_LIMIT,
-                    description={"suggested_value": data.get(CONF_NUMBER_EXPORT_LIMIT) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_MIN_EXPORT_LIMIT,
-                    description={"suggested_value": data.get(CONF_MIN_EXPORT_LIMIT)},
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(
-                        min=0,
-                        max=50000,
-                        step=100,
-                        unit_of_measurement="W",
-                        mode=selector.NumberSelectorMode.BOX,
-                    )
-                ),
-                vol.Optional(
                     CONF_BINARY_SENSOR_OFFGRID,
                     description={"suggested_value": data.get(CONF_BINARY_SENSOR_OFFGRID) or None},
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="binary_sensor")),
@@ -588,76 +567,135 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     CONF_ENABLE_EEPROM_COUNTER,
                     default=data.get(CONF_ENABLE_EEPROM_COUNTER, DEFAULT_ENABLE_EEPROM_COUNTER),
                 ): selector.BooleanSelector(),
-                # --- Pola dla Deye / SunSynk ---
-                vol.Optional(
-                    CONF_DEYE_SELECT_WORK_MODE,
-                    description={"suggested_value": data.get(CONF_DEYE_SELECT_WORK_MODE) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
-                vol.Optional(
-                    CONF_DEYE_SWITCH_GRID_CHARGE,
-                    description={"suggested_value": data.get(CONF_DEYE_SWITCH_GRID_CHARGE) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="switch")),
-                vol.Optional(
-                    CONF_DEYE_SWITCH_SELL_SOLAR,
-                    description={"suggested_value": data.get(CONF_DEYE_SWITCH_SELL_SOLAR) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="switch")),
-                vol.Optional(
-                    CONF_DEYE_NUMBER_CHARGE_CURRENT,
-                    description={"suggested_value": data.get(CONF_DEYE_NUMBER_CHARGE_CURRENT) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
-                    description={"suggested_value": data.get(CONF_DEYE_NUMBER_DISCHARGE_CURRENT) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_DEYE_SENSOR_BATTERY_VOLTAGE,
-                    description={"suggested_value": data.get(CONF_DEYE_SENSOR_BATTERY_VOLTAGE) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
-                    default=float(data.get(CONF_DEYE_BATTERY_NOMINAL_VOLTAGE, DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE)),
-                ): float,
-                # --- Pola dla Hoymiles HIT-G3 ---
-                vol.Optional(
-                    CONF_HOYMILES_SELECT_EMS_MODE,
-                    description={"suggested_value": data.get(CONF_HOYMILES_SELECT_EMS_MODE) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
-                vol.Optional(
-                    CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER,
-                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER,
-                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC,
-                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC,
-                    description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_HOYMILES_RATED_POWER,
-                    default=float(data.get(CONF_HOYMILES_RATED_POWER, DEFAULT_HOYMILES_RATED_POWER)),
-                ): float,
-                # --- Pola dla Sofar Solar HYD ---
-                vol.Optional(
-                    CONF_SOFAR_SELECT_WORK_MODE,
-                    description={"suggested_value": data.get(CONF_SOFAR_SELECT_WORK_MODE) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
-                vol.Optional(
-                    CONF_SOFAR_NUMBER_CHARGE_POWER,
-                    description={"suggested_value": data.get(CONF_SOFAR_NUMBER_CHARGE_POWER) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
-                vol.Optional(
-                    CONF_SOFAR_NUMBER_DISCHARGE_POWER,
-                    description={"suggested_value": data.get(CONF_SOFAR_NUMBER_DISCHARGE_POWER) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
             }
         )
         return self.async_show_form(step_id="inverter", data_schema=schema)
+
+    async def async_step_inverter_actuators(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Krok 2: Regulatory i parametry wykonawcze specyficzne dla wybranego falownika."""
+        if user_input is not None:
+            combined = {**self._inverter_data, **user_input}
+            return self.async_create_entry(title="", data=self._apply_step_updates(INVERTER_STEP_FIELDS, combined))
+
+        data = {**self.entry.data, **self.entry.options}
+        inv_type = self._inverter_data.get(CONF_INVERTER_TYPE, data.get(CONF_INVERTER_TYPE, INVERTER_TYPE_GOODWE))
+        schema_dict: dict[Any, Any] = {}
+
+        if inv_type == INVERTER_TYPE_GOODWE:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_SELECT_EMS_MODE,
+                        description={"suggested_value": data.get(CONF_SELECT_EMS_MODE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                    vol.Optional(
+                        CONF_SELECT_INVERTER_MODE,
+                        description={"suggested_value": data.get(CONF_SELECT_INVERTER_MODE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                    vol.Optional(
+                        CONF_NUMBER_EMS_POWER_LIMIT,
+                        description={"suggested_value": data.get(CONF_NUMBER_EMS_POWER_LIMIT) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_NUMBER_EXPORT_LIMIT,
+                        description={"suggested_value": data.get(CONF_NUMBER_EXPORT_LIMIT) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_MIN_EXPORT_LIMIT,
+                        description={"suggested_value": data.get(CONF_MIN_EXPORT_LIMIT)},
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0,
+                            max=50000,
+                            step=100,
+                            unit_of_measurement="W",
+                            mode=selector.NumberSelectorMode.BOX,
+                        )
+                    ),
+                }
+            )
+        elif inv_type == INVERTER_TYPE_DEYE:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_DEYE_SELECT_WORK_MODE,
+                        description={"suggested_value": data.get(CONF_DEYE_SELECT_WORK_MODE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                    vol.Optional(
+                        CONF_DEYE_SWITCH_GRID_CHARGE,
+                        description={"suggested_value": data.get(CONF_DEYE_SWITCH_GRID_CHARGE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="switch")),
+                    vol.Optional(
+                        CONF_DEYE_SWITCH_SELL_SOLAR,
+                        description={"suggested_value": data.get(CONF_DEYE_SWITCH_SELL_SOLAR) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="switch")),
+                    vol.Optional(
+                        CONF_DEYE_NUMBER_CHARGE_CURRENT,
+                        description={"suggested_value": data.get(CONF_DEYE_NUMBER_CHARGE_CURRENT) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_DEYE_NUMBER_DISCHARGE_CURRENT,
+                        description={"suggested_value": data.get(CONF_DEYE_NUMBER_DISCHARGE_CURRENT) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_DEYE_SENSOR_BATTERY_VOLTAGE,
+                        description={"suggested_value": data.get(CONF_DEYE_SENSOR_BATTERY_VOLTAGE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                    vol.Optional(
+                        CONF_DEYE_BATTERY_NOMINAL_VOLTAGE,
+                        default=float(data.get(CONF_DEYE_BATTERY_NOMINAL_VOLTAGE, DEFAULT_DEYE_BATTERY_NOMINAL_VOLTAGE)),
+                    ): float,
+                }
+            )
+        elif inv_type == INVERTER_TYPE_HOYMILES:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_HOYMILES_SELECT_EMS_MODE,
+                        description={"suggested_value": data.get(CONF_HOYMILES_SELECT_EMS_MODE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                    vol.Optional(
+                        CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER,
+                        description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_MAX_CHARGE_POWER) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER,
+                        description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_MAX_DISCHARGE_POWER) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC,
+                        description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_FORCE_CHARGE_SOC) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC,
+                        description={"suggested_value": data.get(CONF_HOYMILES_NUMBER_FORCE_DISCHARGE_SOC) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_HOYMILES_RATED_POWER,
+                        default=float(data.get(CONF_HOYMILES_RATED_POWER, DEFAULT_HOYMILES_RATED_POWER)),
+                    ): float,
+                }
+            )
+        elif inv_type == INVERTER_TYPE_SOFAR:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_SOFAR_SELECT_WORK_MODE,
+                        description={"suggested_value": data.get(CONF_SOFAR_SELECT_WORK_MODE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                    vol.Optional(
+                        CONF_SOFAR_NUMBER_CHARGE_POWER,
+                        description={"suggested_value": data.get(CONF_SOFAR_NUMBER_CHARGE_POWER) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_SOFAR_NUMBER_DISCHARGE_POWER,
+                        description={"suggested_value": data.get(CONF_SOFAR_NUMBER_DISCHARGE_POWER) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                }
+            )
+
+        schema = vol.Schema(schema_dict)
+        return self.async_show_form(step_id="inverter_actuators", data_schema=schema)
 
     async def async_step_emhass(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Configure EMHASS optimization settings."""
@@ -699,15 +737,16 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
         )
         return self.async_show_form(step_id="emhass", data_schema=schema)
 
-    async def async_step_tariffs(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
-        """Configure Tariffs & Forecasts."""
+    async def async_step_prices(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Krok 1: Wybór modelu taryfy zakupu oraz modelu sprzedaży."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=self._apply_step_updates(TARIFFS_STEP_FIELDS, user_input))
+            self._tariff_data = dict(user_input)
+            return await self.async_step_prices_details()
 
         data = {**self.entry.data, **self.entry.options}
         schema = vol.Schema(
             {
-                # --- Grupa 1: Ceny Zakupu Energii (Import / Taryfy) ---
+                # --- Ceny Zakupu Energii (Import / Taryfy) ---
                 vol.Required(
                     CONF_TARIFF_MODE,
                     default=data.get(CONF_TARIFF_MODE, TARIFF_MODE_G13S),
@@ -726,52 +765,7 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
-                vol.Optional(
-                    CONF_G13S_PRICE_PEAK,
-                    default=float(data.get(CONF_G13S_PRICE_PEAK, 1.25)),
-                ): float,
-                vol.Optional(
-                    CONF_G13S_PRICE_DAY_OFFPEAK,
-                    default=float(data.get(CONF_G13S_PRICE_DAY_OFFPEAK, 0.55)),
-                ): float,
-                vol.Optional(
-                    CONF_G13S_PRICE_NIGHT,
-                    default=float(data.get(CONF_G13S_PRICE_NIGHT, 0.60)),
-                ): float,
-                vol.Optional(
-                    CONF_G13_PRICE_T1,
-                    default=float(data.get(CONF_G13_PRICE_T1, 0.90)),
-                ): float,
-                vol.Optional(
-                    CONF_G13_PRICE_T2,
-                    default=float(data.get(CONF_G13_PRICE_T2, 1.49)),
-                ): float,
-                vol.Optional(
-                    CONF_G13_PRICE_T3,
-                    default=float(data.get(CONF_G13_PRICE_T3, 0.62)),
-                ): float,
-                vol.Optional(
-                    CONF_G12_PRICE_PEAK,
-                    default=float(data.get(CONF_G12_PRICE_PEAK, 1.15)),
-                ): float,
-                vol.Optional(
-                    CONF_G12_PRICE_OFFPEAK,
-                    default=float(data.get(CONF_G12_PRICE_OFFPEAK, 0.65)),
-                ): float,
-                vol.Optional(
-                    CONF_G11_PRICE,
-                    default=float(data.get(CONF_G11_PRICE, 0.95)),
-                ): float,
-                vol.Optional(
-                    CONF_BUY_PRICE_ENTITY,
-                    description={"suggested_value": data.get(CONF_BUY_PRICE_ENTITY) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_BUY_PRICE_ATTR,
-                    default=data.get(CONF_BUY_PRICE_ATTR, "list"),
-                ): str,
-
-                # --- Grupa 2: Ceny Sprzedaży Energii / Arbitraż (Eksport) ---
+                # --- Ceny Sprzedaży Energii / Arbitraż (Eksport) ---
                 vol.Required(
                     CONF_SELL_PRICE_MODE,
                     default=data.get(CONF_SELL_PRICE_MODE, SELL_PRICE_MODE_PSE_RCE),
@@ -785,24 +779,111 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
-                vol.Optional(
-                    CONF_PSE_RCE_MULTIPLIER,
-                    default=float(data.get(CONF_PSE_RCE_MULTIPLIER, DEFAULT_PSE_RCE_MULTIPLIER)),
-                ): float,
-                vol.Optional(
-                    CONF_SELL_PRICE_STATIC,
-                    default=float(data.get(CONF_SELL_PRICE_STATIC, 0.40)),
-                ): float,
-                vol.Optional(
-                    CONF_SELL_PRICE_ENTITY,
-                    description={"suggested_value": data.get(CONF_SELL_PRICE_ENTITY) or None},
-                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
-                vol.Optional(
-                    CONF_SELL_PRICE_ATTR,
-                    default=data.get(CONF_SELL_PRICE_ATTR, "list"),
-                ): str,
+            }
+        )
+        return self.async_show_form(step_id="prices", data_schema=schema)
 
-                # --- Grupa 3: Prognoza Fotowoltaiki (Solcast + Open-Meteo Fallback) ---
+    async def async_step_prices_details(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Krok 2: Szczegółowe stawki cenowe dla wybranej taryfy zakupu i sprzedaży."""
+        if user_input is not None:
+            combined = {**getattr(self, "_tariff_data", {}), **user_input}
+            return self.async_create_entry(title="", data=self._apply_step_updates(PRICES_STEP_FIELDS, combined))
+
+        data = {**self.entry.data, **self.entry.options}
+        tariff_mode = getattr(self, "_tariff_data", {}).get(CONF_TARIFF_MODE, data.get(CONF_TARIFF_MODE, TARIFF_MODE_G13S))
+        sell_mode = getattr(self, "_tariff_data", {}).get(CONF_SELL_PRICE_MODE, data.get(CONF_SELL_PRICE_MODE, SELL_PRICE_MODE_PSE_RCE))
+
+        schema_dict: dict[Any, Any] = {}
+
+        # 1. Stawki zakupu wg taryfy
+        if tariff_mode == TARIFF_MODE_G13S:
+            schema_dict.update(
+                {
+                    vol.Optional(CONF_G13S_PRICE_PEAK, default=float(data.get(CONF_G13S_PRICE_PEAK, 1.25))): float,
+                    vol.Optional(CONF_G13S_PRICE_DAY_OFFPEAK, default=float(data.get(CONF_G13S_PRICE_DAY_OFFPEAK, 0.55))): float,
+                    vol.Optional(CONF_G13S_PRICE_NIGHT, default=float(data.get(CONF_G13S_PRICE_NIGHT, 0.60))): float,
+                }
+            )
+        elif tariff_mode == TARIFF_MODE_G13:
+            schema_dict.update(
+                {
+                    vol.Optional(CONF_G13_PRICE_T1, default=float(data.get(CONF_G13_PRICE_T1, 0.90))): float,
+                    vol.Optional(CONF_G13_PRICE_T2, default=float(data.get(CONF_G13_PRICE_T2, 1.49))): float,
+                    vol.Optional(CONF_G13_PRICE_T3, default=float(data.get(CONF_G13_PRICE_T3, 0.62))): float,
+                }
+            )
+        elif tariff_mode in (TARIFF_MODE_G12W, TARIFF_MODE_G12, TARIFF_MODE_G12R, TARIFF_MODE_G12N):
+            schema_dict.update(
+                {
+                    vol.Optional(CONF_G12_PRICE_PEAK, default=float(data.get(CONF_G12_PRICE_PEAK, 1.15))): float,
+                    vol.Optional(CONF_G12_PRICE_OFFPEAK, default=float(data.get(CONF_G12_PRICE_OFFPEAK, 0.65))): float,
+                }
+            )
+        elif tariff_mode == TARIFF_MODE_G11:
+            schema_dict.update(
+                {
+                    vol.Optional(CONF_G11_PRICE, default=float(data.get(CONF_G11_PRICE, 0.95))): float,
+                }
+            )
+        elif tariff_mode == TARIFF_MODE_CUSTOM:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_BUY_PRICE_ENTITY,
+                        description={"suggested_value": data.get(CONF_BUY_PRICE_ENTITY) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                    vol.Optional(
+                        CONF_BUY_PRICE_ATTR,
+                        default=data.get(CONF_BUY_PRICE_ATTR, "list"),
+                    ): str,
+                }
+            )
+
+        # 2. Parametry sprzedaży wg sell_mode
+        if sell_mode == SELL_PRICE_MODE_PSE_RCE:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_PSE_RCE_MULTIPLIER,
+                        default=float(data.get(CONF_PSE_RCE_MULTIPLIER, DEFAULT_PSE_RCE_MULTIPLIER)),
+                    ): float,
+                }
+            )
+        elif sell_mode == SELL_PRICE_MODE_STATIC:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_SELL_PRICE_STATIC,
+                        default=float(data.get(CONF_SELL_PRICE_STATIC, 0.40)),
+                    ): float,
+                }
+            )
+        elif sell_mode == SELL_PRICE_MODE_SENSOR:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_SELL_PRICE_ENTITY,
+                        description={"suggested_value": data.get(CONF_SELL_PRICE_ENTITY) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                    vol.Optional(
+                        CONF_SELL_PRICE_ATTR,
+                        default=data.get(CONF_SELL_PRICE_ATTR, "list"),
+                    ): str,
+                }
+            )
+
+        schema = vol.Schema(schema_dict)
+        return self.async_show_form(step_id="prices_details", data_schema=schema)
+
+    async def async_step_forecasts(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
+        """Configure Forecast sources (PV & House Load)."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=self._apply_step_updates(FORECASTS_STEP_FIELDS, user_input))
+
+        data = {**self.entry.data, **self.entry.options}
+        schema = vol.Schema(
+            {
+                # --- Prognoza Fotowoltaiki (Solcast + Open-Meteo Fallback) ---
                 vol.Optional(
                     CONF_SOLCAST_TODAY,
                     description={"suggested_value": data.get(CONF_SOLCAST_TODAY) or None},
@@ -852,7 +933,7 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     default=float(data.get(CONF_PV_POWER_THRESHOLD, DEFAULT_PV_POWER_THRESHOLD)),
                 ): float,
 
-                # --- Grupa 4: Prognoza Zużycia Domu (House Load) ---
+                # --- Prognoza Zużycia Domu (House Load) ---
                 vol.Optional(
                     CONF_LOAD_FORECAST_ENTITY,
                     description={"suggested_value": data.get(CONF_LOAD_FORECAST_ENTITY) or None},
@@ -867,7 +948,7 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                 ): str,
             }
         )
-        return self.async_show_form(step_id="tariffs", data_schema=schema)
+        return self.async_show_form(step_id="forecasts", data_schema=schema)
 
     async def async_step_guards(self, user_input: dict[str, Any] | None = None) -> config_entries.ConfigFlowResult:
         """Configure Guards and Reserves."""

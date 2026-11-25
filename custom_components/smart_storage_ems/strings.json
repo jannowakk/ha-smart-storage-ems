@@ -102,13 +102,14 @@
         "menu_options": {
           "inverter": "Inverter & Battery",
           "emhass": "EMHASS Connection",
-          "tariffs": "Tariffs & Forecasts",
+          "prices": "Tariffs & Energy Prices",
+          "forecasts": "PV & Load Forecasts",
           "guards": "Zero Import Guard & Reserves"
         }
       },
       "inverter": {
-        "title": "Inverter & Battery Settings",
-        "description": "Change inverter type and entity mappings for hybrid inverter and battery storage.",
+        "title": "Inverter & Battery Settings (Step 1/2)",
+        "description": "Select inverter type and general installation power sensors.",
         "data": {
           "inverter_type": "Inverter Type",
           "sensor_soc": "Battery State of Charge (SoC) Sensor",
@@ -117,7 +118,13 @@
           "sensor_load_power": "House Consumption Sensor",
           "sensor_grid_import": "Grid Import Sensor",
           "binary_sensor_offgrid": "Off-Grid Sensor",
-          "enable_eeprom_counter": "Enable Inverter Write Counter Diagnostic Sensor",
+          "enable_eeprom_counter": "Enable Inverter Write Counter Diagnostic Sensor"
+        }
+      },
+      "inverter_actuators": {
+        "title": "Inverter Controls & Actuators (Step 2/2)",
+        "description": "Configure actuator selects, power limits, and controls for your selected inverter.",
+        "data": {
           "select_ems_mode": "GoodWe: EMS Mode Select Entity",
           "select_inverter_mode": "GoodWe: Inverter Mode Select Entity",
           "number_ems_power_limit": "GoodWe: EMS Power Limit Entity",
@@ -151,11 +158,18 @@
           "cost_function": "Cost Function (auto / cost / profit / self-consumption)"
         }
       },
-      "tariffs": {
-        "title": "Tariffs & Forecast Settings",
-        "description": "Adjust pricing models, prices, and forecast sources.",
+      "prices": {
+        "title": "Tariffs & Energy Prices (Step 1/2)",
+        "description": "Select grid buy tariff and export sell pricing model.",
         "data": {
           "tariff_mode": "Tariff Pricing Model",
+          "sell_price_mode": "Energy Export (Sell) Pricing Model"
+        }
+      },
+      "prices_details": {
+        "title": "Tariff Rates & Parameters (Step 2/2)",
+        "description": "Configure rates and parameters for your selected tariff and export model.",
+        "data": {
           "g13s_price_peak": "G13s: Day Peak Price (PLN/kWh)",
           "g13s_price_day_offpeak": "G13s: Day Solar Off-peak Price (PLN/kWh)",
           "g13s_price_night": "G13s: Night Off-peak Price (PLN/kWh)",
@@ -165,6 +179,18 @@
           "g12_price_peak": "G12/G12w/G12r/G12n: Peak Price (PLN/kWh)",
           "g12_price_offpeak": "G12/G12w/G12r/G12n: Off-peak Price (PLN/kWh)",
           "g11_price": "G11: Flat 24/7 Price (PLN/kWh)",
+          "buy_price_entity": "Grid Buy Price Entity",
+          "buy_price_attr": "Buy Price List Attribute",
+          "pse_rce_multiplier": "PSE RCE Price Multiplier (e.g. 1.23 for Net-Billing with VAT)",
+          "sell_price_entity": "Grid Sell Price Entity (RCE)",
+          "sell_price_attr": "Sell Price List Attribute",
+          "sell_price_static": "Default Static Sell Price"
+        }
+      },
+      "forecasts": {
+        "title": "PV & Load Forecast Settings",
+        "description": "Configure Solcast, Open-Meteo fallback, and house load prediction parameters.",
+        "data": {
           "solcast_today": "Solcast Forecast Today Sensor",
           "solcast_tomorrow": "Solcast Forecast Tomorrow Sensor",
           "solcast_d3": "Solcast Forecast Day 3 Sensor",
@@ -179,13 +205,7 @@
           "pv_power_threshold": "Solar Day Power Threshold (W)",
           "load_forecast_entity": "48h House Load Forecast Sensor (optional, e.g. sensor.emhass_master_load_forecast)",
           "load_forecast_attr": "Load Forecast List Attribute (default: list)",
-          "load_profile_static": "Baseline House Load (W, empty = built-in auto profile 400W)",
-          "buy_price_entity": "Grid Buy Price Entity",
-          "sell_price_mode": "Energy Export (Sell) Pricing Model",
-          "pse_rce_multiplier": "PSE RCE Price Multiplier (e.g. 1.23 for Net-Billing with VAT)",
-          "sell_price_entity": "Grid Sell Price Entity (RCE)",
-          "sell_price_attr": "Sell Price List Attribute",
-          "sell_price_static": "Default Static Sell Price"
+          "load_profile_static": "Baseline House Load (W, empty = built-in auto profile 400W)"
         }
       },
       "guards": {

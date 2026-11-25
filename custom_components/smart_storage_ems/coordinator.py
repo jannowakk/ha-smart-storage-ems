@@ -703,9 +703,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     @property
     def inverter_write_count(self) -> int:
-        """Return total physical inverter register/EEPROM write count this session."""
+        """Return total physical inverter register/EEPROM write count (lifetime cumulative)."""
         if hasattr(self, "inverter") and self.inverter:
-            return getattr(self.inverter, "write_count", 0)
+            return getattr(self.inverter, "total_write_count", getattr(self.inverter, "write_count", 0))
         return 0
 
     async def async_refresh_load_observer(self) -> None:
