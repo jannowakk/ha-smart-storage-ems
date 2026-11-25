@@ -405,14 +405,19 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
 - [x] MVP: Obsługa EMHASS Long-MPC + Falownik GoodWe ET/ES.
 - [x] Strażnik Importu czasu rzeczywistego (Zero Import Guard).
 - [x] Opcje dynamicznego Min SoC (Sezon zimowy + Współczynnik mrozu + Ostrzeżenia burzowe).
-- [x] Wbudowany moduł taryf polskich (G12w, G13 z kalendarzem świąt stałych i ruchomych).
+- [x] Wbudowany moduł taryf polskich (G13s, G13, G12w, G12, G12r, G12n, G11 z kalendarzem świąt).
 - [x] Dedykowane karty dashboardu Lovelace do sterowania i wizualizacji planu ładowania/rozładowania (48h).
-- [x] Natywny silnik prognoz (automatyczne składanie D+0/D+1/D+2, cięcie „od teraz”, czytanie Solcast + fallback Open-Meteo oraz wbudowany szablon profilu dobowego zużycia domu bez pisania YAML-a).
+- [x] Natywny silnik prognoz (Solcast + fallback Open-Meteo oraz wbudowany szablon profilu dobowego zużycia domu bez YAML-a).
 - [x] Wbudowane pobieranie cen sprzedaży RCE bezpośrednio z publicznego API PSE S.A. (`api.raporty.pse.pl`).
-- [x] Obsługa autoryzacji Bearer Token dla nowszych wersji EMHASS (v0.18.10+ oraz v0.18.11+).
 - [x] Wbudowana karta autodiagnostyki Lovelace (`custom:smart-storage-diagnostic-card`) oraz natywna diagnostyka HA (`Pobierz diagnostykę`).
-- [ ] Intuicyjne suwaki strojenia trendu pracy EMHASS w zakresie `-1 / 0 / +1` (chętniej ładuj / balans / chętniej rozładowuj, agresywność arbitrażu vs ochrona ogniw, sztywność bufora SoC).
-- [ ] Kolejne drivery falowników: Victron MultiPlus/ESS, Deye Hybrid, Huawei LUNA.
+- [x] 🧪 **[BETA]** Rozszerzenie architektury HAL: sterowniki dla falowników Deye (SunSynk/Sol-Ark), Hoymiles (HIT-G3) oraz Sofar Solar (HYD).
+- [x] 🧪 **[BETA]** Pasywny Obserwator Zużycia P85: wyliczanie 85. percentyla zapotrzebowania domu z historii bazy danych HA (podwójny profil: dni robocze vs weekendy).
+- [ ] 📋 Integracja z kalendarzem (Google/iCal) dla grafików pracy zmianowej (dniówka/nocka) oraz trybu Home Office (z transparentnymi sensorami dla pomp ciepła i HVAC).
+- [ ] 📋 Pomocnicze sensory binarne dla Smart Home: Tania Strefa Taryfowa Aktywna, Nadwyżka PV Ponad Baterię i Dom (Power-to-Heat / Grzałki CWU / EV).
+- [ ] 📋 Strażnik Przyłącza i Asymetrii Fazowej (Current Guard): ochrona bezpieczników przedlicznikowych przy asymetrycznym ładowaniu EV i 3-fazowej pompie ciepła.
+- [ ] 📋 Taryfa elastyczna PGE G12e (z dynamicznymi oknami słonecznymi zależnymi od miesiąca).
+- [ ] 📋 Intuicyjne suwaki strojenia trendu pracy EMHASS w zakresie `-1 / 0 / +1` (chętniej ładuj / balans / chętniej rozładowuj, agresywność arbitrażu vs ochrona ogniw).
+- [ ] 📋 Kolejne sterowniki falowników: Victron MultiPlus-II / ESS, SolaX Hybrid, Huawei LUNA.
 
 ---
 
