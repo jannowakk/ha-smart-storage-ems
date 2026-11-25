@@ -2,7 +2,14 @@
 """Standalone test runner for Smart Storage EMS."""
 
 import sys
-from unittest.mock import MagicMock
+import asyncio
+from unittest.mock import MagicMock, AsyncMock
+
+# Fast-forward asyncio.sleep in tests
+async def _fast_sleep(*args, **kwargs):
+    pass
+asyncio.sleep = _fast_sleep
+
 
 # Setup lightweight mocks for Home Assistant environment
 def callback(func):
@@ -251,6 +258,18 @@ if __name__ == "__main__":
     test_sofar_force_charge()
     test_sofar_force_export()
     print("✓ TestSofarDriver (hold, self-use, force charge, force export in Watts) passed")
+    from tests.test_foxess_driver import (
+        test_foxess_hold_battery,
+        test_foxess_self_consumption,
+        test_foxess_force_charge,
+        test_foxess_force_export,
+    )
+    test_foxess_hold_battery()
+    test_foxess_self_consumption()
+    test_foxess_force_charge()
+    test_foxess_force_export()
+    print("✓ TestFoxessDriver (hold, self-use, force charge, force export in Watts) passed")
+
 
     from tests.test_contracts import TestContracts
     tc = TestContracts()
@@ -272,6 +291,16 @@ if __name__ == "__main__":
     test_aggregate_states_to_slots()
     test_load_observer_sensor_attributes()
     print("✓ TestLoadObserver (P85 percentile calculation, slot aggregation & sensor attributes) passed")
+    from tests.test_schedule_manager import (
+        test_schedule_keyword_matching_and_word_boundaries,
+        test_schedule_evaluate_input_boolean,
+        test_schedule_fallback_to_free_days_when_empty,
+    )
+    test_schedule_keyword_matching_and_word_boundaries()
+    test_schedule_evaluate_input_boolean()
+    test_schedule_fallback_to_free_days_when_empty()
+    print("✓ TestScheduleManager (archetypes, regex word boundaries, boolean helper, holiday fallback) passed")
+
 
     print("\nAll unit tests passed successfully!")
 

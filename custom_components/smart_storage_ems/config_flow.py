@@ -31,6 +31,12 @@ from .const import (
     CONF_SOFAR_NUMBER_CHARGE_POWER,
     CONF_SOFAR_NUMBER_DISCHARGE_POWER,
     CONF_SOFAR_SELECT_WORK_MODE,
+    CONF_FOXESS_SELECT_WORK_MODE,
+    CONF_FOXESS_NUMBER_FORCE_CHARGE_POWER,
+    CONF_FOXESS_NUMBER_MIN_SOC_ON_GRID,
+    CONF_FOXESS_NUMBER_MIN_SOC,
+    CONF_FOXESS_NUMBER_MAX_CHARGE_CURRENT,
+    INVERTER_TYPE_FOXESS,
     CONF_EMHASS_TOKEN,
     CONF_EMHASS_URL,
     CONF_ENABLE_EEPROM_COUNTER,
@@ -53,6 +59,15 @@ from .const import (
     CONF_LOAD_FORECAST_ATTR,
     CONF_LOAD_FORECAST_ENTITY,
     CONF_LOAD_PROFILE_STATIC,
+    CONF_SCHEDULE_ENTITY,
+    CONF_KEYWORDS_DAY_SHIFT,
+    CONF_KEYWORDS_NIGHT_SHIFT,
+    CONF_KEYWORDS_OFF_DAY,
+    CONF_KEYWORDS_HOME_OFFICE,
+    DEFAULT_KEYWORDS_DAY_SHIFT,
+    DEFAULT_KEYWORDS_NIGHT_SHIFT,
+    DEFAULT_KEYWORDS_OFF_DAY,
+    DEFAULT_KEYWORDS_HOME_OFFICE,
     CONF_MIN_EXPORT_LIMIT,
     CONF_NUMBER_EMS_POWER_LIMIT,
     CONF_NUMBER_EXPORT_LIMIT,
@@ -425,6 +440,11 @@ INVERTER_STEP_FIELDS = [
     CONF_SOFAR_SELECT_WORK_MODE,
     CONF_SOFAR_NUMBER_CHARGE_POWER,
     CONF_SOFAR_NUMBER_DISCHARGE_POWER,
+    CONF_FOXESS_SELECT_WORK_MODE,
+    CONF_FOXESS_NUMBER_FORCE_CHARGE_POWER,
+    CONF_FOXESS_NUMBER_MIN_SOC_ON_GRID,
+    CONF_FOXESS_NUMBER_MIN_SOC,
+    CONF_FOXESS_NUMBER_MAX_CHARGE_CURRENT,
 ]
 
 EMHASS_STEP_FIELDS = [
@@ -470,6 +490,11 @@ FORECASTS_STEP_FIELDS = [
     CONF_LOAD_FORECAST_ENTITY,
     CONF_LOAD_FORECAST_ATTR,
     CONF_LOAD_PROFILE_STATIC,
+    CONF_SCHEDULE_ENTITY,
+    CONF_KEYWORDS_DAY_SHIFT,
+    CONF_KEYWORDS_NIGHT_SHIFT,
+    CONF_KEYWORDS_OFF_DAY,
+    CONF_KEYWORDS_HOME_OFFICE,
 ]
 
 TARIFFS_STEP_FIELDS = PRICES_STEP_FIELDS + FORECASTS_STEP_FIELDS
@@ -535,6 +560,7 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                             {"value": INVERTER_TYPE_DEYE, "label": "Deye / SunSynk / Sol-Ark [BETA]"},
                             {"value": INVERTER_TYPE_HOYMILES, "label": "Hoymiles HIT-(5–20)L-G3 [BETA]"},
                             {"value": INVERTER_TYPE_SOFAR, "label": "Sofar Solar (HYD 3K-6K-ES / EP, HYD-3PH) [BETA]"},
+                            {"value": INVERTER_TYPE_FOXESS, "label": "FoxESS (H1 / H3 / AIO / KH) [BETA]"},
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
@@ -690,6 +716,31 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_SOFAR_NUMBER_DISCHARGE_POWER,
                         description={"suggested_value": data.get(CONF_SOFAR_NUMBER_DISCHARGE_POWER) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                }
+            )
+        elif inv_type == INVERTER_TYPE_FOXESS:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_FOXESS_SELECT_WORK_MODE,
+                        description={"suggested_value": data.get(CONF_FOXESS_SELECT_WORK_MODE) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="select")),
+                    vol.Optional(
+                        CONF_FOXESS_NUMBER_FORCE_CHARGE_POWER,
+                        description={"suggested_value": data.get(CONF_FOXESS_NUMBER_FORCE_CHARGE_POWER) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_FOXESS_NUMBER_MIN_SOC_ON_GRID,
+                        description={"suggested_value": data.get(CONF_FOXESS_NUMBER_MIN_SOC_ON_GRID) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_FOXESS_NUMBER_MIN_SOC,
+                        description={"suggested_value": data.get(CONF_FOXESS_NUMBER_MIN_SOC) or None},
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
+                    vol.Optional(
+                        CONF_FOXESS_NUMBER_MAX_CHARGE_CURRENT,
+                        description={"suggested_value": data.get(CONF_FOXESS_NUMBER_MAX_CHARGE_CURRENT) or None},
                     ): selector.EntitySelector(selector.EntitySelectorConfig(domain="number")),
                 }
             )
@@ -945,6 +996,30 @@ class SmartStorageOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_LOAD_PROFILE_STATIC,
                     default=str(data.get(CONF_LOAD_PROFILE_STATIC) or ""),
+                ): str,
+
+                # --- Harmonogram, Zmianowość & Home Office ---
+                vol.Optional(
+                    CONF_SCHEDULE_ENTITY,
+                    description={"suggested_value": data.get(CONF_SCHEDULE_ENTITY) or None},
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain=["calendar", "sensor", "input_select", "input_boolean"])
+                ),
+                vol.Optional(
+                    CONF_KEYWORDS_DAY_SHIFT,
+                    default=str(data.get(CONF_KEYWORDS_DAY_SHIFT, DEFAULT_KEYWORDS_DAY_SHIFT)),
+                ): str,
+                vol.Optional(
+                    CONF_KEYWORDS_NIGHT_SHIFT,
+                    default=str(data.get(CONF_KEYWORDS_NIGHT_SHIFT, DEFAULT_KEYWORDS_NIGHT_SHIFT)),
+                ): str,
+                vol.Optional(
+                    CONF_KEYWORDS_OFF_DAY,
+                    default=str(data.get(CONF_KEYWORDS_OFF_DAY, DEFAULT_KEYWORDS_OFF_DAY)),
+                ): str,
+                vol.Optional(
+                    CONF_KEYWORDS_HOME_OFFICE,
+                    default=str(data.get(CONF_KEYWORDS_HOME_OFFICE, DEFAULT_KEYWORDS_HOME_OFFICE)),
                 ): str,
             }
         )

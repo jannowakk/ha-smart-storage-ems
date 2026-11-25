@@ -15,11 +15,13 @@ INVERTER_TYPE_GOODWE = "goodwe"
 INVERTER_TYPE_DEYE = "deye"
 INVERTER_TYPE_HOYMILES = "hoymiles"
 INVERTER_TYPE_SOFAR = "sofar"
+INVERTER_TYPE_FOXESS = "foxess"
 INVERTER_TYPES = [
     INVERTER_TYPE_GOODWE,
     INVERTER_TYPE_DEYE,
     INVERTER_TYPE_HOYMILES,
     INVERTER_TYPE_SOFAR,
+    INVERTER_TYPE_FOXESS,
 ]
 
 CONF_SENSOR_SOC = "sensor_soc"
@@ -63,6 +65,13 @@ CONF_SOFAR_SELECT_WORK_MODE = "sofar_select_work_mode"
 CONF_SOFAR_NUMBER_CHARGE_POWER = "sofar_number_charge_power"
 CONF_SOFAR_NUMBER_DISCHARGE_POWER = "sofar_number_discharge_power"
 DEFAULT_SOFAR_MAX_POWER = 3680  # Watts (standard HYD 3600-ES / 3K-6K-EP)
+
+# Configuration Keys - FoxESS Inverter HAL (H1, H3, AIO, KH)
+CONF_FOXESS_SELECT_WORK_MODE = "foxess_select_work_mode"
+CONF_FOXESS_NUMBER_FORCE_CHARGE_POWER = "foxess_number_force_charge_power"
+CONF_FOXESS_NUMBER_MIN_SOC_ON_GRID = "foxess_number_min_soc_on_grid"
+CONF_FOXESS_NUMBER_MIN_SOC = "foxess_number_min_soc"
+CONF_FOXESS_NUMBER_MAX_CHARGE_CURRENT = "foxess_number_max_charge_current"
 
 # Configuration Keys - Forecasts & Tariffs
 CONF_TARIFF_MODE = "tariff_mode"
@@ -175,4 +184,28 @@ OPERATION_MODES = [
     OPERATION_MODE_HOLD,
     OPERATION_MODE_CHARGE,
     OPERATION_MODE_SELF_USE,
+]
+
+# Configuration Keys - Shift & Calendar Schedule Archetypes
+CONF_SCHEDULE_ENTITY = "schedule_entity"
+CONF_KEYWORDS_DAY_SHIFT = "keywords_day_shift"
+CONF_KEYWORDS_NIGHT_SHIFT = "keywords_night_shift"
+CONF_KEYWORDS_OFF_DAY = "keywords_off_day"
+CONF_KEYWORDS_HOME_OFFICE = "keywords_home_office"
+
+DEFAULT_KEYWORDS_DAY_SHIFT = "D, Dzień, Dniówka, 1 zmiana, Day, Rano, R"
+DEFAULT_KEYWORDS_NIGHT_SHIFT = "N, Noc, Nocka, 2 zmiana, Night, Zmiana 2"
+DEFAULT_KEYWORDS_OFF_DAY = "W, Wolne, Urlop, Zjazd, Off"
+DEFAULT_KEYWORDS_HOME_OFFICE = "HO, Home Office, Zdalna, Zdalnie, Home"
+
+ARCHETYPE_BIURO = "biuro"
+ARCHETYPE_HOME_OFFICE = "home_office"
+ARCHETYPE_WEEKEND_WOLNE = "weekend_wolne"
+ARCHETYPE_NOCKA = "nocka"
+
+SCHEDULE_ARCHETYPES = [
+    ARCHETYPE_BIURO,
+    ARCHETYPE_HOME_OFFICE,
+    ARCHETYPE_WEEKEND_WOLNE,
+    ARCHETYPE_NOCKA,
 ]

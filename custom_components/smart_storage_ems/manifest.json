@@ -8,7 +8,9 @@
     "energy.solar_batteries",
     "energy.energy_prices"
   ],
-  "codeowners": ["@jannowakk"],
+  "codeowners": [
+    "@jannowakk"
+  ],
   "config_flow": true,
   "dependencies": [
     "frontend",
@@ -18,5 +20,5 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/jannowakk/ha-smart-storage-ems/issues",
   "requirements": [],
-  "version": "1.5.0b2"
+  "version": "1.5.0b3"
 }

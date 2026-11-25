@@ -145,7 +145,12 @@
           "hoymiles_rated_power": "Hoymiles: Inverter Rated Power (W, default: 10000)",
           "sofar_select_work_mode": "Sofar: Work Mode Select Entity",
           "sofar_number_charge_power": "Sofar: Battery Charge Power Command (W, number)",
-          "sofar_number_discharge_power": "Sofar: Battery Discharge Power Command (W, number)"
+          "sofar_number_discharge_power": "Sofar: Battery Discharge Power Command (W, number)",
+          "foxess_select_work_mode": "FoxESS: Work Mode Select Entity (Self Use, Feed-in First, Back-up)",
+          "foxess_number_force_charge_power": "FoxESS: Force Charge Power Command (W, number)",
+          "foxess_number_min_soc_on_grid": "FoxESS: Min SoC on Grid (%, number, optional)",
+          "foxess_number_min_soc": "FoxESS: Min SoC (%, number, optional)",
+          "foxess_number_max_charge_current": "FoxESS: Max Battery Charge Current (A, number, optional)"
         }
       },
       "emhass": {
@@ -205,7 +210,12 @@
           "pv_power_threshold": "Solar Day Power Threshold (W)",
           "load_forecast_entity": "48h House Load Forecast Sensor (optional, e.g. sensor.emhass_master_load_forecast)",
           "load_forecast_attr": "Load Forecast List Attribute (default: list)",
-          "load_profile_static": "Baseline House Load (W, empty = built-in auto profile 400W)"
+          "load_profile_static": "Baseline House Load (W, empty = built-in auto profile 400W)",
+          "schedule_entity": "Schedule / Calendar / Work Shift Entity (calendar, sensor, input_select, input_boolean)",
+          "keywords_day_shift": "Day Shift / Office Keywords (comma-separated, regex word boundary)",
+          "keywords_night_shift": "Night Shift Keywords (comma-separated, regex word boundary)",
+          "keywords_off_day": "Off Day / Holiday Keywords (comma-separated, regex word boundary)",
+          "keywords_home_office": "Home Office / Remote Keywords (comma-separated, regex word boundary)"
         }
       },
       "guards": {

@@ -30,6 +30,7 @@ async def async_setup_entry(
         SmartStorageLoadForecastSensor(coordinator, entry),
         SmartStorageDiagnosticSensor(coordinator, entry),
         SmartStorageLoadObserverP85Sensor(coordinator, entry),
+        SmartStorageScheduleArchetypeSensor(coordinator, entry),
     ]
 
     config = {**entry.data, **entry.options}
@@ -347,3 +348,36 @@ class SmartStorageLoadObserverP85Sensor(CoordinatorEntity[SmartStorageCoordinato
 
 
 
+
+
+class SmartStorageScheduleArchetypeSensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
+    """Exposes the active schedule / shift work archetype for Home Assistant automations."""
+
+    def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self.coordinator = coordinator
+        self._attr_unique_id = f"{entry.entry_id}_active_schedule_archetype"
+        self._attr_name = "Smart Storage EMS: Aktywny Archetyp Grafiku"
+        self._attr_icon = "mdi:calendar-account"
+
+    @property
+    def native_value(self) -> str:
+        """Return the active archetype for today: biuro, home_office, weekend_wolne, or nocka."""
+        res = getattr(self.coordinator, "_schedule_today", None)
+        return getattr(res, "archetype", "biuro") if res else "biuro"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return details of evaluation including tomorrow's archetype and calendar summary."""
+        res_today = getattr(self.coordinator, "_schedule_today", None)
+        res_tomorrow = getattr(self.coordinator, "_schedule_tomorrow", None)
+
+        return {
+            "archetype_tomorrow": getattr(res_tomorrow, "archetype", "biuro") if res_tomorrow else "biuro",
+            "source_event_title": getattr(res_today, "source_event_title", None) if res_today else None,
+            "source_entity": getattr(res_today, "source_entity", None) if res_today else None,
+            "work_mode_detected": getattr(res_today, "work_mode_detected", "standard") if res_today else "standard",
+            "confidence": getattr(res_today, "confidence", "standard") if res_today else "standard",
+            "is_home_occupied_today": getattr(res_today, "is_home_occupied", False) if res_today else False,
+            "is_home_occupied_tomorrow": getattr(res_tomorrow, "is_home_occupied", False) if res_tomorrow else False,
+        }

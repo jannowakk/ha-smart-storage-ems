@@ -145,7 +145,12 @@
           "hoymiles_rated_power": "Hoymiles: Moc znamionowa falownika (W, domyślnie: 10000)",
           "sofar_select_work_mode": "Sofar: Tryb pracy falownika (Work Mode, select)",
           "sofar_number_charge_power": "Sofar: Moc ładowania baterii (W, number)",
-          "sofar_number_discharge_power": "Sofar: Moc rozładowania baterii (W, number)"
+          "sofar_number_discharge_power": "Sofar: Moc rozładowania baterii (W, number)",
+          "foxess_select_work_mode": "FoxESS: Tryb pracy falownika (Work Mode, select)",
+          "foxess_number_force_charge_power": "FoxESS: Moc ładowania wymuszonego (W, number)",
+          "foxess_number_min_soc_on_grid": "FoxESS: Min SoC w sieci (Min SoC on Grid, %, opcjonalnie)",
+          "foxess_number_min_soc": "FoxESS: Bezwzględny Min SoC (%, opcjonalnie)",
+          "foxess_number_max_charge_current": "FoxESS: Limit prądu ładowania (A, opcjonalnie)"
         }
       },
       "emhass": {
@@ -205,7 +210,12 @@
           "pv_power_threshold": "Próg mocy PV dla trybu letniego (W)",
           "load_forecast_entity": "Sensor prognozy zużycia domu 48h (opcjonalny, np. sensor.emhass_master_load_forecast)",
           "load_forecast_attr": "Atrybut prognozy zużycia (domyślnie: list)",
-          "load_profile_static": "Moc bazowa domu lub profil statyczny (W, puste = wbudowany autoprofil 400W)"
+          "load_profile_static": "Moc bazowa domu lub profil statyczny (W, puste = wbudowany autoprofil 400W)",
+          "schedule_entity": "Encja harmonogramu / kalendarza / zmianowości (kalendarz, sensor, input_select, pomocnik)",
+          "keywords_day_shift": "Słowa kluczowe: Dniówka / Biuro (oddzielone przecinkami, całe słowa)",
+          "keywords_night_shift": "Słowa kluczowe: Nocka (oddzielone przecinkami, całe słowa)",
+          "keywords_off_day": "Słowa kluczowe: Wolne / Urlop (oddzielone przecinkami, całe słowa)",
+          "keywords_home_office": "Słowa kluczowe: Home Office / Zdalna (oddzielone przecinkami, całe słowa)"
         }
       },
       "guards": {

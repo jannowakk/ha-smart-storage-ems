@@ -57,6 +57,7 @@ from .const import (
     CONF_PV_FORECAST_ATTR,
     CONF_PV_FORECAST_ENTITY,
     CONF_PV_POWER_THRESHOLD,
+    CONF_SCHEDULE_ENTITY,
     CONF_PSE_RCE_MULTIPLIER,
     CONF_SELECT_EMS_MODE,
     CONF_SELECT_INVERTER_MODE,
@@ -119,6 +120,7 @@ from .tariffs import (
 )
 from .pv_forecast import build_rolling_pv_forecast
 from .load_forecast import build_rolling_load_forecast
+from .schedule_manager import ScheduleManager, ScheduleArchetypeResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -173,6 +175,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         energy_thresh = float(config.get(CONF_PV_ENERGY_THRESHOLD, DEFAULT_PV_ENERGY_THRESHOLD))
         power_thresh = float(config.get(CONF_PV_POWER_THRESHOLD, DEFAULT_PV_POWER_THRESHOLD))
         self.season_manager = SeasonManager(energy_threshold=energy_thresh, power_threshold=power_thresh)
+        self.schedule_manager = ScheduleManager(hass, config)
         self.pse_rce = PseRceClient(session)
         self.current_season = "zima"
 
@@ -194,6 +197,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._pv_forecast_source: str = "Inicjalizacja"
         self._load_forecast: list[float] = []
         self._load_forecast_source: str = "Inicjalizacja"
+        self._schedule_today: ScheduleArchetypeResult | None = None
+        self._schedule_tomorrow: ScheduleArchetypeResult | None = None
         self._active_cost_function: str = "cost"
         self._last_mpc_run: datetime | None = None
         self._last_mpc_success: datetime | None = None
@@ -237,6 +242,30 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return
         self._decision_history.appendleft(entry)
 
+    async def async_refresh_schedule(self) -> bool:
+        """Evaluate shift work & schedule archetypes for today and tomorrow. Returns True if changed."""
+        try:
+            today_d = dt_util.now().date()
+            tomorrow_d = today_d + timedelta(days=1)
+            new_today = await self.schedule_manager.async_evaluate_date(today_d)
+            new_tomorrow = await self.schedule_manager.async_evaluate_date(tomorrow_d)
+
+            changed = (
+                self._schedule_today is None
+                or self._schedule_tomorrow is None
+                or self._schedule_today.archetype != new_today.archetype
+                or self._schedule_tomorrow.archetype != new_tomorrow.archetype
+                or self._schedule_today.source_event_title != new_today.source_event_title
+            )
+            self._schedule_today = new_today
+            self._schedule_tomorrow = new_tomorrow
+            if changed:
+                self._notify_coordinator_update()
+            return changed
+        except Exception as err:
+            _LOGGER.warning("Coordinator: Error updating schedule archetypes: %s", err)
+            return False
+
     def check_critical_contracts(self) -> bool:
         """Audit critical/required entities. Engages Safety Halt on critical errors."""
         errors = get_critical_configuration_errors(self.hass, self.config)
@@ -275,6 +304,14 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
             )
 
+        schedule_entity = self.config.get(CONF_SCHEDULE_ENTITY)
+        if schedule_entity:
+            self._unsubscribe_listeners.append(
+                async_track_state_change_event(
+                    self.hass, [schedule_entity], self._async_on_schedule_entity_change
+                )
+            )
+
         # Plan enforcement check every 60 seconds
         self._unsubscribe_listeners.append(
             async_track_time_interval(
@@ -292,7 +329,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Check critical configuration contracts
         self.check_critical_contracts()
 
-        # Immediate tariff & sell prices calculation and plan enforcement
+        # Immediate schedule, tariff & sell prices calculation and plan enforcement
+        await self.async_refresh_schedule()
         self.get_buy_prices()
         self.hass.async_create_task(self.async_get_sell_prices())
         await self.async_enforce_plan()
@@ -618,6 +656,10 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             self._pv_forecast = pv_forecast
             self._pv_forecast_source = pv_source
+            await self.async_refresh_schedule()
+            arch_today = self._schedule_today.archetype if self._schedule_today else None
+            arch_tomorrow = self._schedule_tomorrow.archetype if self._schedule_tomorrow else None
+
             load_now = self._get_float_state(self.config.get(CONF_SENSOR_LOAD_POWER), 400.0)
             load_forecast, load_source = build_rolling_load_forecast(
                 hass=self.hass,
@@ -628,6 +670,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 current_load_w=load_now,
                 horizon_steps=horizon,
                 default_base_power=400.0,
+                archetype_today=arch_today,
+                archetype_tomorrow=arch_tomorrow,
             )
             self._load_forecast = load_forecast
             self._load_forecast_source = load_source
@@ -742,6 +786,9 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "pv_forecast_source": self._pv_forecast_source,
             "load_forecast": self._load_forecast,
             "load_forecast_source": self._load_forecast_source,
+            "schedule_archetype_today": self._schedule_today.archetype if self._schedule_today else None,
+            "schedule_archetype_tomorrow": self._schedule_tomorrow.archetype if self._schedule_tomorrow else None,
+            "schedule_home_occupied": self._schedule_today.is_home_occupied if self._schedule_today else False,
             "active_cost_function": self._active_cost_function,
             "inverter_write_count": self.inverter_write_count,
         }
@@ -760,6 +807,18 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning(
                     "MPC watchdog triggered! No successful run for %s. Forcing async_run_mpc()",
                     now_dt - self._last_mpc_success,
+                )
+                self.hass.async_create_task(self.async_run_mpc())
+
+        # Periodic schedule poll (every 60s) to catch external CalDAV/Google Calendar changes
+        schedule_ent = self.config.get(CONF_SCHEDULE_ENTITY)
+        if schedule_ent and schedule_ent.startswith("calendar."):
+            changed = await self.async_refresh_schedule()
+            if changed:
+                _LOGGER.info(
+                    "Coordinator: Calendar poll detected change (Today: %s, Tomorrow: %s). Triggering MPC update.",
+                    self._schedule_today.archetype if self._schedule_today else "None",
+                    self._schedule_tomorrow.archetype if self._schedule_tomorrow else "None",
                 )
                 self.hass.async_create_task(self.async_run_mpc())
 
@@ -997,6 +1056,19 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
         self.async_update_listeners()
 
+
+    async def _async_on_schedule_entity_change(self, event: Any) -> None:
+        """React immediately when calendar, sensor, or helper changes (event added/edited/removed)."""
+        _LOGGER.info("Coordinator: Schedule entity state changed. Re-evaluating archetypes...")
+        changed = await self.async_refresh_schedule()
+        if changed:
+            _LOGGER.info(
+                "Coordinator: Schedule archetype changed (Today: %s, Tomorrow: %s). Triggering immediate MPC recalculation.",
+                self._schedule_today.archetype if self._schedule_today else "None",
+                self._schedule_tomorrow.archetype if self._schedule_tomorrow else "None",
+            )
+            self.hass.async_create_task(self.async_run_mpc())
+
     @callback
     def _async_on_import_change(self, event: Any) -> None:
         """Rapid event callback for Strażnik Importu."""
@@ -1113,7 +1185,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         recent_logs = list(self._log_handler.buffer) if hasattr(self, "_log_handler") else []
 
         return {
-            "version": "1.5.0b2",
+            "version": "1.5.0b3",
             "timestamp": datetime.now().isoformat(),
             "operation_mode": self.operation_mode,
             "config_error": self._config_error,

@@ -51,9 +51,14 @@ from .const import (
     CONF_SOFAR_SELECT_WORK_MODE,
     DEFAULT_INVERTER_TYPE,
     INVERTER_TYPE_DEYE,
+    INVERTER_TYPE_FOXESS,
     INVERTER_TYPE_GOODWE,
     INVERTER_TYPE_HOYMILES,
     INVERTER_TYPE_SOFAR,
+    CONF_FOXESS_SELECT_WORK_MODE,
+    CONF_FOXESS_NUMBER_FORCE_CHARGE_POWER,
+    CONF_FOXESS_NUMBER_MIN_SOC_ON_GRID,
+    CONF_FOXESS_NUMBER_MIN_SOC,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -605,6 +610,22 @@ CONTRACT_REGISTRY: list[EntityContract] = [
         domain_type=DomainType.ACTUATOR_NUMBER,
         is_critical=True,
         applicable_inverters=[INVERTER_TYPE_SOFAR],
+        expected_ha_domains=["number"],
+    ),
+    EntityContract(
+        conf_key=CONF_FOXESS_SELECT_WORK_MODE,
+        label="Tryb Pracy (FoxESS)",
+        domain_type=DomainType.ACTUATOR_SELECT,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_FOXESS],
+        expected_ha_domains=["select"],
+    ),
+    EntityContract(
+        conf_key=CONF_FOXESS_NUMBER_FORCE_CHARGE_POWER,
+        label="Moc Ładowania Wymuszonego (FoxESS)",
+        domain_type=DomainType.ACTUATOR_NUMBER,
+        is_critical=True,
+        applicable_inverters=[INVERTER_TYPE_FOXESS],
         expected_ha_domains=["number"],
     ),
 ]
