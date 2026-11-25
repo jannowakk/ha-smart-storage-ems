@@ -64,7 +64,7 @@ However, the architecture is completely flexible:
 * **Off-Peak Battery Protection (Standby Mode):** During cheap tariff windows, the battery enters `battery_standby` so the house draws inexpensive grid power directly instead of burning battery cycles.
 * **Dynamic Min SoC Buffer:** Automatically raises minimum battery reserve during winter months (Oct–Mar) based on outdoor temperature (frost factor) and active weather alerts (blackout protection).
 * **Off-Grid Safety Lock:** Immediately freezes all EMS write commands to the inverter during grid outages / islanding mode, preserving EPS/Backup stability.
-* **Built-In Forecasting & Tariff Engine:** Native 48h rolling PV generation (Solcast + Open-Meteo fallback), automatic daily house load profiling, built-in Polish multi-zone tariffs (G13s, G13, G12w, G12, G12r, G12n, G11), and direct PSE RCE dynamic market price fetching.
+* **Built-In Forecasting & Tariff Engine:** Native 48h rolling PV generation (Solcast + Open-Meteo fallback), built-in parametric daily house load profiling (zero-load fallback), built-in Polish multi-zone tariffs (G13s, G13, G12w, G12, G12r, G12n, G11), and direct PSE RCE dynamic market price fetching.
 * **Built-In Autodiagnostics:** Native HA diagnostics download (with automatic secret redaction) plus an interactive Lovelace Autodiagnostics card verifying sensors, units (`W` vs `kW`), 48h vectors, inverter readback, and live RAM logs.
 * **Extensible HAL Architecture:** Clean Hardware Abstraction Layer (`BaseInverter`) ready for additional inverter drivers (Victron, Deye, Huawei).
 
@@ -155,7 +155,7 @@ Map the entities provided by your GoodWe integration:
 * **Buy Tariff:** Choose a built-in Polish TOU/flat tariff (`g13s`, `g13`, `g12w`, `g12`, `g12r`, `g12n`, `g11`) or `custom` to supply your own dynamic price sensor.
 * **Sell Price Mode:** `pse_rce` (built-in official PSE API client), `sensor`, or `static`.
 * **PV Forecast:** Select your 3 standard Solcast sensors (Today, Tomorrow, Day 3) — the integration automatically stitches and slices the 48h "from-now" vector.
-* **House Load Forecast:** Leave blank to use the built-in zero-config adaptive daily load profile anchored to real-time house load, or supply your own 48h sensor.
+* **House Load Forecast:** Leave blank to use the built-in zero-config parametric daily load template anchored to real-time house load, or supply your own 48h sensor.
 
 ---
 
@@ -318,7 +318,7 @@ In addition to the Lovelace card, the integration implements Home Assistant's na
 - [x] Dynamic Min SoC (Winter regime + Frost factor + Storm alerts).
 - [x] Built-in Polish tariffs module (G13s, G13, G12w, G12, G12r, G12n, G11 with holiday calendar).
 - [x] Custom Lovelace cards for real-time control and 48h MPC plan visualization.
-- [x] Native zero-YAML forecast engine (Solcast + Open-Meteo fallback + adaptive daily load profile).
+- [x] Native zero-YAML forecast engine (Solcast + Open-Meteo fallback + built-in daily load template).
 - [x] Direct PSE S.A. dynamic RCE price integration (`api.raporty.pse.pl`).
 - [x] EMHASS Bearer Token support (`v0.18.10+` / `v0.18.11+`).
 - [x] Built-in Autodiagnostics Lovelace card (`custom:smart-storage-diagnostic-card`) & HA native diagnostics.

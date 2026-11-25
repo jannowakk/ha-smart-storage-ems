@@ -157,7 +157,7 @@ Wskaż encje ze swojej integracji falownika. Poniższy zestaw encji jest potrzeb
 * **Ceny zakupu:** Wybierz `G13` lub `G12w` (stawki i kalendarz świąt są wbudowane).
 * **Ceny sprzedaży:** Wybierz `Wbudowane PSE S.A. (RCE)` (pobiera oficjalne ceny z API PSE bez żadnych encji w HA).
 * **Prognoza PV:** Wskaż 3 standardowe sensory Solcast (dziś, jutro, pojutrze) – integracja sama tnie wektor 48h od bieżącej półgodziny.
-* **Prognoza zużycia domu:** Zostaw puste pole (integracja sama wygeneruje profil dobowy zakotwiczony w bieżącym poborze).
+* **Prognoza zużycia domu:** Zostaw puste pole (integracja użyje wbudowanego szablonu parametrycznego zakotwiczonego w bieżącym poborze) lub wskaż własny sensor.
 
 ---
 
@@ -237,7 +237,7 @@ Poniżej znajduje się szczegółowe wyjaśnienie każdego pola z kreatora konfi
 > EMHASS wymaga na wejściu wektorów 48-godzinnych (96 kroków) zaczynających się dokładnie **od bieżącego 30-minutowego slotu („od teraz”)**, a nie od północy (`00:00`).
 > **Od wersji v1.1.0 integracja całkowicie zdejmuje ten ciężar z użytkownika:**
 > * **Prognoza PV:** Wystarczy wskazać 3 standardowe sensory Solcast (Dziś, Jutro, Dzień 3) – integracja sama odczytuje `detailedForecast`, składa dni i kroi ciągły wektor „od teraz”.
-> * **Prognoza zużycia domu:** Jeśli pozostawisz pole puste, integracja sama generuje realistyczny dobowy profil domowy (noc ~350 W, poranek ~600 W, dzień ~450 W, wieczór ~800 W) dopasowany do dni roboczych i świąt w Polsce, kroi go „od teraz”, a slot 0 kotwiczy do bieżącego poboru domu!
+> * **Prognoza zużycia domu:** Jeśli pozostawisz pole puste, integracja generuje wbudowany dobowy szablon parametryczny (noc ~350 W, poranek ~600 W, dzień ~450 W, wieczór ~800 W) dopasowany do dni roboczych i świąt w Polsce jako stabilny fallback dla solvera, kroi go „od teraz”, a slot 0 kotwiczy do bieżącego poboru domu!
 > * **Ceny taryfowe (G13 / G12w) oraz RCE (PSE S.A.):** Są generowane krocząco w 100% automatycznie.
 > *Ręczne wektory „od teraz” (`load_forecast_entity` / `pv_forecast_entity`) są potrzebne wyłącznie wtedy, gdy masz własny, zaawansowany model master.*
 
@@ -321,9 +321,9 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
    * Przed godz. `15:55` integracja przełącza tryb na `lato`, gdy prognoza na dziś $\ge 14\text{ kWh}$ oraz bieżąca moc PV $\ge 1000\text{ W}$. Po `15:55` utrzymuje `lato` tylko wtedy, gdy jutro również zapowiada się $\ge 14\text{ kWh}$.
 
 #### C. Prognoza zużycia domu (House Load)
-1. **Tryb „Zero Konfiguracji” (Wbudowany autoprofil 48h):**
-   * Jeśli pozostawisz pole sensora puste, integracja automatycznie buduje realistyczny, dobowy profil obciążenia domu (dolina nocna ~350 W, poranek ~600 W, dzień ~450 W, wieczorny szczyt ~800 W).
-   * Profil automatycznie dostosowuje się do dni roboczych oraz weekendów i świąt ustawowych w Polsce, kroi się krocząco „od teraz” na 96 kroków i wystawia sensor `sensor.smart_storage_ems_prognoza_zuzycia_domu_48h`.
+1. **Tryb „Zero Konfiguracji” (Wbudowany szablon parametryczny 48h):**
+   * Jeśli pozostawisz pole sensora puste, integracja buduje gotowy, parametryczny profil obciążenia domu (dolina nocna ~350 W, poranek ~600 W, dzień ~450 W, wieczorny szczyt ~800 W). Służy on jako lekki i stabilny fallback, aby solver EMHASS nigdy nie dostał zerowego wektora obciążenia.
+   * Szablon automatycznie uwzględnia podział na dni robocze oraz weekendy i święta ustawowe w Polsce, kroi się krocząco „od teraz” na 96 kroków i wystawia sensor `sensor.smart_storage_ems_prognoza_zuzycia_domu_48h`.
    * Krok 0 (teraz) jest zawsze automatycznie nadpisywany **bieżącym odczytem mocy z falownika** (`sensor.goodwe_house_consumption`).
    * W polu `load_profile_static` możesz opcjonalnie podać jedną liczbę (np. `500`), aby przeskalować krzywą do średniego poboru swojego domu.
 2. **Tryb Własnego Wektora (`load_forecast_entity`):**
@@ -407,7 +407,7 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
 - [x] Opcje dynamicznego Min SoC (Sezon zimowy + Współczynnik mrozu + Ostrzeżenia burzowe).
 - [x] Wbudowany moduł taryf polskich (G12w, G13 z kalendarzem świąt stałych i ruchomych).
 - [x] Dedykowane karty dashboardu Lovelace do sterowania i wizualizacji planu ładowania/rozładowania (48h).
-- [x] Natywny silnik prognoz (automatyczne składanie D+0/D+1/D+2, cięcie „od teraz”, czytanie Solcast + fallback Open-Meteo oraz autoprofil dobowy zużycia domu bez pisania YAML-a).
+- [x] Natywny silnik prognoz (automatyczne składanie D+0/D+1/D+2, cięcie „od teraz”, czytanie Solcast + fallback Open-Meteo oraz wbudowany szablon profilu dobowego zużycia domu bez pisania YAML-a).
 - [x] Wbudowane pobieranie cen sprzedaży RCE bezpośrednio z publicznego API PSE S.A. (`api.raporty.pse.pl`).
 - [x] Obsługa autoryzacji Bearer Token dla nowszych wersji EMHASS (v0.18.10+ oraz v0.18.11+).
 - [x] Wbudowana karta autodiagnostyki Lovelace (`custom:smart-storage-diagnostic-card`) oraz natywna diagnostyka HA (`Pobierz diagnostykę`).
