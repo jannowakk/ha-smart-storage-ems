@@ -200,6 +200,8 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._setup_time: datetime = datetime.now()
         self._mpc_in_progress: bool = False
         self._last_mpc_payload: dict[str, Any] | None = None
+        self._load_observer_data: dict[str, Any] = {}
+        self._load_observer_last_run: datetime | None = None
         self._decision_history: collections.deque[dict[str, Any]] = collections.deque(maxlen=10)
 
         pkg_logger = logging.getLogger("custom_components.smart_storage_ems")
@@ -706,6 +708,23 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return getattr(self.inverter, "write_count", 0)
         return 0
 
+    async def async_refresh_load_observer(self) -> None:
+        """Run passive P85 load observer calculation in background."""
+        load_ent = self.config.get(CONF_SENSOR_LOAD_POWER)
+        if not load_ent:
+            return
+        try:
+            from .load_observer import async_compute_p85_load_profile
+            res = await async_compute_p85_load_profile(self.hass, load_ent)
+            if res:
+                self._load_observer_data = res
+                self._load_observer_last_run = dt_util.now()
+                self._notify_coordinator_update()
+                _LOGGER.info("Coordinator: Passive P85 load profile observer updated successfully")
+        except Exception as err:
+            _LOGGER.debug("Coordinator: Load observer background refresh skipped (%s)", err)
+
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Coordinator initial data load / manual refresh."""
         if self._last_mpc_success is not None:
@@ -817,6 +836,10 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         soc = self._get_float_state(self.config.get(CONF_SENSOR_SOC), 50.0) / 100.0
         self._target_power = p_batt
         now_dt = dt_util.now()
+        # Trigger background passive P85 load observer once daily (approx every 23h)
+        if self._load_observer_last_run is None or (now_dt - self._load_observer_last_run).total_seconds() > 82800:
+            self._load_observer_last_run = now_dt
+            self.hass.async_create_task(self.async_refresh_load_observer())
         enable_price_guard = self.config.get(CONF_ENABLE_PRICE_GUARD, DEFAULT_ENABLE_PRICE_GUARD)
         is_cheap = self._is_cheap_buy_price(now_dt) if enable_price_guard else True
 

@@ -28,6 +28,7 @@ async def async_setup_entry(
         SmartStoragePvForecastSensor(coordinator, entry),
         SmartStorageLoadForecastSensor(coordinator, entry),
         SmartStorageDiagnosticSensor(coordinator, entry),
+        SmartStorageLoadObserverP85Sensor(coordinator, entry),
     ]
 
     config = {**entry.data, **entry.options}
@@ -276,6 +277,40 @@ class SmartStorageEepromWritesSensor(CoordinatorEntity[SmartStorageCoordinator],
             "zapisy_wedlug_encji": getattr(inverter, "writes_by_entity", {}),
             "historia_zapisow": getattr(inverter, "writes_log", []),
         }
+
+
+class SmartStorageLoadObserverP85Sensor(CoordinatorEntity[SmartStorageCoordinator], SensorEntity):
+    """Passive observer sensor tracking P85 percentile load profile from recorder history."""
+
+    def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_load_observer_p85"
+        self._attr_name = "Smart Storage EMS: Obserwator Zużycia P85"
+        self._attr_icon = "mdi:chart-bell-curve"
+        self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        self._attr_device_class = SensorDeviceClass.POWER
+        self._attr_native_unit_of_measurement = "W"
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the mean daily P85 power in Watts."""
+        data = getattr(self.coordinator, "_load_observer_data", {})
+        val = data.get("mean_daily_p85_w")
+        return round(float(val), 1) if val is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose full 48-step P85, P50 and Mean curves."""
+        data = getattr(self.coordinator, "_load_observer_data", {})
+        return {
+            "mode": data.get("mode", "OBSERVER_PASSIVE"),
+            "sample_days": data.get("sample_days", 0),
+            "forecasts": data.get("forecasts_p85", []),
+            "p50_median": data.get("forecasts_p50", []),
+            "mean_profile": data.get("forecasts_mean", []),
+            "last_calculated": data.get("last_calculated"),
+        }
+
 
 
 

@@ -252,6 +252,16 @@ if __name__ == "__main__":
     tc.test_critical_entity_error_engages_safety_halt()
     print("✓ TestContracts (all 7 contract, active fail-safe & safety halt tests) passed")
 
+    from tests.test_load_observer import (
+        test_calculate_percentile_basic,
+        test_aggregate_states_to_slots,
+        test_load_observer_sensor_attributes,
+    )
+    test_calculate_percentile_basic()
+    test_aggregate_states_to_slots()
+    test_load_observer_sensor_attributes()
+    print("✓ TestLoadObserver (P85 percentile calculation, slot aggregation & sensor attributes) passed")
+
     print("\nAll unit tests passed successfully!")
 
 
