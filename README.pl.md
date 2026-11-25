@@ -410,9 +410,10 @@ Integracja całkowicie eliminuje potrzebę ręcznego tworzenia wektorów 48h w Y
 - [x] Natywny silnik prognoz (Solcast + fallback Open-Meteo oraz wbudowany szablon profilu dobowego zużycia domu bez YAML-a).
 - [x] Wbudowane pobieranie cen sprzedaży RCE bezpośrednio z publicznego API PSE S.A. (`api.raporty.pse.pl`).
 - [x] Wbudowana karta autodiagnostyki Lovelace (`custom:smart-storage-diagnostic-card`) oraz natywna diagnostyka HA (`Pobierz diagnostykę`).
-- [x] 🧪 **[BETA]** Rozszerzenie architektury HAL: sterowniki dla falowników Deye (SunSynk/Sol-Ark), Hoymiles (HIT-G3) oraz Sofar Solar (HYD).
+- [x] 🧪 **[BETA]** Rozszerzenie architektury HAL: sterowniki dla falowników FoxESS (H1/H3/AIO), Deye (SunSynk/Sol-Ark), Hoymiles (HIT-G3) oraz Sofar Solar (HYD).
+- [x] 🧪 **[BETA]** Integracja z kalendarzem (Google/iCal) dla grafików pracy zmianowej i trybu Home Office: silnik 4 archetypów dobowych (`biuro`, `home_office`, `weekend_wolne`, `nocka`) z filtrowaniem słów kluczowych regex i sensorami dla pomp ciepła / HVAC (`sensor.smart_storage_ems_aktywny_archetyp_grafiku`, `binary_sensor.smart_storage_ems_domownik_obecny_w_ciagu_dnia`).
 - [x] 🧪 **[BETA]** Pasywny Obserwator Zużycia P85: wyliczanie 85. percentyla zapotrzebowania domu z historii bazy danych HA (podwójny profil: dni robocze vs weekendy).
-- [ ] 📋 Integracja z kalendarzem (Google/iCal) dla grafików pracy zmianowej (dniówka/nocka) oraz trybu Home Office (z transparentnymi sensorami dla pomp ciepła i HVAC).
+- [x] 🧪 **[BETA]** Trwały, niezerujący się licznik zapisów pamięci EEPROM/Flash falownika zapamiętywany między restartami HA (`SmartStorageEepromWritesSensor`).
 - [ ] 📋 Pomocnicze sensory binarne dla Smart Home: Tania Strefa Taryfowa Aktywna, Nadwyżka PV Ponad Baterię i Dom (Power-to-Heat / Grzałki CWU / EV).
 - [ ] 📋 Strażnik Przyłącza i Asymetrii Fazowej (Current Guard): ochrona bezpieczników przedlicznikowych przy asymetrycznym ładowaniu EV i 3-fazowej pompie ciepła.
 - [ ] 📋 Taryfa elastyczna PGE G12e (z dynamicznymi oknami słonecznymi zależnymi od miesiąca).

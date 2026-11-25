@@ -322,9 +322,10 @@ In addition to the Lovelace card, the integration implements Home Assistant's na
 - [x] Direct PSE S.A. dynamic RCE price integration (`api.raporty.pse.pl`).
 - [x] EMHASS Bearer Token support (`v0.18.10+` / `v0.18.11+`).
 - [x] Built-in Autodiagnostics Lovelace card (`custom:smart-storage-diagnostic-card`) & HA native diagnostics.
-- [x] 🧪 **[BETA]** Inverter HAL expansion: Deye (SunSynk/Sol-Ark), Hoymiles (HIT-G3), and Sofar Solar (HYD) support.
+- [x] 🧪 **[BETA]** Inverter HAL expansion: FoxESS (H1/H3/AIO), Deye (SunSynk/Sol-Ark), Hoymiles (HIT-G3), and Sofar Solar (HYD) support.
+- [x] 🧪 **[BETA]** Shift-work & Home Office calendar integration: Google/iCal 4-archetype engine (`biuro`, `home_office`, `weekend_wolne`, `nocka`) with regex word-boundary keyword filtering and HVAC/heat pump automation hooks (`sensor.smart_storage_ems_aktywny_archetyp_grafiku`, `binary_sensor.smart_storage_ems_domownik_obecny_w_ciagu_dnia`).
 - [x] 🧪 **[BETA]** Passive Load Observer (P85): background 85th percentile load calculation directly from HA recorder history (dual workday vs weekend curves).
-- [ ] 📋 Shift-work & Home Office calendar integration (Google/iCal day shift / night shift / remote archetypes with HVAC automation hooks).
+- [x] 🧪 **[BETA]** Persistent Inverter EEPROM/Flash writes counter surviving Home Assistant restarts (`SmartStorageEepromWritesSensor`).
 - [ ] 📋 Smart Home helper binary sensors: Cheap Tariff Active, PV Surplus Over Battery & Load (Power-to-Heat / DHW diversion / EV hooks).
 - [ ] 📋 Grid Phase & Current Guard: dynamic per-phase current limiter preventing main breaker trips during EV charging and heat pump cycles.
 - [ ] 📋 PGE G12e flexible solar tariff support (month-dependent solar off-peak windows).
