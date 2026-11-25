@@ -1,8 +1,8 @@
 """Passive Load Profile Observer (P85 / P50 Percentile Engine) for Smart Storage EMS.
 
 Runs strictly in background/observer mode. Gathers historical house power consumption
-over recent workdays directly via Home Assistant's recorder without blocking the event loop
-or interfering with active inverter control.
+over recent workdays and free days (weekends/holidays) directly via Home Assistant's recorder
+without blocking the event loop or interfering with active inverter control.
 """
 
 from __future__ import annotations
@@ -57,52 +57,20 @@ def aggregate_states_to_slots(states: list[Any]) -> dict[int, list[float]]:
     return slots
 
 
-async def async_compute_p85_load_profile(
+async def _fetch_and_aggregate_days(
     hass: HomeAssistant,
+    recorder_instance: Any,
     load_entity_id: str,
-    target_workdays: int = 10,
-) -> dict[str, Any]:
-    """Gather historical states for load_entity_id across recent workdays and compute percentiles.
+    target_dates: list[datetime],
+) -> dict[int, list[float]]:
+    """Fetch history for given dates and return slot_daily_means."""
+    from homeassistant.components.recorder.history import get_significant_states
 
-    Executed via recorder executor job to avoid blocking the event loop.
-    """
-    if not load_entity_id:
-        return {}
-
-    now = datetime.now()
-    workday_dates: list[datetime] = []
-
-    # Identify the last N workdays (excluding weekends and statutory Polish holidays)
-    cursor_day = now - timedelta(days=1)
-    while len(workday_dates) < target_workdays and (now - cursor_day).days < 35:
-        if not is_free_day(cursor_day.date()):
-            workday_dates.append(cursor_day)
-        cursor_day -= timedelta(days=1)
-
-    if not workday_dates:
-        _LOGGER.warning("LoadObserver: No historical workdays found for %s", load_entity_id)
-        return {}
-
-    _LOGGER.info(
-        "LoadObserver: Computing P85 profile across %d workdays for %s",
-        len(workday_dates),
-        load_entity_id,
-    )
-
-    # Fetch states per day via recorder history in executor
     slot_daily_means: dict[int, list[float]] = {i: [] for i in range(48)}
 
-    try:
-        from homeassistant.components.recorder import get_instance
-        from homeassistant.components.recorder.history import get_significant_states
-        recorder_instance = get_instance(hass)
-    except (ImportError, Exception) as err:
-        _LOGGER.debug("LoadObserver: Recorder history not accessible (%s). Returning empty.", err)
-        return {}
-
-    for w_date in workday_dates:
-        start_dt = w_date.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_dt = w_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+    for dt in target_dates:
+        start_dt = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = dt.replace(hour=23, minute=59, second=59, microsecond=999999)
 
         try:
             states_dict = await recorder_instance.async_add_executor_job(
@@ -125,15 +93,24 @@ async def async_compute_p85_load_profile(
                 if v:
                     slot_daily_means[s].append(float(sum(v) / len(v)))
         except Exception as err:
-            _LOGGER.warning("LoadObserver: Error fetching history for %s on %s: %s", load_entity_id, start_dt.date(), err)
+            _LOGGER.warning(
+                "LoadObserver: Error fetching history for %s on %s: %s",
+                load_entity_id,
+                start_dt.date(),
+                err,
+            )
 
-    # Compute P85, P50 and Mean per slot
+    return slot_daily_means
+
+
+def _build_profile_curves(slot_daily_means: dict[int, list[float]]) -> dict[str, Any]:
+    """Compute P85, P50 and Mean curves from slot daily means."""
     p85_curve: list[float] = []
     p50_curve: list[float] = []
     mean_curve: list[float] = []
 
     for s in range(48):
-        vals = slot_daily_means[s]
+        vals = slot_daily_means.get(s, [])
         if vals:
             p85_curve.append(round(calculate_percentile(vals, 85.0), 1))
             p50_curve.append(round(calculate_percentile(vals, 50.0), 1))
@@ -144,14 +121,95 @@ async def async_compute_p85_load_profile(
             mean_curve.append(0.0)
 
     avg_p85 = round(sum(p85_curve) / len(p85_curve), 1) if p85_curve else 0.0
-
     return {
-        "entity_id": load_entity_id,
-        "sample_days": len(workday_dates),
         "mean_daily_p85_w": avg_p85,
         "forecasts_p85": p85_curve,
         "forecasts_p50": p50_curve,
         "forecasts_mean": mean_curve,
+    }
+
+
+async def async_compute_p85_load_profile(
+    hass: HomeAssistant,
+    load_entity_id: str,
+    target_workdays: int = 10,
+    target_freedays: int = 6,
+) -> dict[str, Any]:
+    """Gather historical states for workdays and freedays (weekends/holidays) and compute percentiles.
+
+    Executed via recorder executor job to avoid blocking the event loop.
+    """
+    if not load_entity_id:
+        return {}
+
+    now = datetime.now()
+    workday_dates: list[datetime] = []
+    freeday_dates: list[datetime] = []
+
+    # Identify the last N workdays and M freedays (scanning back up to 45 days)
+    cursor_day = now - timedelta(days=1)
+    while (len(workday_dates) < target_workdays or len(freeday_dates) < target_freedays) and (now - cursor_day).days < 45:
+        if is_free_day(cursor_day.date()):
+            if len(freeday_dates) < target_freedays:
+                freeday_dates.append(cursor_day)
+        else:
+            if len(workday_dates) < target_workdays:
+                workday_dates.append(cursor_day)
+        cursor_day -= timedelta(days=1)
+
+    if not workday_dates and not freeday_dates:
+        _LOGGER.warning("LoadObserver: No historical days found for %s", load_entity_id)
+        return {}
+
+    _LOGGER.info(
+        "LoadObserver: Computing dual P85 profiles for %s (%d workdays, %d freedays)",
+        load_entity_id,
+        len(workday_dates),
+        len(freeday_dates),
+    )
+
+    try:
+        from homeassistant.components.recorder import get_instance
+        recorder_instance = get_instance(hass)
+    except (ImportError, Exception) as err:
+        _LOGGER.debug("LoadObserver: Recorder history not accessible (%s). Returning empty.", err)
+        return {}
+
+    # Fetch history for workdays and freedays
+    workday_slots = await _fetch_and_aggregate_days(hass, recorder_instance, load_entity_id, workday_dates)
+    freeday_slots = await _fetch_and_aggregate_days(hass, recorder_instance, load_entity_id, freeday_dates)
+
+    workday_curves = _build_profile_curves(workday_slots)
+    freeday_curves = _build_profile_curves(freeday_slots)
+
+    # Determine which profile is active for today
+    today_is_free = is_free_day(now.date())
+    active_curves = freeday_curves if today_is_free else workday_curves
+
+    return {
+        "entity_id": load_entity_id,
+        "is_today_free_day": today_is_free,
+        "sample_days": len(workday_dates) if not today_is_free else len(freeday_dates),
+        "sample_workdays": len(workday_dates),
+        "sample_freedays": len(freeday_dates),
+        "mean_daily_p85_w": active_curves["mean_daily_p85_w"],
+        "forecasts_p85": active_curves["forecasts_p85"],
+        "forecasts_p50": active_curves["forecasts_p50"],
+        "forecasts_mean": active_curves["forecasts_mean"],
+        "workdays": {
+            "sample_days": len(workday_dates),
+            "mean_daily_p85_w": workday_curves["mean_daily_p85_w"],
+            "forecasts_p85": workday_curves["forecasts_p85"],
+            "forecasts_p50": workday_curves["forecasts_p50"],
+            "forecasts_mean": workday_curves["forecasts_mean"],
+        },
+        "freedays": {
+            "sample_days": len(freeday_dates),
+            "mean_daily_p85_w": freeday_curves["mean_daily_p85_w"],
+            "forecasts_p85": freeday_curves["forecasts_p85"],
+            "forecasts_p50": freeday_curves["forecasts_p50"],
+            "forecasts_mean": freeday_curves["forecasts_mean"],
+        },
         "last_calculated": now.isoformat(),
         "mode": "OBSERVER_PASSIVE",
     }

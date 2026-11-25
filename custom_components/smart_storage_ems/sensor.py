@@ -294,21 +294,30 @@ class SmartStorageLoadObserverP85Sensor(CoordinatorEntity[SmartStorageCoordinato
 
     @property
     def native_value(self) -> float | None:
-        """Return the mean daily P85 power in Watts."""
+        """Return the mean daily P85 power in Watts for the active day type (workday vs freeday)."""
         data = getattr(self.coordinator, "_load_observer_data", {})
         val = data.get("mean_daily_p85_w")
         return round(float(val), 1) if val is not None else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose full 48-step P85, P50 and Mean curves."""
+        """Expose active profile curves as well as dedicated workdays and freedays profiles."""
         data = getattr(self.coordinator, "_load_observer_data", {})
+        workdays = data.get("workdays", {})
+        freedays = data.get("freedays", {})
         return {
             "mode": data.get("mode", "OBSERVER_PASSIVE"),
+            "typ_dnia": "wolny / weekend" if data.get("is_today_free_day") else "roboczy",
             "sample_days": data.get("sample_days", 0),
+            "sample_workdays": data.get("sample_workdays", 0),
+            "sample_freedays": data.get("sample_freedays", 0),
             "forecasts": data.get("forecasts_p85", []),
             "p50_median": data.get("forecasts_p50", []),
             "mean_profile": data.get("forecasts_mean", []),
+            "profile_workdays_p85": workdays.get("forecasts_p85", []),
+            "profile_freedays_p85": freedays.get("forecasts_p85", []),
+            "profile_workdays_mean": workdays.get("forecasts_mean", []),
+            "profile_freedays_mean": freedays.get("forecasts_mean", []),
             "last_calculated": data.get("last_calculated"),
         }
 

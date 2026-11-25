@@ -46,11 +46,28 @@ def test_load_observer_sensor_attributes():
     coord_mock = MagicMock()
     coord_mock._load_observer_data = {
         "mode": "OBSERVER_PASSIVE",
+        "is_today_free_day": False,
         "sample_days": 10,
+        "sample_workdays": 10,
+        "sample_freedays": 6,
         "mean_daily_p85_w": 1420.5,
         "forecasts_p85": [1200.0] * 48,
         "forecasts_p50": [900.0] * 48,
         "forecasts_mean": [1000.0] * 48,
+        "workdays": {
+            "sample_days": 10,
+            "mean_daily_p85_w": 1420.5,
+            "forecasts_p85": [1200.0] * 48,
+            "forecasts_p50": [900.0] * 48,
+            "forecasts_mean": [1000.0] * 48,
+        },
+        "freedays": {
+            "sample_days": 6,
+            "mean_daily_p85_w": 1650.0,
+            "forecasts_p85": [1500.0] * 48,
+            "forecasts_p50": [1100.0] * 48,
+            "forecasts_mean": [1300.0] * 48,
+        },
         "last_calculated": "2026-11-25T07:00:00",
     }
 
@@ -61,8 +78,15 @@ def test_load_observer_sensor_attributes():
     assert sensor.native_value == 1420.5
     attrs = sensor.extra_state_attributes
     assert attrs["mode"] == "OBSERVER_PASSIVE"
+    assert attrs["typ_dnia"] == "roboczy"
     assert attrs["sample_days"] == 10
+    assert attrs["sample_workdays"] == 10
+    assert attrs["sample_freedays"] == 6
     assert len(attrs["forecasts"]) == 48
     assert attrs["forecasts"][0] == 1200.0
+    assert len(attrs["profile_workdays_p85"]) == 48
+    assert len(attrs["profile_freedays_p85"]) == 48
+    assert attrs["profile_freedays_p85"][0] == 1500.0
     assert len(attrs["p50_median"]) == 48
+
 
