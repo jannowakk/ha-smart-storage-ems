@@ -284,6 +284,7 @@ class SmartStorageLoadObserverP85Sensor(CoordinatorEntity[SmartStorageCoordinato
 
     def __init__(self, coordinator: SmartStorageCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
+        self.coordinator = coordinator
         self._attr_unique_id = f"{entry.entry_id}_load_observer_p85"
         self._attr_name = "Smart Storage EMS: Obserwator Zużycia P85"
         self._attr_icon = "mdi:chart-bell-curve"

@@ -36,8 +36,8 @@ class FakeCoordinator:
         pass
 
 class FakeCoordinatorEntity:
-    def __init__(self, *args, **kwargs):
-        pass
+    def __init__(self, coordinator=None, *args, **kwargs):
+        self.coordinator = coordinator
     def __class_getitem__(cls, item):
         return cls
 
