@@ -131,7 +131,30 @@ Aby definitywnie zweryfikować ten argument, przeprowadzono symulację **skrajni
 
 ---
 
-## 6. Podsumowanie i Werdykt Strategiczny
+## 6. Komentarz Autorski: Skąd bierze się rynkowy zachwyt taryfami dynamicznymi?
+
+Skoro twarde dane empiryczne wykazują niemal dwukrotnie wyższy koszt zakupu energii w taryfie dynamicznej, pojawia się uzasadnione pytanie: *dlaczego w mediach społecznościowych i na forach branżowych można spotkać tak wiele entuzjastycznych opinii na temat tego rozwiązania?*
+
+Z perspektywy analizy rynku energii i psychologii zachowań konsumenckich można wyróżnić cztery kluczowe czynniki tłumaczące ten dysonans:
+
+### 1. Zjawisko „Letniego Horyzontu Poznawczego” (Summer Bias)
+Popularyzacja taryf dynamicznych w Polsce zbiegła się w czasie z okresem letnim (lipiec–sierpień). W słoneczne, letnie weekendy nadpodaż generacji PV w Krajowym Systemie Elektroenergetycznym (KSE) regularnie spychała ceny giełdowe RCE w okolice zera, a nawet do wartości ujemnych. Wywołało to falę publikacji zrzutów ekranu przedstawiających „darmowe pranie” czy „ładowanie samochodu z dopłatą”. Należy jednak pamiętać, że latem zapotrzebowanie domu z instalacją PV na energię z sieci jest bliskie zeru. Entuzjazm ten został zbudowany na ułamku rocznego zużycia, całkowicie ignorując fakt, że 70–80% rocznych kosztów energii w domu z pompą ciepła generowanych jest w miesiącach chłodnych.
+
+### 2. Efekt Rządowej Tarczy Cenowej (Niewidzialna Subwencja Taryf Regulowanych)
+W warunkach polskiego rynku elektroenergetycznego obowiązuje ustawowa cena maksymalna energii czynnej dla gospodarstw domowych (500 zł/MWh netto = 0,615 zł/kWh brutto). W taryfach wielostrefowych (takich jak G13 czy G12w) ochrona ta zabetonowała koszt energii w strefie pozaszczytowej na poziomie 0,62–0,65 zł/kWh brutto – różnicę względem cen rynkowych pokrywa państwowy Fundusz Wypłaty Różnicy Ceny.
+Taryfy dynamiczne są natomiast w 100% urynkowione i nie podlegają mechanizmowi rekompensat. Przejście z taryfy G13 na taryfę dynamiczną w obecnym otoczeniu regulacyjnym jest de facto dobrowolnym zrzeczeniem się państwowej dopłaty do ogrzewania na rzecz pełnej ekspozycji na wahania giełdowe.
+
+### 3. Drastyczna Rozbieżność Profili Odbiorców (Brak Pompy Ciepła vs Pompa Ciepła)
+Wielu zadowolonych użytkowników taryf dynamicznych to odbiorcy o zupełnie innym profilu energetycznym:
+* Gospodarstwa ogrzewane gazem lub ciepłem sieciowym, zużywające prąd wyłącznie na potrzeby bytowe (200–250 kWh/miesiąc płasko przez cały rok). Dla takiego profilu niska cena w letnie weekendy i brak wysokiego poboru zimą pozwalają uzyskać umiarkowanie korzystną średnią roczną, zwłaszcza jeśli punktem odniesienia była droga taryfa jednostrefowa komercyjnego sprzedawcy.
+* W przypadku domu z pompą ciepła i magazynem energii pobór zimowy wzrasta do kilkuset kilowatogodzin miesięcznie, przypadając dokładnie na okres tzw. *Dunkelflaute* (zimowej ciszy wiatrowej i braku słońca), kiedy ceny hurtowe węgla i gazu windują RCE do najwyższych poziomów w roku.
+
+### 4. Psychologiczny Efekt Potwierdzenia i Kosztów Utopionych
+Zmiana sprzedawcy energii, instalacja automatyzacji oraz wdrożenie taryfy dynamicznej wiążą się z zaangażowaniem czasu i środków. W przestrzeni publicznej naturalną tendencją jest chwalenie się sukcesami (np. jednostkowym tanim ładowaniem auta w lipcu), podczas gdy wysokie, zimowe faktury zbiegające się z pracą pompy ciepła są w dyskusjach internetowych najczęściej przemilczane.
+
+---
+
+## 7. Podsumowanie i Werdykt Strategiczny
 
 * **G13 to Złoty Standard:** W instalacji z automatyzacją EMS, magazynem energii oraz pompą ciepła taryfa G13 zapewnia najniższy możliwy koszt jednostkowy (**0,640 zł/kWh brutto**).
 * **Taryfa Dynamiczna to pułapka:** Brak ochrony tarczy i brak gwarantowanej doliny nocnej generuje w sezonie grzewczym podwojenie kosztów ogrzewania.

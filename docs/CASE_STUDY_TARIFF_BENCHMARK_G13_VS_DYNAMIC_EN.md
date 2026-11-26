@@ -131,7 +131,30 @@ To rigorously test this hypothesis, a **Best-Case Active Shifting Simulation** w
 
 ---
 
-## 6. Strategic Recommendation
+## 6. Author's Commentary: Deconstructing the Dynamic Tariff Hype
+
+Given that hard empirical telemetry reveals dynamic pricing to be nearly twice as expensive in a heating-dominated household, a valid question arises: *why does dynamic pricing enjoy such enthusiastic acclaim across social media and tech forums?*
+
+From an energy economics and behavioral perspective, four key mechanisms explain this divergence:
+
+### 1. The "Summer Cognitive Bias"
+The market launch of dynamic retail tariffs in Poland coincided with peak summer months (July–August). During sunny weekends, substantial PV overgeneration routinely drove Day-Ahead wholesale prices (RCE) close to zero or into negative territory, sparking widespread social media posts celebrating "free EV charging" or "being paid to run laundry". However, summer grid import in a solar-equipped home is negligible. This viral enthusiasm was built on less than 5% of annual consumption, completely disregarding the fact that 70–80% of annual heating electricity is drawn during overcast, freezing winter months.
+
+### 2. The Government Price Cap Shield (Subsidized Multi-Zone Tariffs)
+Under current regulatory frameworks, regulated household tariffs benefit from statutory active energy price caps (500 PLN/MWh net = 0.615 PLN/kWh gross), with market differentials subsidized by the state. In multi-zone tariffs (such as G13 or G12w), this caps the off-peak valley rate at a firm 0.62–0.65 PLN/kWh gross.
+Dynamic retail tariffs, by contrast, offer full wholesale market exposure without price protection. In the current regulatory environment, switching from G13 to a dynamic contract effectively forfeits state heating subsidies in exchange for raw market volatility.
+
+### 3. Divergent Load Profiles (Baseload Households vs Heat Pump Homes)
+Many satisfied dynamic tariff adopters possess fundamentally different load profiles:
+* Non-electrified homes heated by municipal district heating or gas, consuming modest, flat baseloads (200–250 kWh/month year-round). For these users, summer price dips combined with zero heating demand yield acceptable annual averages, especially when compared against uncompetitive legacy flat-rate contracts.
+* Conversely, a heat pump home shifts massive volume (500–1,200+ kWh/month) into winter, precisely when regional *Dunkelflaute* (cold, dark, windless periods) drives marginal generation to expensive fossil assets and elevates wholesale spot prices to annual highs.
+
+### 4. Social Media Confirmation Bias & Sunk Cost Fallacy
+Transitioning to dynamic tariffs requires technical research, administrative effort, and smart home automation. Naturally, early adopters eagerly showcase summer wins, whereas painful winter utility bills resulting from heat pump operation are seldom publicized.
+
+---
+
+## 7. Strategic Recommendation
 
 * **G13 is the Gold Standard:** For homes equipped with EMS automation, residential batteries, and heat pumps, the 3-zone G13 tariff achieves the lowest levelized cost of purchased electricity (**0.640 PLN/kWh gross**).
 * **Dynamic Pricing is a Trap for Heating Loads:** Without price caps or guaranteed night valleys, dynamic tariffs double heating costs in winter.
