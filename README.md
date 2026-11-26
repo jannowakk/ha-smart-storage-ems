@@ -342,6 +342,8 @@ In-depth technical and economic breakdowns documenting actual operational teleme
   Mathematical breakdown of 81% round-trip efficiency, cell stress costs, and why draining the battery during cheap off-peak rates generates a financial loss over a 48h horizon.
 * **[Case Study: Dynamic Min SoC Protection During Winter Heat Pump Peak](docs/CASE_STUDY_MIN_SOC_HEAT_PUMP_EN.md)**  
   High-drain (~3.8 kW) cold weather behavior, how the inverter halts discharge at 40% Min SoC, and how EMHASS sizes afternoon charging to 89% to match evening peak demand without grid stress.
+* **[Case Study: 3,546-Hour Multi-Tariff Benchmark (G11 vs G12 vs G12w vs G13 vs Dynamic RCE)](docs/CASE_STUDY_TARIFF_BENCHMARK_G13_VS_DYNAMIC_EN.md)**  
+  Empirical comparison of major Polish electricity tariffs across 3,546 actual hours in a home with a heat pump and battery storage: why G13 saves ~50% on purchase costs (0.64 PLN/kWh), why flat G11 still beats dynamic pricing, and why wholesale Day-Ahead dynamic pricing (Pstryk) is an expensive trap in winter (+99% cost).
 
 ---
 

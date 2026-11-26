@@ -430,6 +430,8 @@ Szczegółowe analizy inżynieryjne i ekonomiczne oparte na rzeczywistej telemet
   Matematyczny dowód uwzględniający sprawność cyklu 81%, koszty degradacji ogniw oraz horyzont 48h – dlaczego rozładowanie magazynu w taniej dolinie przynosi realną stratę finansową.
 * **[Studium Przypadku: Ochrona Min SoC w Zimowym Szczycie Poboru](docs/CASE_STUDY_MIN_SOC_HEAT_PUMP.md)**  
   Zimowy drenaż dużą mocą (~3,8 kW przez pompę ciepła), odcięcie rozładowania dokładnie na progu 40% Min SoC i matematyka planowania EMHASS (dobór ładowania do 89% pod popołudniowy szczyt bez przeciążania sieci).
+* **[Studium Przypadku: 3 546-godzinny Benchmark Taryf w Domu z Pompą Ciepła (G11 vs G12 vs G12w vs G13 vs Pstryk)](docs/CASE_STUDY_TARIFF_BENCHMARK_G13_VS_DYNAMIC.md)**  
+  Empiryczny pojedynek polskich taryf elektroenergetycznych na 3 546 ciągłych interwałach godzinowych z domowego licznika energii i API PSE: dlaczego G13 nokautuje konkurencję (0,64 zł/kWh brutto), dlaczego zwykłe płaskie G11 bije dynamicznego Pstryka o ponad 300 zł, i dlaczego taryfy dynamiczne w sezonie grzewczym podwajają rachunki za energię (+99%).
 
 ---
 
