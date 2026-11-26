@@ -103,7 +103,35 @@ Pełne zestawienie kosztów zakupu netto miesiąc po miesiącu:
 
 ---
 
-## 5. Podsumowanie i Werdykt Strategiczny
+## 5. Elastyczność Popytu i Model Aktywnego Przesunięcia Profilu (Active Shifting)
+
+Częstym kontrargumentem zwolenników taryf dynamicznych jest zarzut pasywności profilu:  
+*„W taryfie G13 ładowałeś baterię w godzinach 13–16 oraz 21–07, bo tak wynikało z taryfy. Gdybyś przeszedł na Pstryka, algorytm EMS przesunąłby pobór do najtańszych godzin dynamicznych danej doby!”*
+
+Aby definitywnie zweryfikować ten argument, przeprowadzono symulację **skrajnie optymistycznego scenariusza aktywnego (Best-Case Active Shifting)**:
+* **Wariant A (Realny Active 6h):** Założono, że algorytm EMS przesuwa 100% dobowego poboru netto do **6 najtańszych godzin RCE każdej doby** (np. nocne dołki wiatrowe lub południowe dołki słoneczne) na płaskiej dystrybucji G11 (~0,35 zł brutto).
+* **Wariant B (Teoretyczne Minimum 1h):** Hipotetyczny, fizycznie niemożliwy wariant, w którym 100% dobowego zapotrzebowania domu zostaje skumulowane w **1 absolutnie najtańszej godzinie doby**.
+
+### Wyniki Symulacji Aktywnego Przesunięcia:
+
+| Miesiąc | Pobór Netto [kWh] | G13 Rzeczywisty [zł] | Pstryk: Pasywny [zł] | Pstryk: Aktywny 6h [zł] | Pstryk: Teoret. Min 1h [zł] |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Lipiec 2026** | 8,8 kWh | **5,82 zł** | 7,39 zł | 6,28 zł | **5,63 zł** *(remis)* |
+| **Sierpień 2026** | 19,1 kWh | **12,18 zł** | 15,59 zł | **11,76 zł** | **10,70 zł** *(Pstryk -1,48 zł)* |
+| **Wrzesień 2026** | 108,7 kWh | **71,80 zł** | 125,02 zł | 119,39 zł | 111,40 zł |
+| **Październik 2026** | 225,9 kWh | **147,42 zł** | 249,25 zł | 254,68 zł | 233,07 zł |
+| **Listopad 2026** | 615,2 kWh | **388,68 zł** | 848,13 zł | 769,59 zł | 710,36 zł |
+| **RAZEM** | **977,73 kWh** | **625,90 zł** | **1 245,40 zł** | **1 161,69 zł** | **1 071,16 zł** |
+| **Średnia za 1 kWh** | — | **0,640 zł/kWh** | **1,274 zł/kWh** | **1,188 zł/kWh** | **1,096 zł/kWh** |
+
+### Dlaczego nawet idealne przesunięcie profilu nie ratuje taryfy dynamicznej?
+1. **Fizyczna podłoga cenowa w KSE zimą:** W listopadzie średnia cena RCE w najtańszej godzinie doby wynosiła **525 zł/MWh netto** (0,525 zł/kWh netto). Po doliczeniu marży Pstryka (0,08 zł), VAT 23% i dystrybucji G11 (~0,35 zł), **najtańszy możliwy prąd w Pstryku w listopadzie kosztował 1,094 zł/kWh brutto**.
+2. **Nokaut ze strony taryfy G13:** W taryfie G13 stawka w dolinie nocnej i popołudniowej wynosi zabetonowane **0,62 zł/kWh brutto**. Różnica wynosi **0,47 zł na korzyść G13 na każdej pobranej kWh**, nawet w porównaniu z giełdowym dołkiem Pstryka.
+3. **Wniosek:** Aktywne sterowanie popytem w taryfie dynamicznej pozwala zredukować stratę o ok. 80–170 zł, ale taryfa **G13 i tak jest tańsza o ponad 445–535 zł**. Profilu nie da się przesunąć poniżej cen, jakie giełda oferuje w sezonie grzewczym.
+
+---
+
+## 6. Podsumowanie i Werdykt Strategiczny
 
 * **G13 to Złoty Standard:** W instalacji z automatyzacją EMS, magazynem energii oraz pompą ciepła taryfa G13 zapewnia najniższy możliwy koszt jednostkowy (**0,640 zł/kWh brutto**).
 * **Taryfa Dynamiczna to pułapka:** Brak ochrony tarczy i brak gwarantowanej doliny nocnej generuje w sezonie grzewczym podwojenie kosztów ogrzewania.

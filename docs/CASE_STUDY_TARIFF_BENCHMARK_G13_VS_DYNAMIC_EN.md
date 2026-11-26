@@ -103,7 +103,35 @@ Detailed monthly breakdown across all tariffs:
 
 ---
 
-## 5. Strategic Recommendation
+## 5. Demand Elasticity & Best-Case Active Load Shifting Model
+
+A common counter-argument raised by dynamic tariff proponents is load profile passivity:  
+*"In G13 you charged the battery during 13:00–16:00 and 21:00–07:00 because that was the fixed schedule. Under dynamic pricing, the EMS would shift all consumption into the cheapest wholesale hours of that specific day!"*
+
+To rigorously test this hypothesis, a **Best-Case Active Shifting Simulation** was performed:
+* **Scenario A (Realistic Active 6h Shift):** EMS shifts 100% of daily net grid import into the **6 cheapest RCE hours of each calendar day** (e.g. night wind surges or midday solar dips) on a flat G11 distribution rate (~0.35 PLN/kWh gross).
+* **Scenario B (Theoretical Absolute Floor 1h Shift):** A hypothetical, physically impossible scenario where 100% of daily household energy is concentrated into the **single cheapest hour of the day**.
+
+### Active Shifting Simulation Results:
+
+| Month | Net Grid Import [kWh] | G13 Actual [PLN] | Dynamic: Passive [PLN] | Dynamic: Active 6h [PLN] | Dynamic: Theor. Min 1h [PLN] |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **July 2026** | 8.8 kWh | **5.82 PLN** | 7.39 PLN | 6.28 PLN | **5.63 PLN** *(tie)* |
+| **August 2026** | 19.1 kWh | **12.18 PLN** | 15.59 PLN | **11.76 PLN** | **10.70 PLN** *(Dynamic -1.48 PLN)* |
+| **September 2026** | 108.7 kWh | **71.80 PLN** | 125.02 PLN | 119.39 PLN | 111.40 PLN |
+| **October 2026** | 225.9 kWh | **147.42 PLN** | 249.25 PLN | 254.68 PLN | 233.07 PLN |
+| **November 2026** | 615.2 kWh | **388.68 PLN** | 848.13 PLN | 769.59 PLN | 710.36 PLN |
+| **TOTAL** | **977.73 kWh** | **625.90 PLN** | **1,245.40 PLN** | **1,161.69 PLN** | **1,071.16 PLN** |
+| **Weighted Average / kWh** | — | **0.640 PLN/kWh** | **1.274 PLN/kWh** | **1.188 PLN/kWh** | **1.096 PLN/kWh** |
+
+### Why Active Load Shifting Still Cannot Save Dynamic Tariffs in Winter
+1. **Physical Wholesale Price Floor in Winter:** In November, the average price of the single cheapest hour each day was **525 PLN/MWh net** (0.525 PLN/kWh net). After adding retailer margin (0.08 PLN), 23% VAT, and G11 distribution (~0.35 PLN), **the absolute cheapest possible electricity under dynamic pricing in November cost 1.094 PLN/kWh gross**.
+2. **The G13 Advantage:** The regulated G13 off-peak rate is locked at **0.62 PLN/kWh gross**. This represents a **0.47 PLN/kWh structural discount in favor of G13**, even when compared to the absolute bottom of the wholesale market.
+3. **Conclusion:** Active EMS optimization reduces dynamic tariff losses by 80–170 PLN, but **G13 remains 445–535 PLN cheaper overall**. One cannot optimize demand below the price floor dictated by winter wholesale energy markets.
+
+---
+
+## 6. Strategic Recommendation
 
 * **G13 is the Gold Standard:** For homes equipped with EMS automation, residential batteries, and heat pumps, the 3-zone G13 tariff achieves the lowest levelized cost of purchased electricity (**0.640 PLN/kWh gross**).
 * **Dynamic Pricing is a Trap for Heating Loads:** Without price caps or guaranteed night valleys, dynamic tariffs double heating costs in winter.
