@@ -42,10 +42,10 @@ Wielu propagatorów taryf dynamicznych twierdzi, że *nawet jeśli taryfa dynami
 ### 2.1. Ustawowe Bilansowanie Godzinowe Wektorowe
 Zgodnie z **Art. 4 ust. 2b Ustawy z dnia 20 lutego 2015 r. o odnawialnych źródłach energii**, Operator Systemu Dystrybucyjnego (Tauron Dystrybucja) przeprowadza bilansowanie energii wprowadzonej i pobranej w ramach każdej godziny zegarowej:
 
-$$E_{\text{net\_imp}, h} = \max\left(0,\, E_{\text{imp}, h} - E_{\text{exp}, h}\right)$$
-$$E_{\text{net\_exp}, h} = \max\left(0,\, E_{\text{exp}, h} - E_{\text{imp}, h}\right)$$
+$$E_{\mathrm{net,imp}, h} = \max\left(0,\, E_{\mathrm{imp}, h} - E_{\mathrm{exp}, h}\right)$$
+$$E_{\mathrm{net,exp}, h} = \max\left(0,\, E_{\mathrm{exp}, h} - E_{\mathrm{imp}, h}\right)$$
 
-*Uwaga metodologiczna:* Zarówno w Tauronie, jak i w Pstryku, dane pomiarowe do rozliczenia pochodzą z tego samego fizycznego licznika OSD. Sprzedawca otrzymuje od OSD wartości już zbilansowane ($E_{\text{net\_imp}}$ oraz $E_{\text{net\_exp}}$). Bilansowanie godzinowe traktuje oba portfele w identyczny sposób.
+*Uwaga metodologiczna:* Zarówno w Tauronie, jak i w Pstryku, dane pomiarowe do rozliczenia pochodzą z tego samego fizycznego licznika OSD. Sprzedawca otrzymuje od OSD wartości już zbilansowane ($E_{\mathrm{net,imp}}$ oraz $E_{\mathrm{net,exp}}$). Bilansowanie godzinowe traktuje oba portfele w identyczny sposób.
 
 ### 2.2. Precyzyjne Składowe Kosztów Taryf Regulowanych (URE / Tauron)
 Wszystkie stawki bazują na oficjalnych taryfach zatwierdzonych przez Prezesa URE z uwzględnieniem ustawy o ochronie odbiorców energii (cena maksymalna energii czynnej 500 zł/MWh netto = 0,50 zł/kWh netto = 0,615 zł/kWh brutto):
@@ -61,11 +61,11 @@ Wszystkie stawki bazują na oficjalnych taryfach zatwierdzonych przez Prezesa UR
 * **Marża Pstryka:** Stała prowizja **0,08 zł/kWh netto** (0,0984 zł brutto).
 * **VAT:** 23%.
 * **Dystrybucja OSD:** Stawka zmienna sieciowa właściwa dla grupy taryfowej przyłącza.
-  $$C_{\text{Pstryk}}(h) = \left(RCE_h + 0,08\right) \times 1,23 + D_{\text{G13}}(h)$$
+  $$C_{\mathrm{Pstryk}}(h) = \left(RCE_h + 0,08\right) \times 1,23 + D_{\mathrm{G13}}(h)$$
 
 ### 2.4. Wycena Eksportu Energii (Depozyt Prosumencki)
-Wycena nadwyżki energii oddanej do sieci ($E_{\text{net\_exp}, h}$) po zbilansowaniu godzinowym rozliczana jest po stawce rynkowej $RCE_h$:
-$$W_{\text{depozyt}}(h) = E_{\text{net\_exp}, h} \times RCE_h$$
+Wycena nadwyżki energii oddanej do sieci ($E_{\mathrm{net,exp}, h}$) po zbilansowaniu godzinowym rozliczana jest po stawce rynkowej $RCE_h$:
+$$W_{\mathrm{depozyt}}(h) = E_{\mathrm{net,exp}, h} \times RCE_h$$
 Wartość depozytu w badanym okresie wyniosła dokładnie **514,05 zł** i jest identyczna dla wszystkich taryf.
 
 ---

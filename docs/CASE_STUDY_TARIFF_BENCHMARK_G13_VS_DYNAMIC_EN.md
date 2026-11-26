@@ -42,8 +42,8 @@ Advocates of dynamic pricing often claim that *even if dynamic tariffs fail to b
 ### 2.1. Statutory Hourly Vector Balancing
 Under **Art. 4 sec. 2b of the Polish Renewable Energy Sources Act (Ustawa o OZE)**, the Distribution System Operator (DSO) performs vector netting of imported and exported energy within each calendar clock hour:
 
-$$E_{\text{net\_imp}, h} = \max\left(0,\, E_{\text{imp}, h} - E_{\text{exp}, h}\right)$$
-$$E_{\text{net\_exp}, h} = \max\left(0,\, E_{\text{exp}, h} - E_{\text{imp}, h}\right)$$
+$$E_{\mathrm{net,imp}, h} = \max\left(0,\, E_{\mathrm{imp}, h} - E_{\mathrm{exp}, h}\right)$$
+$$E_{\mathrm{net,exp}, h} = \max\left(0,\, E_{\mathrm{exp}, h} - E_{\mathrm{imp}, h}\right)$$
 
 *Methodological note:* In both regulated utility tariffs and independent dynamic providers, billing data originates from the same physical DSO revenue meter. Both portfolios receive identical netted numbers.
 
@@ -61,11 +61,11 @@ Rates incorporate the national electricity price protection act (capped active e
 * **Retailer margin:** Flat fee **0.08 PLN/kWh net** (0.0984 PLN gross).
 * **VAT:** 23%.
 * **DSO Distribution:** Regulated variable network charge for the connection group:
-  $$C_{\text{Dynamic}}(h) = \left(RCE_h + 0.08\right) \times 1.23 + D_{\text{G13}}(h)$$
+  $$C_{\mathrm{Dynamic}}(h) = \left(RCE_h + 0.08\right) \times 1.23 + D_{\mathrm{G13}}(h)$$
 
 ### 2.4. Export Valuation (Net-Billing Deposit)
-Exported surplus energy ($E_{\text{net\_exp}, h}$) following hourly balancing is credited at the hourly market rate $RCE_h$:
-$$W_{\text{deposit}}(h) = E_{\text{net\_exp}, h} \times RCE_h$$
+Exported surplus energy ($E_{\mathrm{net,exp}, h}$) following hourly balancing is credited at the hourly market rate $RCE_h$:
+$$W_{\mathrm{deposit}}(h) = E_{\mathrm{net,exp}, h} \times RCE_h$$
 The total deposit credit over the benchmark period was **514.05 PLN**, identical across all evaluated tariffs.
 
 ---
