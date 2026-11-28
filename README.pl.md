@@ -79,7 +79,7 @@ Jednak architektura integracji jest w pełni elastyczna:
 | Producent | Obsługiwane serie / modele | Status sterownika | Dostępne tryby pracy |
 | :--- | :--- | :---: | :--- |
 | **GoodWe** | Seria ET, ES, EH, BH, BT | 🟢 **Stabilny (Przetestowany)** | Auto/Self-Use, Standby, Charge, Discharge, Export |
-| **Deye / SunSynk** | SUN-SG01/03/04/05, 3-Fazowe LP3/HP3 | 🟡 **Beta** | Zero-Export, Selling First, TOU Charge/Sell, Limity prądu |
+| **Deye / SunSynk** | SUN-SG01/03/04/05, 3-Fazowe LP3/HP3 | 🟡 **Beta** ([📖 Poradnik konfiguracji](docs/INVERTER_DEYE_SETUP.md)) | Zero-Export, Selling First, TOU Charge/Sell, Limity prądu |
 | **Hoymiles** | Seria hybrydowa HYS / HYT | 🟡 **Beta** | Self-Consumption, TOU, Peak Shaving |
 | **FoxESS** | Seria H1, H3, AC1, AIO | 🟡 **Beta** | Self-Use, Feed-in, Force Charge |
 | **Sofar Solar** | Seria HYD 3K–20K | 🟡 **Beta** | Self-Use, Time-of-Use, Standby |

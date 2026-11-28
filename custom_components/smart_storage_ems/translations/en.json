@@ -72,6 +72,11 @@
           "winter_min_soc": "Winter Minimum SoC (October-March, e.g. 0.50 = 50%)",
           "weather_alert_entity": "Severe Weather Warning Entity (Optional)"
         }
+      },
+      "inverter_actuators": {
+        "title": "Inverter Actuators (Step 2/2)",
+        "description": "Map the control entities specific to your selected inverter brand.",
+        "data": {}
       }
     }
   },

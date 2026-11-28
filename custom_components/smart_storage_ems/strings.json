@@ -91,6 +91,38 @@
           "winter_min_soc": "Winter Minimum SoC (October-March, e.g. 0.50 = 50%)",
           "weather_alert_entity": "Severe Weather Warning Entity (Optional)"
         }
+      },
+      "inverter_actuators": {
+        "title": "Inverter Controls & Actuators (Step 2/2)",
+        "description": "Configure actuator selects, power limits, and controls for your selected inverter.",
+        "data": {
+          "select_ems_mode": "GoodWe: EMS Mode Select Entity",
+          "select_inverter_mode": "GoodWe: Inverter Mode Select Entity",
+          "number_ems_power_limit": "GoodWe: EMS Power Limit Entity",
+          "number_export_limit": "GoodWe: Grid Export Limit Entity",
+          "min_export_limit": "GoodWe: Minimum Target Export Limit (W, optional)",
+          "deye_select_work_mode": "Deye: Inverter Work Mode Select Entity",
+          "deye_switch_grid_charge": "Deye: Grid Charge Enable Switch Entity",
+          "deye_switch_sell_solar": "Deye: Sell Solar / Solar Export Switch Entity",
+          "deye_number_charge_current": "Deye: Max Battery Charge Current (A, number)",
+          "deye_number_discharge_current": "Deye: Max Battery Discharge Current (A, number)",
+          "deye_sensor_battery_voltage": "Deye: Battery Voltage Sensor Entity (V)",
+          "deye_battery_nominal_voltage": "Deye: Battery Nominal Voltage (default: 51.2 V)",
+          "hoymiles_select_ems_mode": "Hoymiles: EMS Mode Select Entity",
+          "hoymiles_number_max_charge_power": "Hoymiles: Max Charge Power Limit (%, number)",
+          "hoymiles_number_max_discharge_power": "Hoymiles: Max Discharge Power Limit (%, number)",
+          "hoymiles_number_force_charge_soc": "Hoymiles: Force Charge Target SoC (%, number)",
+          "hoymiles_number_force_discharge_soc": "Hoymiles: Force Discharge Cut-off SoC (%, number)",
+          "hoymiles_rated_power": "Hoymiles: Inverter Rated Power (W, default: 10000)",
+          "sofar_select_work_mode": "Sofar: Work Mode Select Entity",
+          "sofar_number_charge_power": "Sofar: Battery Charge Power Command (W, number)",
+          "sofar_number_discharge_power": "Sofar: Battery Discharge Power Command (W, number)",
+          "foxess_select_work_mode": "FoxESS: Work Mode Select Entity (Self Use, Feed-in First, Back-up)",
+          "foxess_number_force_charge_power": "FoxESS: Force Charge Power Command (W, number)",
+          "foxess_number_min_soc_on_grid": "FoxESS: Min SoC on Grid (%, number, optional)",
+          "foxess_number_min_soc": "FoxESS: Min SoC (%, number, optional)",
+          "foxess_number_max_charge_current": "FoxESS: Max Battery Charge Current (A, number, optional)"
+        }
       }
     }
   },

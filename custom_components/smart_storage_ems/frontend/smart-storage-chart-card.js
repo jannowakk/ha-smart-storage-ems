@@ -300,8 +300,13 @@ class SmartStorageChartCard extends HTMLElement {
         /* KPI Cards */
         .kpi-row {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
           gap: 8px;
+        }
+        @media (max-width: 480px) {
+          .kpi-row {
+            grid-template-columns: repeat(2, 1fr);
+          }
         }
         .kpi-card {
           background: var(--secondary-background-color, rgba(0, 0, 0, 0.03));
@@ -309,6 +314,8 @@ class SmartStorageChartCard extends HTMLElement {
           border-radius: 10px;
           padding: 8px 6px;
           text-align: center;
+          min-width: 0;
+          box-sizing: border-box;
         }
         .kpi-label {
           font-size: 0.68rem;
@@ -323,6 +330,9 @@ class SmartStorageChartCard extends HTMLElement {
           font-size: 1.05rem;
           font-weight: 700;
           color: var(--primary-text-color, #212121);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         /* View Tabs & Zoom */

@@ -60,6 +60,7 @@ Po pobraniu nowych plików przez HACS, Home Assistant musi załadować nowy kod 
    - **`Sofar Solar (HYD 3K-6K-ES / EP, HYD-3PH) [BETA]`**
    - **`FoxESS (H1 / H3 / AIO / KH) [BETA]`**
 3. Wybierz swój model inwertera, kliknij **Zatwierdź** i wskaż encje sterujące z list rozwijanych (np. sensory i przełączniki wystawione przez ESPHome Lewa-Ręka lub Solarman).
+   - 📖 *Dokładne sparowanie encji dla inwerterów Deye znajdziesz w [Poradniku konfiguracji Deye / SunSynk](INVERTER_DEYE_SETUP.md).*
 
 ![Krok 4: Wybór Deye / SunSynk [BETA] na liście falowników](images/ha-step4-select-deye-beta-inverter.png)
 

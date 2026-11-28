@@ -1185,7 +1185,7 @@ class SmartStorageCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         recent_logs = list(self._log_handler.buffer) if hasattr(self, "_log_handler") else []
 
         return {
-            "version": "1.5.0b3",
+            "version": "1.5.0b4",
             "timestamp": datetime.now().isoformat(),
             "operation_mode": self.operation_mode,
             "config_error": self._config_error,

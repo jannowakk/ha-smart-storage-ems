@@ -91,6 +91,38 @@
           "winter_min_soc": "Zimowy minimalny SoC (październik-marzec, np. 0.50 = 50%)",
           "weather_alert_entity": "Sensor ostrzeżeń burzowych IMGW (opcjonalny)"
         }
+      },
+      "inverter_actuators": {
+        "title": "Sterowanie Falownikiem i Regulatory (Krok 2/2)",
+        "description": "Skonfiguruj encje sterujące (tryby pracy, limity mocy) dedykowane dla Twojego modelu falownika.",
+        "data": {
+          "select_ems_mode": "GoodWe: Encja trybu EMS (select)",
+          "select_inverter_mode": "GoodWe: Encja trybu falownika (select)",
+          "number_ems_power_limit": "GoodWe: Encja limitu mocy EMS (number)",
+          "number_export_limit": "GoodWe: Encja limitu eksportu do sieci (number)",
+          "min_export_limit": "GoodWe: Minimalny docelowy limit eksportu (W, opcjonalnie)",
+          "deye_select_work_mode": "Deye: Tryb pracy falownika (Work Mode, select)",
+          "deye_switch_grid_charge": "Deye: Przełącznik ładowania z sieci (Grid Charge, switch)",
+          "deye_switch_sell_solar": "Deye: Przełącznik sprzedaży energii (Sell Solar, switch)",
+          "deye_number_charge_current": "Deye: Limit prądu ładowania (A, number)",
+          "deye_number_discharge_current": "Deye: Limit prądu rozładowania (A, number)",
+          "deye_sensor_battery_voltage": "Deye: Sensor napięcia baterii (V, sensor)",
+          "deye_battery_nominal_voltage": "Deye: Napięcie nominalne baterii (domyślnie: 51.2 V)",
+          "hoymiles_select_ems_mode": "Hoymiles: Tryb EMS (select)",
+          "hoymiles_number_max_charge_power": "Hoymiles: Maksymalna moc ładowania (%, number)",
+          "hoymiles_number_max_discharge_power": "Hoymiles: Maksymalna moc rozładowania (%, number)",
+          "hoymiles_number_force_charge_soc": "Hoymiles: Docelowy SoC ładowania (%, number)",
+          "hoymiles_number_force_discharge_soc": "Hoymiles: Minimalny SoC rozładowania (%, number)",
+          "hoymiles_rated_power": "Hoymiles: Moc znamionowa falownika (W, domyślnie: 10000)",
+          "sofar_select_work_mode": "Sofar: Tryb pracy falownika (Work Mode, select)",
+          "sofar_number_charge_power": "Sofar: Moc ładowania baterii (W, number)",
+          "sofar_number_discharge_power": "Sofar: Moc rozładowania baterii (W, number)",
+          "foxess_select_work_mode": "FoxESS: Tryb pracy falownika (Work Mode, select)",
+          "foxess_number_force_charge_power": "FoxESS: Moc ładowania wymuszonego (W, number)",
+          "foxess_number_min_soc_on_grid": "FoxESS: Min SoC w sieci (Min SoC on Grid, %, opcjonalnie)",
+          "foxess_number_min_soc": "FoxESS: Bezwzględny Min SoC (%, opcjonalnie)",
+          "foxess_number_max_charge_current": "FoxESS: Limit prądu ładowania (A, opcjonalnie)"
+        }
       }
     }
   },

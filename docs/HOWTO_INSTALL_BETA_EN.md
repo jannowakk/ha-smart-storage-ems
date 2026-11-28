@@ -60,6 +60,7 @@ After downloading the new files via HACS, Home Assistant must restart to reload 
    - **`Sofar Solar (HYD 3K-6K-ES / EP, HYD-3PH) [BETA]`**
    - **`FoxESS (H1 / H3 / AIO / KH) [BETA]`**
 3. Select your model, click **Submit**, and map your control entities from the dropdowns (e.g. entities exposed via ESPHome Modbus or Solarman).
+   - 📖 *For exact entity mapping of Deye inverters, see the [Deye / SunSynk Setup Guide](INVERTER_DEYE_SETUP_EN.md).*
 
 ![Step 4: Select Deye / SunSynk [BETA] profile](images/ha-step4-select-deye-beta-inverter.png)
 

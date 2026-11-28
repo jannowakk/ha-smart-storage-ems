@@ -78,7 +78,7 @@ However, the architecture is completely flexible:
 | Inverter Brand | Supported Series / Models | Driver Status | Supported Operating Modes |
 | :--- | :--- | :---: | :--- |
 | **GoodWe** | ET, ES, EH, BH, BT series | 🟢 **Stable (Field-Tested)** | Auto/Self-Use, Standby, Charge, Discharge, Export |
-| **Deye / SunSynk** | SUN-SG01/03/04/05, 3-Phase LP3/HP3 | 🟡 **Beta** | Zero-Export, Selling First, TOU Charge/Sell, Current Limits |
+| **Deye / SunSynk** | SUN-SG01/03/04/05, 3-Phase LP3/HP3 | 🟡 **Beta** ([📖 Setup Guide](docs/INVERTER_DEYE_SETUP_EN.md)) | Zero-Export, Selling First, TOU Charge/Sell, Current Limits |
 | **Hoymiles** | HYS / HYT Hybrid Series | 🟡 **Beta** | Self-Consumption, TOU, Peak Shaving |
 | **FoxESS** | H1, H3, AC1, AIO Series | 🟡 **Beta** | Self-Use, Feed-in, Force Charge |
 | **Sofar Solar** | HYD 3K–20K Series | 🟡 **Beta** | Self-Use, Time-of-Use, Standby |
