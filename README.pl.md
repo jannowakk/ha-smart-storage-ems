@@ -31,6 +31,7 @@ Zaprojektowany tak, aby całkowicie wyeliminować konieczność pisania i utrzym
 * [🌟 Kluczowe Funkcje (Features)](#-kluczowe-funkcje-features)
 * [🏗️ Architektura](#️-architektura)
 * [📦 Instalacja](#-instalacja)
+  * [🧪 Jak zainstalować wersję BETA (Deye, Hoymiles, FoxESS, Sofar) ➔](docs/HOWTO_INSTALL_BETA.md)
 * [🚀 Szybki Start (Krok po kroku)](#-szybki-start-krok-po-kroku)
 * [⚙️ Wystawiane Encje](#️-wystawiane-encje)
 * [📊 Karty Dashboardu Lovelace](#-karty-dashboardu-lovelace)

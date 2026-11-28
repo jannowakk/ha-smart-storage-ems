@@ -30,6 +30,7 @@ Designed from the ground up to completely eliminate the need to maintain hundred
 * [🌟 Key Features](#-key-features)
 * [🏗️ Architecture](#️-architecture)
 * [📦 Installation](#-installation)
+  * [🧪 How to Install BETA Releases (Deye, Hoymiles, FoxESS, Sofar) ➔](docs/HOWTO_INSTALL_BETA_EN.md)
 * [🚀 Quick Start](#-quick-start)
 * [⚙️ Exposed Entities](#️-exposed-entities)
 * [📊 Dashboard Lovelace Cards](#-dashboard-lovelace-cards)
