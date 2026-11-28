@@ -1,20 +1,29 @@
 /**
  * Smart Storage EMS - Dedicated High-Performance Interactive MPC Chart Card
- * State-of-the-Art Dual-Axis 48h Optimization Horizon Canvas Renderer
+ * State-of-the-Art Clean UI with 24h Visual Timeline & 3 Intuitive Views
  * Pure vanilla Web Component for Home Assistant (Zero external dependencies)
  */
 
 const CHART_I18N = {
   pl: {
-    defaultTitle: 'Smart Storage EMS: Plan Optymalizacji MPC (48h)',
-    kpiCharge: '⚡ Zaplanowane Ładowanie',
-    kpiDischarge: '🔋 Zaplanowane Rozładowanie',
-    kpiSolar: '☀️ Prognoza PV (Suma)',
-    kpiMinSoc: '🛡️ Dynamiczny Min SoC',
-    filterAll: 'Wszystko',
-    filterBattery: 'Bateria & SoC',
-    filterSolar: 'Słońce vs Dom',
+    defaultTitle: 'Smart Storage EMS: Plan Pracy Baterii i Prognozy',
+    timelineTitle: 'Harmonogram Doby (24h):',
+    tlCharge: 'Ładowanie',
+    tlSelfUse: 'Zasilanie Domu',
+    tlHold: 'Czuwanie / Rezerwa',
+    tlExport: 'Eksport PV',
+    kpiCharge: '⚡ Ładowanie z sieci',
+    kpiDischarge: '🔋 Zasilanie z baterii',
+    kpiSolar: '☀️ Prognoza PV',
+    kpiMinSoc: '🛡️ Min SoC (Rezerwa)',
+    tabBattery: '🔋 Bateria & SoC',
+    tabSolar: '☀️ Słońce vs Dom',
+    tabPrices: '💰 Taryfy i Ceny',
+    tabAll: '🔬 Wszystko (Zaawansowane)',
     horizonPrefix: 'Horyzont: 48h (Krok 30m)',
+    horizonPrefix24: 'Horyzont: 24h (Krok 30m)',
+    zoomToday: '🔍 24h',
+    zoom48: '🌐 48h',
     sellNow: 'RCE Teraz',
     legCharging: 'Ładowanie Baterii (W)',
     legSelfUse: 'Autokonsumpcja (W)',
@@ -27,7 +36,7 @@ const CHART_I18N = {
     legTariff: 'Zakup / Taryfa',
     legRce: 'Sprzedaż RCE',
     waitTitle: '⏳ Oczekiwanie na wyniki optymalizacji z EMHASS',
-    waitSub1: 'Wykres 48h pojawi się automatycznie po publikacji sensor.p_batt_forecast',
+    waitSub1: 'Wykres pojawi się automatycznie po publikacji sensor.p_batt_forecast',
     waitSub2: '(Kliknij "Przelicz MPC Teraz" lub sprawdź URL EMHASS w konfiguracji)',
     nowMarker: 'TERAZ',
     locale: 'pl-PL',
@@ -47,15 +56,24 @@ const CHART_I18N = {
     ttLoad: 'Prognoza Dom',
   },
   en: {
-    defaultTitle: 'Smart Storage EMS: 48h MPC Optimization Plan',
-    kpiCharge: '⚡ Scheduled Charge',
-    kpiDischarge: '🔋 Scheduled Discharge',
-    kpiSolar: '☀️ Solar PV Forecast',
-    kpiMinSoc: '🛡️ Dynamic Min SoC',
-    filterAll: 'All',
-    filterBattery: 'Battery & SoC',
-    filterSolar: 'Solar vs Load',
+    defaultTitle: 'Smart Storage EMS: Battery Schedule & Forecasts',
+    timelineTitle: '24h Daily Timeline:',
+    tlCharge: 'Grid Charging',
+    tlSelfUse: 'Home Powering',
+    tlHold: 'Standby / Reserve',
+    tlExport: 'PV Export',
+    kpiCharge: '⚡ Grid Charge',
+    kpiDischarge: '🔋 Battery Discharge',
+    kpiSolar: '☀️ Solar Forecast',
+    kpiMinSoc: '🛡️ Min SoC Reserve',
+    tabBattery: '🔋 Battery & SoC',
+    tabSolar: '☀️ Solar vs Load',
+    tabPrices: '💰 Tariffs & Prices',
+    tabAll: '🔬 All (Advanced)',
     horizonPrefix: 'Horizon: 48h (30m step)',
+    horizonPrefix24: 'Horizon: 24h (30m step)',
+    zoomToday: '🔍 24h',
+    zoom48: '🌐 48h',
     sellNow: 'Sell Price Now',
     legCharging: 'Battery Charging (W)',
     legSelfUse: 'Self-Consumption (W)',
@@ -68,7 +86,7 @@ const CHART_I18N = {
     legTariff: 'Buy Tariff',
     legRce: 'Sell Price (RCE)',
     waitTitle: '⏳ Waiting for EMHASS optimization results',
-    waitSub1: 'The 48h chart will appear automatically once sensor.p_batt_forecast updates',
+    waitSub1: 'The chart will appear automatically once sensor.p_batt_forecast updates',
     waitSub2: '(Click "Optimize MPC" or check your EMHASS URL in settings)',
     nowMarker: 'NOW',
     locale: 'en-GB',
@@ -137,19 +155,67 @@ class SmartStorageChartCard extends HTMLElement {
   setConfig(config) {
     this.config = config || {};
     this._horizonHours = this.config.horizon_hours || 48;
-    this._filterMode = 'all'; // 'all', 'battery', 'solar'
-    this._visibleSeries = {
-      charging: true,
-      self_use: true,
-      export: true,
-      grid_import: true,
-      pv: true,
-      load: true,
-      soc: true,
-      min_soc: true,
-      tariff: true,
-      rce: true,
-    };
+    this._viewTab = this.config.default_view || 'battery'; // 'battery', 'solar', 'prices', 'all'
+    this._zoomToday = false; // default false (full 48h horizon)
+    this._applyTabVisibility(this._viewTab);
+  }
+
+  _applyTabVisibility(tab) {
+    this._viewTab = tab;
+    if (tab === 'battery') {
+      this._visibleSeries = {
+        charging: true,
+        self_use: true,
+        export: false,
+        grid_import: false,
+        pv: false,
+        load: false,
+        soc: true,
+        min_soc: true,
+        tariff: false,
+        rce: false,
+      };
+    } else if (tab === 'solar') {
+      this._visibleSeries = {
+        charging: false,
+        self_use: false,
+        export: true,
+        grid_import: true,
+        pv: true,
+        load: true,
+        soc: false,
+        min_soc: false,
+        tariff: false,
+        rce: false,
+      };
+    } else if (tab === 'prices') {
+      this._visibleSeries = {
+        charging: true,
+        self_use: false,
+        export: false,
+        grid_import: false,
+        pv: false,
+        load: false,
+        soc: true,
+        min_soc: false,
+        tariff: true,
+        rce: true,
+      };
+    } else {
+      // 'all'
+      this._visibleSeries = {
+        charging: true,
+        self_use: true,
+        export: true,
+        grid_import: true,
+        pv: true,
+        load: true,
+        soc: true,
+        min_soc: true,
+        tariff: true,
+        rce: true,
+      };
+    }
   }
 
   getCardSize() {
@@ -168,60 +234,169 @@ class SmartStorageChartCard extends HTMLElement {
           font-family: inherit;
           user-select: none;
         }
+        /* Visual 24h Timeline Bar */
+        .timeline-section {
+          background: var(--secondary-background-color, rgba(0, 0, 0, 0.03));
+          border: 1px solid var(--divider-color, rgba(128, 128, 128, 0.2));
+          border-radius: 12px;
+          padding: 10px 12px;
+        }
+        .timeline-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.76rem;
+          font-weight: 600;
+          color: var(--secondary-text-color, #757575);
+          margin-bottom: 6px;
+        }
+        .timeline-bar {
+          display: flex;
+          height: 22px;
+          border-radius: 6px;
+          overflow: hidden;
+          background: rgba(128, 128, 128, 0.15);
+          width: 100%;
+          border: 1px solid rgba(128, 128, 128, 0.2);
+        }
+        .timeline-slot {
+          flex: 1;
+          height: 100%;
+          transition: opacity 0.15s ease;
+          position: relative;
+        }
+        .timeline-slot:hover {
+          filter: brightness(1.2);
+          cursor: pointer;
+        }
+        .timeline-ticks {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.65rem;
+          color: var(--secondary-text-color, #888);
+          margin-top: 4px;
+          padding: 0 2px;
+        }
+        .timeline-legend {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+          font-size: 0.70rem;
+          margin-top: 6px;
+          flex-wrap: wrap;
+        }
+        .timeline-badge {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          display: inline-block;
+        }
+
+        /* KPI Cards */
         .kpi-row {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 8px;
         }
         .kpi-card {
-          background: var(--secondary-background-color, #f9f9f9);
-          border: 1px solid var(--divider-color, #e0e0e0);
+          background: var(--secondary-background-color, rgba(0, 0, 0, 0.03));
+          border: 1px solid var(--divider-color, rgba(128, 128, 128, 0.2));
           border-radius: 10px;
-          padding: 8px;
+          padding: 8px 6px;
           text-align: center;
         }
         .kpi-label {
-          font-size: 0.72rem;
+          font-size: 0.68rem;
           color: var(--secondary-text-color, #757575);
           font-weight: 500;
           margin-bottom: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         .kpi-val {
           font-size: 1.05rem;
           font-weight: 700;
           color: var(--primary-text-color, #212121);
         }
-        .filter-row {
+
+        /* View Tabs & Zoom */
+        .tabs-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          border-bottom: 1px solid var(--divider-color, rgba(128, 128, 128, 0.2));
+          padding-bottom: 8px;
+          gap: 8px;
+          flex-wrap: wrap;
         }
-        .filter-pills {
+        .tab-pills {
           display: flex;
           gap: 6px;
+          flex-wrap: wrap;
         }
-        .pill-btn {
-          background: var(--secondary-background-color, #f0f0f0);
-          border: 1px solid var(--divider-color, #ccc);
+        .right-controls {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .zoom-btn {
+          background: var(--secondary-background-color, rgba(0, 0, 0, 0.04));
+          border: 1px solid var(--divider-color, rgba(128, 128, 128, 0.3));
+          border-radius: 14px;
+          padding: 3px 10px;
+          font-size: 0.70rem;
+          font-weight: 700;
+          cursor: pointer;
+          color: var(--primary-text-color, #444);
+          transition: all 0.2s ease;
+        }
+        .zoom-btn:hover {
+          background: rgba(128, 128, 128, 0.15);
+        }
+        .zoom-btn.active {
+          background: #673ab7;
+          color: #fff;
+          border-color: #673ab7;
+        }
+        .tab-btn {
+          background: var(--secondary-background-color, rgba(0, 0, 0, 0.04));
+          border: 1px solid var(--divider-color, rgba(128, 128, 128, 0.25));
           border-radius: 16px;
-          padding: 4px 10px;
-          font-size: 0.75rem;
+          padding: 4px 12px;
+          font-size: 0.74rem;
           font-weight: 600;
           cursor: pointer;
           color: var(--primary-text-color, #333);
+          transition: all 0.2s ease;
         }
-        .pill-btn.active {
+        .tab-btn:hover {
+          background: rgba(3, 169, 244, 0.1);
+        }
+        .tab-btn.active {
           background: var(--primary-color, #03a9f4);
-          color: white;
+          color: #fff;
           border-color: var(--primary-color, #03a9f4);
         }
+        .sub-info {
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: var(--secondary-text-color, #757575);
+        }
+
+        /* Canvas Box */
         .canvas-container {
           position: relative;
           width: 100%;
           height: 320px;
           background: var(--card-background-color, #fff);
           border-radius: 12px;
-          border: 1px solid var(--divider-color, #e0e0e0);
+          border: 1px solid var(--divider-color, rgba(128, 128, 128, 0.2));
           overflow: hidden;
         }
         canvas {
@@ -232,60 +407,90 @@ class SmartStorageChartCard extends HTMLElement {
         .chart-legend {
           display: flex;
           flex-wrap: wrap;
-          gap: 12px;
-          font-size: 0.75rem;
+          gap: 10px;
+          font-size: 0.72rem;
           justify-content: center;
           color: var(--secondary-text-color, #666);
+          margin-top: 2px;
         }
         .legend-item {
           display: flex;
           align-items: center;
           gap: 5px;
           cursor: pointer;
-          padding: 3px 8px;
-          border-radius: 12px;
+          padding: 2px 7px;
+          border-radius: 10px;
           border: 1px solid transparent;
           transition: opacity 0.15s ease, background-color 0.15s ease;
         }
         .legend-item:hover {
-          background: var(--secondary-background-color, rgba(128, 128, 128, 0.1));
+          background: rgba(128, 128, 128, 0.1);
         }
         .legend-item.disabled {
           opacity: 0.35;
           text-decoration: line-through;
         }
         .legend-box {
-          width: 12px;
+          width: 10px;
           height: 10px;
           border-radius: 2px;
+          display: inline-block;
         }
         .legend-line {
           width: 14px;
-          height: 3px;
+          height: 2.5px;
           border-radius: 1px;
+          display: inline-block;
         }
         .legend-dash {
           width: 14px;
-          height: 0px;
-          border-top: 2px dashed #90a4ae;
+          height: 0;
+          border-top: 2px dashed #888;
+          display: inline-block;
         }
         .tooltip-box {
           position: absolute;
           display: none;
           pointer-events: none;
-          background: rgba(33, 33, 33, 0.92);
-          color: white;
+          background: rgba(28, 28, 30, 0.94);
+          color: #fff;
           padding: 8px 12px;
           border-radius: 8px;
-          font-size: 0.75rem;
-          line-height: 1.4;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          font-size: 0.72rem;
+          line-height: 1.45;
           z-index: 10;
-          white-space: nowrap;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+          border: 1px solid rgba(255,255,255,0.15);
+          backdrop-filter: blur(4px);
         }
       </style>
 
       <div class="chart-wrapper">
+        <!-- Visual 24h Timeline Bar -->
+        <div class="timeline-section" id="timelineBox">
+          <div class="timeline-header">
+            <span>⏱️ ${t.timelineTitle}</span>
+            <span id="timelineNow">TERAZ</span>
+          </div>
+          <div class="timeline-bar" id="timelineBar"></div>
+          <div class="timeline-ticks">
+            <span>00:00</span>
+            <span>04:00</span>
+            <span>08:00</span>
+            <span>12:00</span>
+            <span>16:00</span>
+            <span>20:00</span>
+            <span>24:00</span>
+          </div>
+          <div class="timeline-legend">
+            <span class="timeline-badge"><span class="dot" style="background: #4caf50;"></span> ${t.tlCharge}</span>
+            <span class="timeline-badge"><span class="dot" style="background: #2196f3;"></span> ${t.tlSelfUse}</span>
+            <span class="timeline-badge"><span class="dot" style="background: #ff9800;"></span> ${t.tlExport}</span>
+            <span class="timeline-badge"><span class="dot" style="background: rgba(128,128,128,0.4);"></span> ${t.tlHold}</span>
+          </div>
+        </div>
+
+        <!-- 4 KPI Metrics -->
         <div class="kpi-row">
           <div class="kpi-card">
             <div class="kpi-label">${t.kpiCharge}</div>
@@ -305,23 +510,30 @@ class SmartStorageChartCard extends HTMLElement {
           </div>
         </div>
 
-        <div class="filter-row">
-          <div class="filter-pills">
-            <button class="pill-btn active" data-filter="all">${t.filterAll}</button>
-            <button class="pill-btn" data-filter="battery">${t.filterBattery}</button>
-            <button class="pill-btn" data-filter="solar">${t.filterSolar}</button>
+        <!-- Tab Selection (Clean Views) & Zoom 24h -->
+        <div class="tabs-row">
+          <div class="tab-pills">
+            <button class="tab-btn active" data-tab="battery">${t.tabBattery}</button>
+            <button class="tab-btn" data-tab="solar">${t.tabSolar}</button>
+            <button class="tab-btn" data-tab="prices">${t.tabPrices}</button>
+            <button class="tab-btn" data-tab="all">${t.tabAll}</button>
           </div>
-          <div style="font-size: 0.75rem; font-weight: 600; color: var(--secondary-text-color, #757575);" id="chartHeaderSubtitle">
-            ${t.horizonPrefix}
+          <div class="right-controls">
+            <button class="zoom-btn" id="zoomToggleBtn" title="Przełącz widok 24h / 48h">${t.zoomToday}</button>
+            <div class="sub-info" id="chartHeaderSubtitle">
+              ${t.horizonPrefix}
+            </div>
           </div>
         </div>
 
+        <!-- Canvas -->
         <div class="canvas-container" id="canvasBox">
           <canvas id="emsChartCanvas"></canvas>
           <div class="tooltip-box" id="chartTooltip"></div>
         </div>
 
-        <div class="chart-legend">
+        <!-- Interactive Legend -->
+        <div class="chart-legend" id="chartLegendContainer">
           <div class="legend-item" data-series="charging"><div class="legend-box" style="background: #4caf50;"></div> ${t.legCharging}</div>
           <div class="legend-item" data-series="self_use"><div class="legend-box" style="background: #2196f3;"></div> ${t.legSelfUse}</div>
           <div class="legend-item" data-series="export"><div class="legend-box" style="background: #ff9800;"></div> ${t.legExport}</div>
@@ -344,38 +556,46 @@ class SmartStorageChartCard extends HTMLElement {
       this.content.querySelectorAll('.legend-item').forEach(item => {
         const key = item.getAttribute('data-series');
         if (key) {
-          item.classList.toggle('disabled', !this._visibleSeries[key]);
+          const isVisible = !!this._visibleSeries[key];
+          item.classList.toggle('disabled', !isVisible);
+          // Show or hide legend item depending on active tab for pristine clean UI
+          if (this._viewTab === 'battery') {
+            item.style.display = (key === 'charging' || key === 'self_use' || key === 'soc' || key === 'min_soc') ? 'flex' : 'none';
+          } else if (this._viewTab === 'solar') {
+            item.style.display = (key === 'pv' || key === 'load' || key === 'grid_import' || key === 'export') ? 'flex' : 'none';
+          } else if (this._viewTab === 'prices') {
+            item.style.display = (key === 'tariff' || key === 'rce' || key === 'charging' || key === 'soc') ? 'flex' : 'none';
+          } else {
+            item.style.display = 'flex';
+          }
         }
       });
     };
 
-    // Filter pill buttons (presets that update individual series toggles)
-    this.content.querySelectorAll('.pill-btn').forEach(btn => {
+    // Tab buttons handler
+    this.content.querySelectorAll('.tab-btn').forEach(btn => {
       btn.onclick = (e) => {
-        this.content.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+        this.content.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
-        this._filterMode = e.target.getAttribute('data-filter');
-        if (this._filterMode === 'all') {
-          Object.keys(this._visibleSeries).forEach(k => { this._visibleSeries[k] = true; });
-        } else if (this._filterMode === 'battery') {
-          this._visibleSeries = {
-            charging: true, self_use: true, export: true, grid_import: true,
-            pv: false, load: false,
-            soc: true, min_soc: true, tariff: true, rce: true,
-          };
-        } else if (this._filterMode === 'solar') {
-          this._visibleSeries = {
-            charging: false, self_use: false, export: true, grid_import: false,
-            pv: true, load: true,
-            soc: false, min_soc: false, tariff: false, rce: true,
-          };
-        }
+        const tab = e.target.getAttribute('data-tab');
+        this._applyTabVisibility(tab);
         syncLegendUI();
         this.render();
       };
     });
 
-    // Interactive legend toggles (click any item to show/hide that curve)
+    // Zoom button handler
+    const zoomBtn = this.content.querySelector('#zoomToggleBtn');
+    if (zoomBtn) {
+      zoomBtn.onclick = () => {
+        this._zoomToday = !this._zoomToday;
+        zoomBtn.classList.toggle('active', this._zoomToday);
+        zoomBtn.textContent = this._zoomToday ? t.zoom48 : t.zoomToday;
+        this.render();
+      };
+    }
+
+    // Individual legend toggle handler
     this.content.querySelectorAll('.legend-item').forEach(item => {
       item.onclick = () => {
         const key = item.getAttribute('data-series');
@@ -386,7 +606,7 @@ class SmartStorageChartCard extends HTMLElement {
       };
     });
 
-    // Mouse / Touch interaction
+    // Pointer interactions
     this._canvas.onmousemove = (e) => this._handlePointer(e.offsetX, e.offsetY);
     this._canvas.onmouseleave = () => { this._tooltip.style.display = 'none'; };
     this._canvas.ontouchmove = (e) => {
@@ -395,6 +615,8 @@ class SmartStorageChartCard extends HTMLElement {
       this._handlePointer(touch.clientX - rect.left, touch.clientY - rect.top);
     };
     this._canvas.ontouchend = () => { this._tooltip.style.display = 'none'; };
+
+    syncLegendUI();
   }
 
   _extractData() {
@@ -448,7 +670,7 @@ class SmartStorageChartCard extends HTMLElement {
         pointTime = new Date(baseTime.getTime() + i * 30 * 60000);
       }
 
-      // Align tariff price by timestamp offset (fallback to index if no start time)
+      // Align tariff price by timestamp offset
       let buyPrice = null;
       if (buyPrices.length > 0) {
         const priceIdx = Math.round((pointTime.getTime() - pricesBaseMs) / (30 * 60000));
@@ -470,7 +692,6 @@ class SmartStorageChartCard extends HTMLElement {
         }
       }
 
-      // Resilient parsing across all EMHASS naming conventions
       const rawBatt = bItem.p_batt_forecast ?? bItem.P_batt ?? bItem.p_batt ?? bItem.battery_power ?? 0;
       const rawSoc = sItem.soc_batt_forecast ?? sItem.battery_scheduled_soc ?? sItem.SOC_opt ?? sItem.soc_batt ?? sItem.soc ?? 0;
       const rawPv = pItem.p_pv_forecast ?? pItem.P_PV ?? pItem.p_pv ?? pItem.pv_power ?? 0;
@@ -502,26 +723,68 @@ class SmartStorageChartCard extends HTMLElement {
     return { dataPoints, dynamicMinSoc, hasData, tariffMode, currentSellPrice, sellPriceMode };
   }
 
+  _renderTimeline(points) {
+    const bar = this.content.querySelector('#timelineBar');
+    if (!bar) return;
+
+    if (!points || points.length === 0) {
+      bar.innerHTML = `<div style="width: 100%; text-align: center; font-size: 0.70rem; color: #888; line-height: 22px;">Brak danych harmonogramu</div>`;
+      return;
+    }
+
+    // Limit to next 24 hours (48 steps of 30 mins)
+    const count = Math.min(48, points.length);
+    let html = '';
+
+    for (let i = 0; i < count; i++) {
+      const p = points[i];
+      let color = 'rgba(128, 128, 128, 0.35)'; // Standby / Hold
+      let title = 'Standby / Hold';
+
+      if (p.p_batt < -50) {
+        color = '#4caf50'; // Charging
+        title = `Ładowanie: ${Math.round(Math.abs(p.p_batt))}W`;
+      } else if (p.grid < -50 && p.p_batt > 50) {
+        color = '#ff9800'; // Export
+        title = `Eksport: ${Math.round(Math.abs(p.grid))}W`;
+      } else if (p.p_batt > 50) {
+        color = '#2196f3'; // Self-use / powering home
+        title = `Zasilanie Domu: ${Math.round(p.p_batt)}W`;
+      }
+
+      const hours = p.time.getHours().toString().padStart(2, '0');
+      const mins = p.time.getMinutes().toString().padStart(2, '0');
+      const timeStr = `${hours}:${mins}`;
+
+      html += `<div class="timeline-slot" style="background: ${color};" title="${timeStr} - ${title}"></div>`;
+    }
+
+    bar.innerHTML = html;
+  }
+
   render() {
     if (!this._canvas || !this._hass) return;
 
-    const { dataPoints, dynamicMinSoc, hasData, tariffMode, currentSellPrice, sellPriceMode } = this._extractData();
+    const { dataPoints, dynamicMinSoc, hasData, tariffMode, currentSellPrice } = this._extractData();
     this._dataPoints = dataPoints;
     this._tariffMode = tariffMode;
-    this._currentSellPrice = currentSellPrice;
-    this._sellPriceMode = sellPriceMode;
+
+    let displayPoints = dataPoints;
+    if (this._zoomToday && dataPoints.length > 0) {
+      // Rolling 24 hours from now (exactly 48 steps of 30 mins)
+      displayPoints = dataPoints.slice(0, 48);
+    }
 
     const t = this._t();
     const curr = this._currency();
     const subtitle = this.content.querySelector('#chartHeaderSubtitle');
     if (subtitle) {
-      let subText = t.horizonPrefix;
+      let subText = this._zoomToday ? t.horizonPrefix24 : t.horizonPrefix;
       if (currentSellPrice !== undefined && currentSellPrice !== null) {
         subText += ` | ${t.sellNow}: ${parseFloat(currentSellPrice).toFixed(2)} ${curr}`;
       }
       subtitle.textContent = subText;
     }
-    this._tariffMode = tariffMode;
 
     const kpiCharge = this.content.querySelector('#kpiCharge');
     const kpiDischarge = this.content.querySelector('#kpiDischarge');
@@ -535,7 +798,7 @@ class SmartStorageChartCard extends HTMLElement {
       let totalDischargeKwh = 0;
       let totalSolarKwh = 0;
 
-      dataPoints.forEach(p => {
+      displayPoints.forEach(p => {
         if (p.p_batt < 0) totalChargeKwh += Math.abs(p.p_batt) * 0.5 / 1000.0;
         if (p.p_batt > 0) totalDischargeKwh += p.p_batt * 0.5 / 1000.0;
         totalSolarKwh += p.pv * 0.5 / 1000.0;
@@ -550,8 +813,11 @@ class SmartStorageChartCard extends HTMLElement {
       if (kpiSolar) kpiSolar.textContent = `-- kWh`;
     }
 
+    // Render Timeline Bar (GbbOptimizer-style 24h view)
+    this._renderTimeline(dataPoints);
+
     // Render Canvas
-    this._drawChart(dataPoints, dynamicMinSoc, hasData);
+    this._drawChart(displayPoints, dynamicMinSoc, hasData);
   }
 
   _drawChart(points, dynamicMinSoc, hasData = true) {
@@ -584,8 +850,8 @@ class SmartStorageChartCard extends HTMLElement {
 
     const padLeft = 46;
     const padRight = 42;
-    const padTop = 24;
-    const padBottom = 30;
+    const padTop = 22;
+    const padBottom = 28;
     const plotW = w - padLeft - padRight;
     const plotH = h - padTop - padBottom;
 
@@ -613,28 +879,28 @@ class SmartStorageChartCard extends HTMLElement {
     this._plotParams = { padLeft, padRight, padTop, padBottom, plotW, plotH, minPower, maxPower, powerRange };
 
     // 1. Draw Grid Lines
-    ctx.strokeStyle = 'rgba(128, 128, 128, 0.15)';
+    ctx.strokeStyle = 'rgba(128, 128, 128, 0.12)';
     ctx.lineWidth = 1;
 
     // Zero Line
     const yZero = getYPower(0);
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(128, 128, 128, 0.4)';
+    ctx.strokeStyle = 'rgba(128, 128, 128, 0.35)';
     ctx.moveTo(padLeft, yZero);
     ctx.lineTo(padLeft + plotW, yZero);
     ctx.stroke();
 
     // Horizontal power grid steps
     const stepCount = 4;
-    ctx.fillStyle = 'rgba(128, 128, 128, 0.8)';
-    ctx.font = '10px sans-serif';
+    ctx.fillStyle = 'rgba(128, 128, 128, 0.75)';
+    ctx.font = '10px -apple-system, sans-serif';
     ctx.textAlign = 'right';
 
     for (let i = 0; i <= stepCount; i++) {
       const pVal = minPower + (i / stepCount) * powerRange;
       const yVal = getYPower(pVal);
       ctx.beginPath();
-      ctx.strokeStyle = 'rgba(128, 128, 128, 0.1)';
+      ctx.strokeStyle = 'rgba(128, 128, 128, 0.08)';
       ctx.moveTo(padLeft, yVal);
       ctx.lineTo(padLeft + plotW, yVal);
       ctx.stroke();
@@ -642,18 +908,17 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     // Right SoC Axis Labels
-    ctx.textAlign = 'left';
-    [0, 25, 50, 75, 100].forEach(soc => {
-      const ySoc = getYSoc(soc);
-      ctx.fillText(`${soc}%`, padLeft + plotW + 6, ySoc + 3);
-    });
+    if (this._visibleSeries.soc) {
+      ctx.textAlign = 'left';
+      [0, 25, 50, 75, 100].forEach(soc => {
+        const ySoc = getYSoc(soc);
+        ctx.fillText(`${soc}%`, padLeft + plotW + 6, ySoc + 3);
+      });
+    }
 
-    const vis = this._visibleSeries || {
-      charging: true, self_use: true, export: true, grid_import: true,
-      pv: true, load: true, soc: true, min_soc: true, tariff: true, rce: true,
-    };
+    const vis = this._visibleSeries;
 
-    // 1B. Draw Tariff / Buy Price and RCE Sell Price Stepped Curves
+    // 1B. Draw Tariff / Prices if active
     const validBuyPrices = vis.tariff ? points.map(p => p.buy_price).filter(v => v !== null && !isNaN(v)) : [];
     const validSellPrices = vis.rce ? points.map(p => p.sell_price).filter(v => v !== null && !isNaN(v)) : [];
     const allValidPrices = [...validBuyPrices, ...validSellPrices];
@@ -683,7 +948,7 @@ class SmartStorageChartCard extends HTMLElement {
         }
       }
 
-      // Stepped tariff buy line (Purple #ab47bc)
+      // Stepped tariff buy line
       if (vis.tariff && validBuyPrices.length > 0) {
         ctx.strokeStyle = 'rgba(171, 71, 188, 0.85)';
         ctx.lineWidth = 1.8;
@@ -706,7 +971,7 @@ class SmartStorageChartCard extends HTMLElement {
         ctx.stroke();
       }
 
-      // Stepped RCE sell price line (Cyan #00bcd4)
+      // Stepped RCE sell price line
       if (vis.rce && validSellPrices.length > 0) {
         ctx.strokeStyle = '#00bcd4';
         ctx.lineWidth = 2.0;
@@ -727,27 +992,13 @@ class SmartStorageChartCard extends HTMLElement {
           prevY = y;
         });
         ctx.stroke();
-
-        // If any price is negative, draw red dashed zero line
-        if (minPrice < 0) {
-          const yZeroP = getYPrice(0);
-          ctx.strokeStyle = 'rgba(244, 67, 54, 0.7)';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.beginPath();
-          ctx.moveTo(padLeft, yZeroP);
-          ctx.lineTo(padLeft + plotW, yZeroP);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
       }
     }
 
-    // 2. Draw Battery Power Areas and Continuous Line
+    // 2. Draw Battery Power Areas
     if (vis.charging || vis.self_use || vis.export) {
       const stepW = points.length > 1 ? plotW / (points.length - 1) : plotW;
 
-      // 2A. Shaded power areas (under / above zero line)
       points.forEach((p, idx) => {
         const x = getX(idx);
         const pVal = p.p_batt;
@@ -758,62 +1009,24 @@ class SmartStorageChartCard extends HTMLElement {
 
         if (Math.abs(pVal) > 20) {
           if (pVal < -20 && vis.charging) {
-            // Charging from Grid/PV (Green Area below zero)
-            ctx.fillStyle = 'rgba(76, 175, 80, 0.45)';
+            ctx.fillStyle = 'rgba(76, 175, 80, 0.40)';
             const yTop = yZero;
             const yBottom = getYPower(pVal);
             ctx.fillRect(xLeft, yTop, wSeg, yBottom - yTop);
           } else if (p.grid < -50 && pVal > 50 && vis.export) {
-            // Export to Grid (Amber/Orange Area above zero)
-            ctx.fillStyle = 'rgba(255, 152, 0, 0.50)';
+            ctx.fillStyle = 'rgba(255, 152, 0, 0.45)';
             const yTop = getYPower(pVal);
             ctx.fillRect(xLeft, yTop, wSeg, yZero - yTop);
           } else if (pVal > 20 && !(p.grid < -50 && pVal > 50) && vis.self_use) {
-            // Self-consumption to House (Blue Area above zero)
-            ctx.fillStyle = 'rgba(33, 150, 243, 0.45)';
+            ctx.fillStyle = 'rgba(33, 150, 243, 0.40)';
             const yTop = getYPower(pVal);
             ctx.fillRect(xLeft, yTop, wSeg, yZero - yTop);
           }
         }
       });
-
-      // 2B. Continuous Battery Power Outline Curve (respecting toggles)
-      const isPointVisible = (p) => {
-        if (p.p_batt < -20) return vis.charging;
-        if (p.grid < -50 && p.p_batt > 50) return vis.export;
-        if (p.p_batt > 20) return vis.self_use;
-        return vis.charging || vis.self_use || vis.export;
-      };
-
-      ctx.lineWidth = 2;
-      for (let i = 0; i < points.length - 1; i++) {
-        const p1 = points[i];
-        const p2 = points[i + 1];
-        if (!isPointVisible(p1) && !isPointVisible(p2)) continue;
-
-        const x1 = getX(i);
-        const y1 = getYPower(isPointVisible(p1) ? p1.p_batt : 0);
-        const x2 = getX(i + 1);
-        const y2 = getYPower(isPointVisible(p2) ? p2.p_batt : 0);
-
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-
-        if ((p1.p_batt < -20 || p2.p_batt < -20) && vis.charging) {
-          ctx.strokeStyle = '#4caf50'; // Green: charging
-        } else if (((p1.grid < -50 && p1.p_batt > 50) || (p2.grid < -50 && p2.p_batt > 50)) && vis.export) {
-          ctx.strokeStyle = '#ff9800'; // Orange: export
-        } else if ((p1.p_batt > 20 || p2.p_batt > 20) && vis.self_use) {
-          ctx.strokeStyle = '#2196f3'; // Blue: self-consumption
-        } else {
-          ctx.strokeStyle = 'rgba(128, 128, 128, 0.4)'; // Neutral / zero
-        }
-        ctx.stroke();
-      }
     }
 
-    // 2C. Draw Grid Import Curve (Coral / Orange-Red line #ff5722)
+    // 2B. Grid Import Curve
     if (vis.grid_import) {
       ctx.strokeStyle = '#ff5722';
       ctx.lineWidth = 2;
@@ -827,11 +1040,10 @@ class SmartStorageChartCard extends HTMLElement {
       ctx.stroke();
     }
 
-    // 3. Draw Solar & Load Curves
+    // 3. Solar & Load Curves
     if (vis.pv) {
-      // Solar Curve (Yellow)
       ctx.strokeStyle = '#fbc02d';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.2;
       ctx.beginPath();
       points.forEach((p, idx) => {
         const x = getX(idx);
@@ -843,9 +1055,8 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     if (vis.load) {
-      // Load Curve (Light Grey Dashed)
       ctx.strokeStyle = '#90a4ae';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.6;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
       points.forEach((p, idx) => {
@@ -858,7 +1069,7 @@ class SmartStorageChartCard extends HTMLElement {
       ctx.setLineDash([]);
     }
 
-    // 4. Draw Dynamic Min SoC Reference Line (Red Horizontal)
+    // 4. Dynamic Min SoC Reference Line
     if (vis.min_soc) {
       const yMinSoc = getYSoc(dynamicMinSoc);
       ctx.strokeStyle = 'rgba(211, 47, 47, 0.7)';
@@ -871,10 +1082,10 @@ class SmartStorageChartCard extends HTMLElement {
       ctx.setLineDash([]);
     }
 
-    // 5. Draw SoC Trajectory Line (Glowing Pink/Magenta)
+    // 5. SoC Trajectory Line (Glowing Pink)
     if (vis.soc) {
       ctx.strokeStyle = '#e91e63';
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2.8;
       ctx.beginPath();
       points.forEach((p, idx) => {
         const x = getX(idx);
@@ -886,8 +1097,8 @@ class SmartStorageChartCard extends HTMLElement {
     }
 
     // 6. Time Labels on X axis
-    ctx.fillStyle = 'rgba(128, 128, 128, 0.9)';
-    ctx.font = '10px sans-serif';
+    ctx.fillStyle = 'rgba(128, 128, 128, 0.85)';
+    ctx.font = '10px -apple-system, sans-serif';
     ctx.textAlign = 'center';
 
     const labelInterval = Math.max(4, Math.floor(points.length / 8));
@@ -980,5 +1191,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: 'smart-storage-chart-card',
   name: 'Smart Storage EMS: 48h MPC Chart',
-  description: 'Interactive dual-axis chart showing the 48h battery schedule, solar PV forecast, house load, and prices.'
+  description: 'Clean high-performance chart with a 24h visual timeline and dedicated views for battery, solar, and prices.'
 });

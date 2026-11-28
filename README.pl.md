@@ -9,14 +9,16 @@
 </p>
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jannowakk&repository=ha-smart-storage-ems&category=integration)
-[![marketplace_badge](https://img.shields.io/badge/Marketplace-Official-brightgreen.svg)](https://github.com/hacs/default)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
+[![GitHub Release](https://img.shields.io/github/v/release/jannowakk/ha-smart-storage-ems?color=blue&logo=github)](https://github.com/jannowakk/ha-smart-storage-ems/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/jannowakk/ha-smart-storage-ems?style=social)](https://github.com/jannowakk/ha-smart-storage-ems/stargazers)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Postaw kawę na buycoffee.to](https://img.shields.io/badge/Postaw_kawę-buycoffee.to-00C48C?style=flat&logo=coffeescript&logoColor=white)](https://buycoffee.to/jannowakk)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jannowakk)
 
-**Smart Storage EMS** to inteligentna, modułowa nakładka (Energy Management System) na **EMHASS** dla Home Assistant, która przekształca matematyczne plany optymalizacji baterii w bezpieczne, fizyczne sterowanie falownikiem hybrydowym.
+**Smart Storage EMS** to inteligentny, autonomiczny system zarządzania energią (EMS) dla Home Assistant, który przekształca plany optymalizacyjne (EMHASS MPC/MILP) w bezpieczne, fizyczne sterowanie falownikami hybrydowymi na poziomie rejestrów sprzętowych.
 
-Zaprojektowana tak, aby całkowicie wyeliminować konieczność pisania setek linijek szablonów Jinja2, skomplikowanych automatyzacji i rest_commandów w YAML.
+Zaprojektowany tak, aby całkowicie wyeliminować konieczność pisania i utrzymywania setek linijek szablonów Jinja2, skomplikowanych automatyzacji i rest_commandów w YAML. Dzięki modułowej architekturze Hardware Abstraction Layer (HAL) wspiera wielu producentów falowników bez konieczności rzeźbienia własnych skryptów.
 
 > [!NOTE]
 > **Status projektu:** Integracja znajduje się w fazie intensywnego, aktywnego rozwoju. Chociaż działa stabilnie i bezpiecznie w instalacjach produkcyjnych (m.in. GoodWe ET/ES + EMHASS), nie należy oczekiwać bezobsługowego „gotowca OOB” pod każdą dowolną konfigurację sprzętową. Zachęcamy do zgłaszania uwag, testowania i współtworzenia projektu!
@@ -59,13 +61,42 @@ Jednak architektura integracji jest w pełni elastyczna:
 
 ## 🌟 Kluczowe Funkcje (Features)
 
-* **Plug & Play przez UI (Config Flow):** Konfiguracja w 100% w interfejsie Home Assistant – wybierasz encje falownika, EMHASS i taryfę z list rozwijanych.
-* **GoodWe Inverter HAL:** Natywne, bezpośrednie sterowanie inwerterami hybrydowymi GoodWe (ET, ES) poprzez rejestry EMS (`battery_standby`, `charge_battery`, `export_ac`, `auto/self_use`).
-* **Strażnik Importu (Zero Import Guard):** Moduł czasu rzeczywistego eliminujący lagi inwertera. Jeśli dom zaczyna pobierać drogi prąd z sieci powyżej zadanego progu (np. >300 W), a bateria posiada ładunek, Strażnik natychmiast wymusza tryb autokonsumpcji.
-* **Ochrona w Taniej Strefie (Standby Mode):** Gdy prąd w taryfie strefowej (np. G13 / G12w) jest tani, bateria przechodzi w tryb `battery_standby`, aby nie zużywać cykli akumulatora na zasilanie domu.
+* **Plug & Play przez UI (Config Flow):** Konfiguracja w 100% w interfejsie Home Assistant – wybierasz encje falownika, EMHASS i taryfę z przejrzystych list rozwijanych bez pisania ani jednej linijki YAML-a.
+* **Wieloproducentowa warstwa Inverter HAL:** Bezpośrednie, bezpieczne sterowanie rejestrami falowników GoodWe, Deye / SunSynk, Hoymiles, FoxESS oraz Sofar Solar.
+* **Strażnik Importu (Zero Import Guard):** Moduł czasu rzeczywistego reagujący w ułamku sekundy (<1s) i eliminujący lagi inwertera. Jeśli dom zaczyna pobierać drogi prąd z sieci powyżej zadanego progu (np. >300 W), a bateria posiada ładunek, Strażnik natychmiast wymusza tryb autokonsumpcji.
+* **Ochrona pamięci falownika (Zero-Wear Protection):** Zaawansowane algorytmy histerezy i deadbandu zapobiegają zużyciu pamięci Flash/EEPROM falownika przez zbyt częste zapisy rejestrów. Zawiera wbudowany, odporny na restarty licznik operacji.
+* **Ochrona w Taniej Strefie (Standby Mode):** Gdy prąd w taryfie strefowej (np. G13 / G12w) jest tani, bateria przechodzi w tryb `battery_standby`, aby nie zużywać cennych cykli akumulatora na zasilanie domu.
 * **Dynamiczny Bufor Rezerwy (Dynamic Min SoC):** Automatyczne podnoszenie minimalnego poziomu naładowania na zimę (październik–marzec) oraz przy ostrzeżeniach burzowych IMGW (ochrona przed blackoutem).
 * **Bezpiecznik Off-Grid:** Natychmiastowe zamrożenie operacji EMS w przypadku zaniku sieci energetycznej, gwarantujące stabilność zasilania awaryjnego.
-* **Architektura gotowa na rozbudowę:** Odseparowana warstwa HAL (Hardware Abstraction Layer) umożliwiająca łatwe dodanie kolejnych producentów falowników (Deye, Victron, Huawei).
+* **Wbudowane prognozy i obsługa polskich taryf:** Autonomiczne prognozowanie PV (Solcast + Open-Meteo), modelowanie profilu obciążenia domu, pełna obsługa taryf (G13, G13s, G12w, G12, G12r, G12n, G11) wraz z kalendarzem świąt oraz pobieranie cen dynamicznych RCE z PSE.
+* **Wbudowana Autodiagnostyka i Wizualizacja:** Natywny eksport danych diagnostycznych oraz interaktywne karty Lovelace (diagnostyka sensorów, jednostek W vs kW oraz wykres 24h z osiami czasu).
+
+---
+
+### 🔌 Obsługiwane Falowniki Hybrydowe (Inverter HAL)
+
+| Producent | Obsługiwane serie / modele | Status sterownika | Dostępne tryby pracy |
+| :--- | :--- | :---: | :--- |
+| **GoodWe** | Seria ET, ES, EH, BH, BT | 🟢 **Stabilny (Przetestowany)** | Auto/Self-Use, Standby, Charge, Discharge, Export |
+| **Deye / SunSynk** | SUN-SG01/03/04/05, 3-Fazowe LP3/HP3 | 🟡 **Beta** | Zero-Export, Selling First, TOU Charge/Sell, Limity prądu |
+| **Hoymiles** | Seria hybrydowa HYS / HYT | 🟡 **Beta** | Self-Consumption, TOU, Peak Shaving |
+| **FoxESS** | Seria H1, H3, AC1, AIO | 🟡 **Beta** | Self-Use, Feed-in, Force Charge |
+| **Sofar Solar** | Seria HYD 3K–20K | 🟡 **Beta** | Self-Use, Time-of-Use, Standby |
+| **Victron Energy** | MultiPlus-II / ESS | 🔵 *Roadmapa* | Modbus-TCP / Venus OS HAL |
+| **Huawei** | SUN2000 + LUNA2000 | 🔵 *Roadmapa* | Remote TOU przez Modbus |
+
+---
+
+### 💡 Dlaczego Smart Storage EMS?
+
+Budowa efektywnego zarządzania magazynem energii w domu zazwyczaj wiąże się z trudnym wyborem pomiędzy skomplikowanymi, trudnymi w utrzymaniu skryptami YAML a zamkniętymi systemami zewnętrznymi. **Smart Storage EMS** rozwiązuje ten problem jako natywna, w 100% lokalna integracja Home Assistant:
+
+* **100% konfiguracji w interfejsie (Zero YAML):** Całe mapowanie encji falownika, limity baterii, taryfy i profile optymalizacji konfigurujesz z poziomu okien dialogowych Config Flow i Options Flow.
+* **Uniwersalna warstwa Hardware Abstraction (Inverter HAL):** Ujednolica sterowanie falownikami GoodWe, Deye/SunSynk, Hoymiles, FoxESS oraz Sofar Solar poprzez bezpośrednie mapowanie na istniejące encje integracji inwerterów w Twoim Home Assistant.
+* **Podsekundowy Strażnik Importu (Zero Import Guard):** Podczas gdy harmonogramy godzinowe wyliczają ogólny plan doby, lokalny Strażnik czasu rzeczywistego eliminuje opóźnienia regulacji inwertera i natychmiast odcina pobór drogiej energii z sieci, gdy w domu włączą się duże odbiorniki.
+* **Natywna obsługa polskich taryf:** Wbudowane reguły dla taryf strefowych (G13, G13s, G12w, G12, G12r, G12n, G11), dynamiczne ceny rynkowe PSE RCE oraz oficjalny kalendarz polskich świąt i dni ustawowo wolnych.
+* **Dostosowanie do pompy ciepła i mrozów:** Chroni budynek zimą dzięki temperaturowej krzywej dynamicznego Min SoC, rezerwując odpowiedni bufor energii w baterii na potrzeby ogrzewania i obwodów zasilania awaryjnego (EPS).
+* **Ochrona pamięci falownika Flash/EEPROM:** Inteligentne progi histerezy, deadband oraz buforowanie komend zapobiegają przedwczesnemu zużyciu pamięci falownika przez zbyt częste zapisy rejestrów.
 
 ---
 

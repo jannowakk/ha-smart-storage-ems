@@ -9,13 +9,15 @@
 </p>
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jannowakk&repository=ha-smart-storage-ems&category=integration)
-[![marketplace_badge](https://img.shields.io/badge/Marketplace-Official-brightgreen.svg)](https://github.com/hacs/default)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
+[![GitHub Release](https://img.shields.io/github/v/release/jannowakk/ha-smart-storage-ems?color=blue&logo=github)](https://github.com/jannowakk/ha-smart-storage-ems/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/jannowakk/ha-smart-storage-ems?style=social)](https://github.com/jannowakk/ha-smart-storage-ems/stargazers)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/jannowakk)
 
-**Smart Storage EMS** is an intelligent, modular Energy Management System wrapper for **EMHASS** in Home Assistant that translates mathematical battery optimization plans into safe, real-world control of hybrid solar inverters.
+**Smart Storage EMS** is an intelligent, autonomous Energy Management System for Home Assistant that translates mathematical optimization plans (EMHASS MPC/MILP) into safe, hardware-level physical control of hybrid solar inverters.
 
-Designed from the ground up to completely eliminate the need to maintain hundreds of lines of fragile Jinja2 templates, complex YAML automations, and manual `rest_command` calls.
+Designed from the ground up to completely eliminate the need to maintain hundreds of lines of fragile Jinja2 templates, complex YAML automations, and manual `rest_command` calls. Supports multiple hybrid inverters out-of-the-box via an extensible Hardware Abstraction Layer (HAL).
 
 > [!NOTE]
 > **Project Status:** This integration is under active, rapid development. While it runs reliably and safely in real-world production setups (including GoodWe ET/ES + EMHASS), please do not expect a turnkey out-of-the-box solution for every arbitrary hardware setup yet. Feedback, testing, and contributions are very welcome!
@@ -58,15 +60,42 @@ However, the architecture is completely flexible:
 
 ## 🌟 Key Features
 
-* **100% UI-Driven Setup (Config & Options Flow):** Select inverter entities, EMHASS settings, forecasts, and tariffs directly in Home Assistant without writing YAML.
-* **GoodWe Inverter HAL:** Direct, register-safe control of GoodWe hybrid inverters (ET/ES/EH series) via EMS modes (`battery_standby`, `charge_battery`, `export_ac`, `auto/self_use`).
-* **Zero Import Guard (Real-Time Protection):** Eliminates inverter response lag. If house import exceeds a configured safety threshold (e.g. `> 300 W`) while the battery has available charge above Min SoC, the Guard immediately enforces native self-consumption.
+* **100% UI-Driven Setup (Config & Options Flow):** Select inverter entities, EMHASS settings, forecasts, and tariffs directly in Home Assistant without writing a single line of YAML.
+* **Modular Inverter HAL (Hardware Abstraction Layer):** Register-safe, native hardware drivers for GoodWe, Deye / SunSynk, Hoymiles, FoxESS, and Sofar Solar.
+* **Zero Import Guard (Real-Time Protection):** Eliminates inverter response lag. If house import exceeds a configured safety threshold (e.g. `> 300 W`) while the battery has available charge above Min SoC, the Guard immediately enforces native self-consumption in sub-second time.
+* **Zero-Wear Inverter Protection:** Dynamic deadband and hysteresis algorithms protect the inverter's Flash/EEPROM memory from wear caused by excessive write cycles. Includes an optional persistent writes counter.
 * **Off-Peak Battery Protection (Standby Mode):** During cheap tariff windows, the battery enters `battery_standby` so the house draws inexpensive grid power directly instead of burning battery cycles.
 * **Dynamic Min SoC Buffer:** Automatically raises minimum battery reserve during winter months (Oct–Mar) based on outdoor temperature (frost factor) and active weather alerts (blackout protection).
 * **Off-Grid Safety Lock:** Immediately freezes all EMS write commands to the inverter during grid outages / islanding mode, preserving EPS/Backup stability.
 * **Built-In Forecasting & Tariff Engine:** Native 48h rolling PV generation (Solcast + Open-Meteo fallback), built-in parametric daily house load profiling (zero-load fallback), built-in Polish multi-zone tariffs (G13s, G13, G12w, G12, G12r, G12n, G11), and direct PSE RCE dynamic market price fetching.
-* **Built-In Autodiagnostics:** Native HA diagnostics download (with automatic secret redaction) plus an interactive Lovelace Autodiagnostics card verifying sensors, units (`W` vs `kW`), 48h vectors, inverter readback, and live RAM logs.
-* **Extensible HAL Architecture:** Clean Hardware Abstraction Layer (`BaseInverter`) ready for additional inverter drivers (Victron, Deye, Huawei).
+* **Built-In Autodiagnostics:** Native HA diagnostics download (with automatic secret redaction) plus interactive Lovelace Autodiagnostics and 24h Visual Timeline cards.
+
+---
+
+### 🔌 Supported Hybrid Inverters (Hardware Matrix)
+
+| Inverter Brand | Supported Series / Models | Driver Status | Supported Operating Modes |
+| :--- | :--- | :---: | :--- |
+| **GoodWe** | ET, ES, EH, BH, BT series | 🟢 **Stable (Field-Tested)** | Auto/Self-Use, Standby, Charge, Discharge, Export |
+| **Deye / SunSynk** | SUN-SG01/03/04/05, 3-Phase LP3/HP3 | 🟡 **Beta** | Zero-Export, Selling First, TOU Charge/Sell, Current Limits |
+| **Hoymiles** | HYS / HYT Hybrid Series | 🟡 **Beta** | Self-Consumption, TOU, Peak Shaving |
+| **FoxESS** | H1, H3, AC1, AIO Series | 🟡 **Beta** | Self-Use, Feed-in, Force Charge |
+| **Sofar Solar** | HYD 3K–20K Series | 🟡 **Beta** | Self-Use, Time-of-Use, Standby |
+| **Victron Energy** | MultiPlus-II / ESS | 🔵 *Roadmap* | Modbus-TCP / Venus OS HAL |
+| **Huawei** | SUN2000 + LUNA2000 | 🔵 *Roadmap* | Remote TOU via Modbus |
+
+---
+
+### 💡 Why Smart Storage EMS?
+
+Building an efficient home battery automation usually requires choosing between complex, hard-to-maintain YAML scripts and opaque external systems. **Smart Storage EMS** bridges this gap as a native, 100% local Home Assistant integration:
+
+* **100% UI Configuration (Zero YAML):** Set up your inverter mapping, battery limits, tariffs, and optimization profiles entirely through native Config Flow and Options Flow menus.
+* **Universal Inverter Entity HAL:** Standardizes control across GoodWe, Deye/SunSynk, Hoymiles, FoxESS, and Sofar Solar by mapping to your existing Home Assistant inverter integration entities.
+* **Sub-Second Zero-Import Guard:** While predictive hourly models calculate general dispatch schedules, the local real-time Guard eliminates inverter control lag and cuts grid draw instantly when sudden home loads turn on.
+* **Native Polish Market Tariffs:** Out-of-the-box support for multi-zone tariffs (G13, G13s, G12w, G12, G12r, G12n, G11), dynamic PSE RCE market pricing, and official Polish public holiday calendar rules.
+* **Heating & Building Dynamics Aware:** Protects your home during winter freezes with temperature-dependent dynamic Min SoC curves, ensuring battery reserves for heat pumps and essential backup circuits.
+* **Hardware EEPROM / Flash Protection:** Intelligent deadbands and command tracking prevent excessive flash memory wear on your inverter from high-frequency register writes.
 
 ---
 
